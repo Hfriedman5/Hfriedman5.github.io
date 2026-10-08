@@ -1,6 +1,6 @@
 // The record collection, shared by the turntable (music.js) and the Odeon in Little Athens (play.js).
 // Recordings still under copyright play Apple Music's 30-second previews and link to the full song.
-// The Canon and Vivaldi recordings are by the U.S. Air Force Band, so they are public domain and play in full.
+// The Canon (U.S. Air Force Band) and Vivaldi (Modena Chamber Orchestra, via Musopen) recordings are public domain and play in full.
 export const TRACKS = [
   {
     title: 'Vienna', artist: 'Billy Joel', egg: 'vienna', apple: 158618071,
@@ -27,8 +27,8 @@ export const TRACKS = [
     link: 'https://commons.wikimedia.org/wiki/File:Canon_(2004)_-_Strolling_Strings_-_United_States_Air_Force_Band.mp3',
   },
   {
-    title: 'The Four Seasons: Winter', artist: 'Vivaldi', src: 'assets/music/vivaldi-winter.mp3', by: 'the U.S. Air Force Strings',
-    link: 'https://commons.wikimedia.org/wiki/File:Vivaldi_-_Four_Seasons_4_Winter_Air_Force_Strings_-_United_States_Air_Force_Band.mp3',
+    title: 'The Four Seasons: Spring', artist: 'Vivaldi', src: 'assets/music/vivaldi-spring.mp3', by: 'the Modena Chamber Orchestra',
+    link: 'https://commons.wikimedia.org/wiki/File:The_Modena_Chamber_Orchestra_-_Vivaldi%27s_Spring,_RV_269_-_I._Allegro.ogg',
   },
 ];
 
