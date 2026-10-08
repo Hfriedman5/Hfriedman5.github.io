@@ -20,7 +20,7 @@
     { id: 'gryffindor', title: 'The house password', hint: 'Press the ` key to open the terminal. The password is a Hogwarts house.', done: 'Hannah Mode unlocked. Ten points to Gryffindor.' },
     { id: 'console', title: 'Developer instincts', hint: 'Open your browser console. Someone left you a note.', done: 'You called hannah() from the console. Hi.' },
     { id: 'konami', title: 'Cheat code', hint: 'Up, up, down, down, left, right, left, right, B, A. Anywhere on the site.', done: 'Thirty extra lives. Spend them wisely.' },
-    { id: 'vienna', title: 'Slow down, you crazy child', hint: 'Drop the needle on the best song ever written.', done: 'You played "Vienna". Correct choice.' },
+    { id: 'vienna', title: 'Slow down, you crazy child', hint: 'Drop the needle on the best song.', done: 'You played "Vienna". Correct choice.' },
     { id: 'cups', title: 'Four straight', hint: 'The Islanders won four Stanley Cups in a row. Click their fact that many times.', done: '1980, 1981, 1982, 1983. We remember.' },
     { id: 'crash', title: 'Market crash', hint: 'Rerun the Monte Carlo until a path falls below $60.', done: 'A simulated crash. No real money was harmed.' },
     { id: 'diary', title: 'Dear diary', hint: 'In the Play world, find the library and write in the diary.', done: 'The diary wrote back. It does that.' },
