@@ -1,0 +1,21 @@
+# Working files that are not part of the website. Never publish these.
+# original travel photos, which still carry GPS locations
+Travel_pics/
+# the old site
+archive/
+# notes, not site content
+memory/
+# design review captures
+.impeccable/
+# translation review sheet
+Translations/
+PRODUCT.md
+DESIGN.md
+# unused original headshot (the site uses assets/hannah-1100.jpg)
+hannah.jpeg
+.DS_Store
+.playwright-cli/
+# the old resume, which has a phone number (the site uses HannahFriedman_Resume.pdf)
+Hannah Friedman_Resume.pdf
+# full songs kept for listening at home; the site plays previews and public-domain recordings instead
+/*.mp3
