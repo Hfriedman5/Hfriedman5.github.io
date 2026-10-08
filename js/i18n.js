@@ -168,7 +168,10 @@ window.HF_I18N = {
 "k164": "<span>Terminal</span>",
 "k166": "Private repo",
 "k167": "Machine Room",
-"k168": "© 2026 Hannah Friedman. All rights reserved."
+"k168": "© 2026 Hannah Friedman. All rights reserved.",
+"k169": "Heart transplant waitlist optimization",
+"k170": "Survival analysis of adult heart transplant candidates using national registry data. Kaplan-Meier curves and Cox proportional hazards models track who receives a transplant, who dies waiting, and how patients do afterward, checked with concordance, Brier scores, and calibration plots.",
+"k171": "Survival analysis, Python"
 },
 "es": {
 "k002": "Educación",
@@ -317,7 +320,10 @@ window.HF_I18N = {
 "k164": "<span>Terminal</span>",
 "k166": "Repositorio privado",
 "k167": "Sala de máquinas",
-"k168": "© 2026 Hannah Friedman. Todos los derechos reservados."
+"k168": "© 2026 Hannah Friedman. Todos los derechos reservados.",
+"k169": "Optimización de la lista de espera para trasplante de corazón",
+"k170": "Análisis de supervivencia de candidatos adultos a trasplante de corazón con datos de un registro nacional. Curvas de Kaplan-Meier y modelos de riesgos proporcionales de Cox siguen quién recibe un trasplante, quién muere en espera y cómo les va a los pacientes después, validados con concordancia, puntuaciones de Brier y gráficos de calibración.",
+"k171": "Análisis de supervivencia, Python"
 },
 "zh": {
 "k001": "汉娜·弗里德曼",
@@ -471,7 +477,10 @@ window.HF_I18N = {
 "k164": "<span>终端</span>",
 "k166": "私有代码库",
 "k167": "机房",
-"k168": "© 2026 汉娜·弗里德曼。保留所有权利。"
+"k168": "© 2026 汉娜·弗里德曼。保留所有权利。",
+"k169": "心脏移植等候名单优化",
+"k170": "利用全国登记数据，对成年心脏移植候选者进行生存分析。Kaplan-Meier曲线和Cox比例风险模型追踪谁接受了移植、谁在等待中去世，以及患者移植后的情况，并用一致性指数、Brier评分和校准图加以检验。",
+"k171": "生存分析，Python"
 },
 "grc": {
 "k001": "Ἄννα Φρίδμαν",
@@ -624,7 +633,10 @@ window.HF_I18N = {
 "k164": "<span>Τερματικόν</span>",
 "k166": "Κῶδιξ ἀπόρρητος",
 "k167": "Μηχανοστάσιον",
-"k168": "© 2026 Ἄννα Φρίδμαν. Πάντα τὰ δίκαια τετήρηται."
+"k168": "© 2026 Ἄννα Φρίδμαν. Πάντα τὰ δίκαια τετήρηται.",
+"k169": "Ἡ τῶν καρδίας μεταφυτείαν προσμενόντων βελτίωσις",
+"k170": "Ἀνάλυσις περὶ τοῦ ἐπιβιῶναι τῶν ἐν ἡλικίᾳ οἳ καρδίας μεταφυτείαν προσμένουσιν, ἐκ τῶν τοῦ ἔθνους ἀναγραφῶν. Αἱ τοῦ Kaplan-Meier καμπύλαι καὶ τὰ τοῦ Cox ὑποδείγματα σκοποῦσι τίς μὲν μεταφυτείαν λαμβάνει, τίς δὲ προσμένων ἀποθνῄσκει, καὶ πῶς οἱ νοσοῦντες ὕστερον πράττουσιν· ἐξετάζονται δὲ τῇ ὁμολογίᾳ, τοῖς τοῦ Brier ἀριθμοῖς καὶ τοῖς τῆς ἀκριβείας διαγράμμασιν.",
+"k171": "Ἀνάλυσις περὶ τοῦ ἐπιβιῶναι, Python"
 },
 "he": {
 "k001": "חנה פרידמן",
@@ -777,6 +789,9 @@ window.HF_I18N = {
 "k164": "<span>טרמינל</span>",
 "k166": "מאגר פרטי",
 "k167": "חדר המכונות",
-"k168": "© 2026 חנה פרידמן. כל הזכויות שמורות."
+"k168": "© 2026 חנה פרידמן. כל הזכויות שמורות.",
+"k169": "אופטימיזציה של רשימת ההמתנה להשתלת לב",
+"k170": "ניתוח הישרדות של מועמדים בוגרים להשתלת לב, על בסיס נתוני מרשם לאומי. עקומות קפלן-מאייר ומודלים של סיכונים פרופורציונליים של קוקס עוקבים אחר מי מקבל השתלה, מי נפטר בהמתנה ומה מצבם של המטופלים לאחר מכן, ונבדקים באמצעות מדד ההתאמה (C-index), ציוני Brier וגרפי כיול.",
+"k171": "ניתוח הישרדות, Python"
 }
 };
