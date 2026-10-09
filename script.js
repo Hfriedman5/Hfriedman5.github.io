@@ -19,7 +19,7 @@
   const EGGS = [
     { id: 'gryffindor', title: 'The house password', hint: 'Press the ` key to open the terminal. The password is a Hogwarts house.', touch: 'Tap Terminal at the bottom of the page. The password is a Hogwarts house.', done: 'Hannah Mode unlocked. Ten points to Gryffindor.' },
     { id: 'console', title: 'Developer instincts', hint: 'Open your browser console. Someone left you a note.', touch: 'Phones have no console, so tap Terminal at the bottom of the page and type hannah() there.', done: 'You called hannah(). Hi.' },
-    { id: 'konami', title: 'Cheat code', hint: 'Up, up, down, down, left, right, left, right, B, A. Anywhere on the site.', touch: 'Swipe up, up, down, down, left, right, left, right, then tap twice on an empty spot. Anywhere on the site.', done: 'Thirty extra lives. Spend them wisely.' },
+    { id: 'konami', title: 'Cheat code', hint: 'Up, up, down, down, left, right, left, right, B, A. Anywhere on the site.', touch: 'In Little Athens, push the joystick up, up, down, down, left, right, left, right, then tap B, then A.', done: 'Thirty extra lives. Spend them wisely.' },
     { id: 'vienna', title: 'Slow down, you crazy child', hint: 'Drop the needle on the best song.', done: 'You played "Vienna". Correct choice.' },
     { id: 'cups', title: 'Four straight', hint: 'The Islanders won four Stanley Cups in a row. Click their fact that many times.', done: '1980, 1981, 1982, 1983. We remember.' },
     { id: 'crash', title: 'Market crash', hint: 'Rerun the Monte Carlo until a path falls below $60.', done: 'A simulated crash. No real money was harmed.' },
@@ -713,6 +713,11 @@
     else return;
     showTrail(done);
   }
+  // Little Athens' joystick and B and A buttons feed the code one press at a time.
+  function konamiPress(key) {
+    const now = Date.now(); if (now - lastGesture > 8000) k = 0; lastGesture = now;
+    showTrail(konamiStep(key));
+  }
   document.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
     touchAt = e.touches.length === 1 && !e.target.closest('input, textarea, dialog, .pad') ? [t.clientX, t.clientY] : null;
@@ -1115,6 +1120,6 @@
   }
 
   renderHouse();
-  window.HF = { diaryReply: riddleReply, i18nUnits, LANGS, foundEgg, toast, openTerminal, openDiary, confetti, store, machineRoom, resetEggs, renderHouse, eggs: () => EGGS.map((e) => ({ ...e, found: found.has(e.id) })) };
+  window.HF = { konami: konamiPress, diaryReply: riddleReply, i18nUnits, LANGS, foundEgg, toast, openTerminal, openDiary, confetti, store, machineRoom, resetEggs, renderHouse, eggs: () => EGGS.map((e) => ({ ...e, found: found.has(e.id) })) };
   renderEggs();
 })();

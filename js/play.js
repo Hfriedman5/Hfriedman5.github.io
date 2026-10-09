@@ -1,9 +1,9 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009m';
-import { createRace } from './race.js?v=20261009m';
-import { createWeather, currentWeather } from './weather.js?v=20261009m';
-import { TRACKS } from './tracks.js?v=20261009m';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009m';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009n';
+import { createRace } from './race.js?v=20261009n';
+import { createWeather, currentWeather } from './weather.js?v=20261009n';
+import { TRACKS } from './tracks.js?v=20261009n';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009n';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -35,7 +35,9 @@ const hatchNpcs = hatched.map((id, i) => ({ id: `hatch-${id}`, creature: id, x: 
 const npcs = [...NPCS, ...hatchNpcs].map((n) => ({ ...n, tx: n.x, ty: n.y, dir: n.facing, moving: false, t: 0, fromX: n.x, fromY: n.y, step: 0, nextWander: 1500 + Math.random() * 1500 }));
 
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-const STEP_MS = 165;
+const STEP_MS = 165, RUN_MS = 100;
+let running = false; // hold B on the touch pad, or Shift on a keyboard
+player.dur = STEP_MS;
 
 /* ---------------- Input ---------------- */
 const held = new Set();
@@ -50,13 +52,17 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === ' ' || e.key === 'Enter' || e.key === 'e' || e.key === 'E') { if (e.target.closest('button') && e.target !== screen) return; e.preventDefault(); pressA(); }
 });
 document.addEventListener('keyup', (e) => { if (KEYMAP[e.key]) held.delete(KEYMAP[e.key]); });
-window.addEventListener('blur', () => held.clear());
+document.addEventListener('keydown', (e) => { if (e.key === 'Shift') running = true; });
+document.addEventListener('keyup', (e) => { if (e.key === 'Shift') running = false; });
+window.addEventListener('blur', () => { held.clear(); running = false; });
 // Touch joystick: drag the knob, and the avatar walks whichever way it points most (up, down, left, or right).
 const stick = $('#stick');
 if (stick) {
   const knob = stick.querySelector('.stick-knob');
   let pid = null, dir = null;
   const steer = (d) => {
+    // Each fresh push is one press of an arrow for the cheat code (up, up, down, down, left, right, left, right, B, A).
+    if (d && d !== dir) HF().konami?.(`Arrow${d[0].toUpperCase()}${d.slice(1)}`);
     if (dir && dir !== d) held.delete(dir);
     if (d && !held.has(d)) { held.add(d); if (d !== dir) queued = d; }
     dir = d;
@@ -75,6 +81,13 @@ if (stick) {
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => stick.addEventListener(ev, (e) => { if (e.pointerId === pid) release(); }));
 }
 $('#abtn').addEventListener('click', pressA);
+$('#abtn').addEventListener('pointerdown', () => HF().konami?.('a'));
+const bbtn = $('#bbtn');
+if (bbtn) {
+  bbtn.addEventListener('pointerdown', (e) => { e.preventDefault(); try { bbtn.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ } running = true; HF().konami?.('b'); });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => bbtn.addEventListener(ev, () => { running = false; }));
+  bbtn.addEventListener('contextmenu', (e) => e.preventDefault());
+}
 screen.addEventListener('click', () => screen.focus());
 
 /* ---------------- Dialogue ---------------- */
@@ -443,6 +456,7 @@ function tryMove(ent, dir) {
   }
   if (occupied(nx, ny, ent)) return false;
   ent.fromX = ent.tx; ent.fromY = ent.ty; ent.tx = nx; ent.ty = ny; ent.moving = true; ent.t = 0;
+  if (ent === player) ent.dur = running ? RUN_MS : STEP_MS;
   return true;
 }
 
@@ -459,7 +473,7 @@ function observedLook(look) {
 function update(dt) {
   if (player.moving) {
     player.t += dt;
-    if (player.t >= STEP_MS) {
+    if (player.t >= player.dur) {
       player.moving = false; player.walkPhase ^= 1; updatePlace();
       if (sandalAt(player.tx, player.ty)) pickUpSandal();
       HF().store?.set?.('hf-play-pos', { tx: player.tx, ty: player.ty, dir: player.dir });
@@ -497,7 +511,7 @@ let waterTick = 0;
 const weatherKind = currentWeather();
 const weather = createWeather(weatherKind, canvas.width, canvas.height, { still: reduceMotion });
 function render(now) {
-  const [px, py] = entityPos(player, STEP_MS);
+  const [px, py] = entityPos(player, player.dur);
   const [fx, fy] = sail ? [sailPos(now).x - 8, SAIL_Y - 16] : [px, py];
   const camX = Math.round(Math.max(0, Math.min(W * TILE - canvas.width, fx + 8 - canvas.width / 2)));
   const camY = Math.round(Math.max(0, Math.min(H * TILE - canvas.height, fy + 8 - canvas.height / 2)));
