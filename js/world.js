@@ -11,7 +11,7 @@ const P = {
   water: '#2f80c6', water2: '#63aee4', water3: '#1f5f9e',
   leaf: '#8fa66b', leaf2: '#b6c78e', leaf3: '#6a7f4b', trunk: '#7a5a3a', cypress: '#3f6b3c', cypress2: '#56864f', cypress3: '#2c4f2b',
   wall: '#f4f0e7', wall2: '#ddd6c6', wall3: '#bfb5a2', col: '#fbf9f4',
-  roof: '#c8643c', roof2: '#a14c2c', roofR: '#c8643c', roofR2: '#a14c2c', roofT: '#d39a4a', roofT2: '#a8762f', roofP: '#b85a48', roofP2: '#8e4234', roofB: '#5f7896', roofB2: '#46607e',
+  roof: '#c8643c', roof2: '#a14c2c', roofR: '#c8643c', roofR2: '#a14c2c', roofT: '#d39a4a', roofT2: '#a8762f', roofP: '#b85a48', roofP2: '#8e4234', roofB: '#5f7896', roofB2: '#46607e', roofG: '#8a4f7d', roofG2: '#6b3a60',
   ped: '#3d6fa8', ped2: '#c8643c',
   win: '#4a3a2c', win2: '#7a6248', door: '#6b4a2f', door2: '#4e3420',
   ice: '#d9a46b', ice2: '#f6efe2', board: '#e3dac8', boardLine: '#c7bca6',
@@ -50,7 +50,7 @@ const ROWS = [
 
 export const BUILDINGS = [
   { id: 'parthenon', name: 'The Parthenon', kind: 'temple', x: 13, y: 2, w: 10, h: 6, door: [17, 7], door2: [18, 7] },
-  { id: 'gaming', name: 'Gaming Hall', kind: 'house', roof: ['roofR', 'roofR2'], x: 3, y: 3, w: 6, h: 5, door: [5, 7] },
+  { id: 'gaming', name: 'Gaming Hall', kind: 'house', roof: ['roofG', 'roofG2'], x: 3, y: 3, w: 6, h: 5, door: [5, 7] },
   { id: 'academy', name: 'The Academy', kind: 'house', roof: ['roofT', 'roofT2'], x: 28, y: 3, w: 6, h: 5, door: [30, 7], pediment: true },
   { id: 'library', name: 'Library', kind: 'house', roof: ['roof', 'roof2'], x: 3, y: 15, w: 6, h: 5, door: [5, 19] },
   { id: 'bank', name: 'The Bank', kind: 'house', roof: ['roofB', 'roofB2'], x: 28, y: 15, w: 6, h: 5, door: [30, 19], pediment: true },

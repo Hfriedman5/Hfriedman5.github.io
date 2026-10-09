@@ -6,7 +6,9 @@
 @font-face { font-family: "Bricolage Grotesque"; src: url("fonts/bricolage.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
 @font-face { font-family: "Schibsted Grotesk"; src: url("fonts/schibsted.woff2") format("woff2"); font-weight: 400 900; font-display: swap; }
 @font-face { font-family: "Fragment Mono"; src: url("fonts/fragment-mono.woff2") format("woff2"); font-weight: 400; font-display: swap; }
-@font-face { font-family: "Pixelify Sans"; src: url("fonts/pixelify.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+/* Little Athens: Pixelify Sans for letters, Jersey 10 for digits (Pixelify's 2, 5, and 8 look too alike at small sizes). */
+@font-face { font-family: "Pixelify Sans"; src: url("fonts/pixelify.woff2") format("woff2"); font-weight: 400 700; font-display: swap; unicode-range: U+0000-002F, U+003A-10FFFF; }
+@font-face { font-family: "Pixel Digits"; src: url("fonts/jersey10-digits.woff2") format("woff2"); font-display: swap; unicode-range: U+0030-0039; size-adjust: 128%; }
 
 :root {
   color-scheme: light;
@@ -40,7 +42,7 @@
   --font-display: "Bricolage Grotesque", "Schibsted Grotesk", system-ui, sans-serif;
   --font-body: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Fragment Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --font-pixel: "Pixelify Sans", ui-monospace, monospace;
+  --font-pixel: "Pixelify Sans", "Pixel Digits", ui-monospace, monospace;
 
   --container: 1160px;
   --gutter: clamp(16px, 4vw, 32px);
