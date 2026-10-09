@@ -1,8 +1,9 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010n';
-import { createRace } from './race.js?v=20261010n';
-import { createWeather, currentWeather } from './weather.js?v=20261010n';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010n';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010p';
+import { createRace } from './race.js?v=20261010p';
+import { createWeather, currentWeather } from './weather.js?v=20261010p';
+import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice } from './economy.js?v=20261010p';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010p';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -314,24 +315,107 @@ function settleBank() {
 }
 const amounts = (max) => [...[100, 500, 1000, 5000].filter((n) => n < max).map((n) => ({ label: n.toLocaleString(), value: n })), { label: `All (${max.toLocaleString()})`, value: max }, { label: 'Other amount', amount: { min: 1, max } }, { label: 'Never mind', value: null }];
 
+/* ---------------- The Athenian Exchange, at the banker's table ---------------- */
+// Prices come from economy.js (the same for everyone). This visitor's shares, what they paid, and the last day
+// dividends were paid live in localStorage. Each trade has a 1% fee, and no one can hold more than STOCK_CAP coins
+// of any one company, so the market helps toward the coin flex award without handing it out.
+const STOCK_CAP = 10000, FEE = .01;
+const portfolio = Object.assign({ shares: {}, cost: {}, paidThrough: null }, lsGet('hf-stocks', {}));
+const savePortfolio = () => lsSet('hf-stocks', portfolio);
+const signed = (n) => `${n >= 0 ? '+' : '−'}${Math.abs(Math.round(n)).toLocaleString()}`;
+// Owners are paid on each report day. Shares only change at the banker's table, so whatever someone owns now is what
+// they owned on every report day since their last visit.
+function payDividends(m) {
+  const today = m.news.length - 1, from = m.news.findIndex((n) => n.key === portfolio.paidThrough);
+  let total = 0;
+  if (from >= 0) for (const c of COMPANIES) {
+    const n = portfolio.shares[c.id] || 0;
+    if (n) for (let i = from + 1; i <= today; i++) total += (m.companies[c.id][i].report?.dividend || 0) * n;
+  }
+  portfolio.paidThrough = m.news[today].key; savePortfolio();
+  if (total) { wallet.coins = wallet.coins + total; bumpRecord('dividends', (v = 0) => v + total); }
+  return total;
+}
+function openExchange() {
+  const m = market(), paid = payDividends(m);
+  renderExchange(paid ? `Dividends paid since your last visit: ${paid.toLocaleString()} coins, added to your purse.` : '', 'ok');
+  openModal('#exchange');
+}
+function spark(prices) {
+  const w = 120, h = 32, lo = Math.min(...prices), hi = Math.max(...prices), span = hi - lo || 1;
+  const pts = prices.map((p, i) => `${(i / (prices.length - 1)) * w},${h - 3 - ((p - lo) / span) * (h - 6)}`).join(' ');
+  return `<svg class="ex-spark ${prices[prices.length - 1] >= prices[0] ? 'ex-up' : 'ex-down'}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
+}
+function renderExchange(note = '', tone = '') {
+  const m = market(), dayNow = new Date().getDay(), body = $('#ex-body');
+  const price = (c) => tradePrice(m.companies[c.id].at(-1).price);
+  const held = COMPANIES.reduce((t, c) => t + (portfolio.shares[c.id] || 0) * price(c), 0);
+  const paidIn = COMPANIES.reduce((t, c) => t + (portfolio.cost[c.id] || 0), 0);
+  const order = [...COMPANIES].sort((a, b) => ((a.day - dayNow + 7) % 7) - ((b.day - dayNow + 7) % 7)); // today's reporter first
+  const week = m.news.slice(-7, -1).reverse().filter((d) => d.headlines.length);
+  const item = (h) => `<li class="${h.good === true ? 'ex-good' : h.good === false ? 'ex-bad' : ''}">${h.text}</li>`;
+  body.innerHTML = `
+    <p class="ex-intro">Seven businesses, one report a day. On its day, each company reports its profit for the week. Beat what the market expected and the price usually jumps; miss and it usually falls. Owners get part of the profit each report day. Every trade costs a 1% fee, and you can hold up to ${STOCK_CAP.toLocaleString()} coins in any one company.</p>
+    <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>Your shares are worth <b>${held.toLocaleString()}</b>${paidIn ? ` <span class="${held >= paidIn ? 'ex-up' : 'ex-down'}">(${signed(held - paidIn)} on what you paid)</span>` : ''}</span></p>
+    ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
+    ${stormy() ? '<p class="ex-note">The weather dial in the Machine Room does not move these prices. The real sea is bigger than your lever.</p>' : ''}
+    <section class="ex-news"><h3>Today's news</h3><ul>${m.news.at(-1).headlines.map(item).join('') || '<li>A quiet day in Athens.</li>'}</ul>
+      ${week.length ? `<details><summary>Earlier this week</summary>${week.map((d) => `<h4>${DAY_NAMES[d.date.getDay()]}</h4><ul>${d.headlines.map(item).join('')}</ul>`).join('')}</details>` : ''}</section>
+    <div class="ex-list">${order.map((c) => {
+      const days = m.companies[c.id], now = days.at(-1), p = price(c), change = now.price / days.at(-2).price - 1;
+      const last = [...days].reverse().find((d) => d.report), r = last?.report, n = portfolio.shares[c.id] || 0;
+      const reportsToday = c.day === dayNow, tomorrow = c.day === (dayNow + 1) % 7;
+      return `<article class="ex-co${reportsToday ? ' today' : ''}" data-co="${c.id}">
+        <div class="ex-top"><h3>${c.name}</h3><span class="ex-day">${reportsToday ? 'Reported today' : tomorrow ? 'Reports tomorrow' : `Reports ${DAY_NAMES[c.day]}s`}</span></div>
+        <div class="ex-price"><b>${p.toLocaleString()}</b><span class="${change >= 0 ? 'ex-up' : 'ex-down'}">${change >= 0 ? '▲' : '▼'} ${Math.abs(change * 100).toFixed(1)}%</span>${spark(days.slice(-14).map((d) => d.price))}<span class="ex-chart-note">last 2 weeks</span></div>
+        <p class="ex-how"><b>Makes money:</b> ${c.makes} <b>Watch:</b> ${c.watch}</p>
+        <p class="ex-facts">${r ? `Last report: profit ${r.e.toFixed(1)} per share, ${Math.abs(Math.round(r.surprise * 100))}% ${r.surprise >= 0 ? 'above' : 'below'} expectations. Paid owners ${r.dividend} per share.` : ''} ${reportsToday ? '' : `The market expects about ${now.expected.toFixed(1)} per share this week.`}</p>
+        <form class="ex-trade" data-co="${c.id}">
+          <span class="ex-own">${n ? `You own <b>${n.toLocaleString()}</b> (worth ${(n * p).toLocaleString()}, <span class="${n * p >= (portfolio.cost[c.id] || 0) ? 'ex-up' : 'ex-down'}">${signed(n * p - (portfolio.cost[c.id] || 0))}</span>)` : 'You own none'}</span>
+          <input type="text" inputmode="numeric" autocomplete="off" placeholder="Shares" aria-label="Number of ${c.name} shares">
+          <button type="submit" class="btn btn-primary btn-sm" value="buy">Buy</button>
+          <button type="submit" class="btn btn-secondary btn-sm" value="sell"${n ? '' : ' disabled'}>Sell</button>
+          <span class="ex-msg" role="status"></span>
+        </form>
+      </article>`;
+    }).join('')}</div>`;
+  body.querySelectorAll('.ex-trade').forEach((f) => f.addEventListener('submit', (e) => {
+    e.preventDefault();
+    trade(coById(f.dataset.co), e.submitter?.value || 'buy', f.querySelector('input').value, f.querySelector('.ex-msg'));
+  }));
+}
+function trade(c, side, raw, msg) {
+  const say = (t) => { msg.textContent = t; msg.className = 'ex-msg bad'; };
+  const text = String(raw).trim().replace(/,/g, '');
+  if (!/^\d{1,7}$/.test(text) || Number(text) < 1) return say('Enter a whole number of shares, like 5.');
+  const qty = Number(text), p = tradePrice(market().companies[c.id].at(-1).price), n = portfolio.shares[c.id] || 0;
+  const fee = Math.max(1, Math.ceil(qty * p * FEE));
+  if (side === 'buy') {
+    const cost = qty * p + fee;
+    if (cost > wallet.coins) return say(`That costs ${cost.toLocaleString()} coins with the fee. You have ${wallet.coins.toLocaleString()}.`);
+    if ((n + qty) * p > STOCK_CAP) return say(`That would put more than ${STOCK_CAP.toLocaleString()} coins in one company. You can buy up to ${Math.max(0, Math.floor(STOCK_CAP / p) - n).toLocaleString()} more.`);
+    wallet.coins = wallet.coins - cost;
+    portfolio.shares[c.id] = n + qty; portfolio.cost[c.id] = (portfolio.cost[c.id] || 0) + cost; savePortfolio();
+    return renderExchange(`Bought ${qty.toLocaleString()} ${c.name} shares at ${p} each, plus a fee of ${fee} coins.`, 'ok');
+  }
+  if (qty > n) return say(`You only own ${n.toLocaleString()} ${c.name} shares.`);
+  const proceeds = qty * p - fee, basis = (portfolio.cost[c.id] || 0) * (qty / n);
+  portfolio.shares[c.id] = n - qty; portfolio.cost[c.id] = Math.max(0, (portfolio.cost[c.id] || 0) - basis);
+  if (!portfolio.shares[c.id]) { delete portfolio.shares[c.id]; delete portfolio.cost[c.id]; }
+  savePortfolio(); wallet.coins = wallet.coins + proceeds;
+  bumpRecord('stockGains', (v = 0) => v + (proceeds - basis));
+  renderExchange(`Sold ${qty.toLocaleString()} ${c.name} shares at ${p} each, less a fee of ${fee} coins. That is ${signed(proceeds - basis)} coins compared with what you paid.`, proceeds >= basis ? 'ok' : '');
+}
+
 /* ---------------- Trading voyages from the beach ---------------- */
 // Pay for a voyage and share the profit when the ship comes home. Every day each route gets its own sea and its own
 // market (the same for everyone that day), so the best bet changes: some days Egypt is a bargain, some days it's a trap.
-// Stormy weather from the Machine Room adds risk on top. Whether a ship sinks is settled when it sails.
-const ROUTES = [
-  { id: 'aegina', name: 'Aegina', hours: 2, gain: .1, risk: 0, cargo: 'pistachios' },
-  { id: 'crete', name: 'Crete', hours: 4, gain: .5, risk: .2, cargo: 'olive oil' },
-  { id: 'egypt', name: 'Egypt', hours: 8, gain: 1, risk: .35, cargo: 'grain' },
-];
-const SEAS = [['calm seas', .5, .3], ['choppy seas', 1, .45], ['storms at sea', 1.6, .25]];   // what it does to the risk, how often
-const MARKETS = [['low', .6, .25], ['normal', 1, .5], ['high', 1.4, .25]];                     // what it does to the profit, how often
-const seeded = (key) => { let h = 2166136261; for (const ch of key) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); h ^= h >>> 15; return ((Math.imul(h, 2246822507) >>> 0) % 1e6) / 1e6; };
-const pickBy = (table, r) => table.find((row) => (r -= row[2]) < 0) || table[table.length - 1];
+// The routes and the daily sea come from economy.js, which the Exchange shares. Stormy weather from the Machine Room
+// adds risk on top for this visitor. Whether a ship sinks is settled when it sails.
 const stormy = () => ['rain', 'ominous'].includes(weatherKind) ? .1 : ['fog', 'snow'].includes(weatherKind) ? .05 : 0;
 function seaReport(rt) {
-  const sea = pickBy(SEAS, seeded(`${dayKey()}:${rt.id}:sea`)), market = pickBy(MARKETS, seeded(`${dayKey()}:${rt.id}:market`));
-  const base = rt.risk ? rt.risk * sea[1] : sea[1] > 1 ? .08 : 0;
-  return { sea: sea[0], demand: market[0], gain: Math.round(rt.gain * market[1] * 100) / 100, risk: Math.min(.9, base + (rt.risk ? stormy() : stormy() / 2)) };
+  const s = seaFor(rt, new Date());
+  return { ...s, risk: Math.min(.9, s.risk + (rt.risk ? stormy() : stormy() / 2)) };
 }
 const VOYAGE_MAX = 1000; // the most one voyage can carry
 const sinkRisk = (risk) => (risk ? `${Math.round(risk * 100)}% sink risk` : 'no risk');
@@ -471,9 +555,10 @@ const INTERACT = {
     bank.seen = bank.bal; lsSet('hf-bank', bank);
     const allTime = Math.floor(lsGet('hf-records', {}).interest || 0);
     const total = allTime ? ` In all, your account has earned ${allTime.toLocaleString()} coins of interest.` : '';
-    const v = await say(['The Bank. A banker sits at a long table, a trapeza, stacking silver.',
+    const v = await say(['The Bank. A banker sits at a long table, a trapeza, stacking silver. He also runs the Athenian Exchange, where you can buy shares in town businesses.',
       whole ? `Your account: ${whole.toLocaleString()} coins.${grew > 0 ? ` It earned ${grew.toLocaleString()} since your last visit.` : ''}${total} It grows ${Math.round(BANK_RATE * 100)}% a day, on up to ${BANK_CAP.toLocaleString()} coins.` : `Coins you leave here grow ${Math.round(BANK_RATE * 100)}% every day, on up to ${BANK_CAP.toLocaleString()} coins. Take them out whenever you like.${total}`],
-      [{ label: 'Deposit', value: 'in' }, ...(whole ? [{ label: 'Withdraw', value: 'out' }] : []), { label: 'Leave', value: null }]);
+      [{ label: 'Deposit', value: 'in' }, ...(whole ? [{ label: 'Withdraw', value: 'out' }] : []), { label: 'The Exchange', value: 'stocks' }, { label: 'Leave', value: null }]);
+    if (v === 'stocks') return openExchange();
     if (v === 'in') {
       if (!wallet.coins) return say('Your purse is empty. The olive trees are a good place to start.');
       const amt = await say(`You have ${wallet.coins.toLocaleString()} coins with you. How much will you deposit?`, amounts(wallet.coins));
@@ -496,7 +581,7 @@ const INTERACT = {
     const r = lsGet('hf-records', {}), lap = lsGet('hf-stadion-best', null), interest = Math.floor(r.interest || 0);
     const none = 'not yet';
     await say(['The record keeper chisels away at a stone tablet. "Every record in Athens goes in stone. Let me read you yours."',
-      `Fastest winning lap: ${lap != null ? `${lap.toFixed(2)} seconds` : none}\nBiggest blackjack win: ${r.bjBest ? `${r.bjBest.toLocaleString()} coins` : none}\nVoyages that made it home: ${r.home || 0}${r.sunk ? ` (${r.sunk} lost at sea)` : ''}\nTotal interest earned: ${interest ? `${interest.toLocaleString()} coins` : none}\nRequests completed: ${r.requests || 0}`,
+      `Fastest winning lap: ${lap != null ? `${lap.toFixed(2)} seconds` : none}\nBiggest blackjack win: ${r.bjBest ? `${r.bjBest.toLocaleString()} coins` : none}\nVoyages that made it home: ${r.home || 0}${r.sunk ? ` (${r.sunk} lost at sea)` : ''}\nTotal interest earned: ${interest ? `${interest.toLocaleString()} coins` : none}\nRequests completed: ${r.requests || 0}\nProfit from the Exchange: ${r.stockGains || r.dividends ? `${signed((r.stockGains || 0) + (r.dividends || 0))} coins` : none}`,
       '"Come back when you break one. I have plenty of chisels."']);
   },
   async student() {

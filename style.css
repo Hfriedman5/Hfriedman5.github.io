@@ -530,6 +530,48 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 }
 
 .modal-wide { width: min(760px, calc(100vw - 24px)); }
+/* The Athenian Exchange (Little Athens bank) */
+.ex-intro { margin: 0 0 12px; color: var(--ink-2); font-size: .95rem; }
+.ex-summary { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0 0 12px; padding: 10px 14px; border-radius: var(--r-md); background: var(--surface); font-size: .92rem; color: var(--ink-2); }
+.ex-summary b { color: var(--ink); font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.ex-summary .coin { display: inline-block; vertical-align: -2px; margin-right: 6px; }
+.ex-note { margin: 0 0 12px; font-size: .9rem; color: var(--ink-2); }
+.ex-note.ok { color: var(--tint-sports-ink); }
+.ex-news { margin: 0 0 16px; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--hairline); }
+.ex-news h3 { margin: 0; font-size: .95rem; }
+.ex-news h4 { margin: 10px 0 0; font-size: .82rem; color: var(--ink-3); font-weight: 600; }
+.ex-news ul { margin: 6px 0 0; padding-left: 18px; font-size: .9rem; color: var(--ink-2); display: grid; gap: 4px; }
+.ex-news li.ex-good::marker { color: var(--tint-sports-ink); }
+.ex-news li.ex-bad::marker { color: var(--tint-rose-ink); }
+.ex-news details { margin-top: 8px; }
+.ex-news summary { cursor: pointer; font-size: .88rem; font-weight: 600; color: var(--ink-2); }
+.ex-list { display: grid; gap: 12px; }
+.ex-co { display: grid; gap: 8px; padding: 14px 16px; border-radius: var(--r-lg); border: 1px solid var(--hairline); background: var(--bg); }
+.ex-co.today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.ex-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.ex-top h3 { margin: 0; margin-inline-end: auto; font-size: 1.02rem; }
+.ex-day { font-size: .8rem; color: var(--ink-3); }
+.ex-co.today .ex-day { color: var(--accent-ink); font-weight: 600; }
+.ex-price { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.ex-price b { font-family: var(--font-display); font-size: 1.45rem; font-variant-numeric: tabular-nums; }
+.ex-price > span { font-size: .9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ex-spark { width: 120px; height: 32px; }
+.ex-price .ex-chart-note { font-size: .74rem; font-weight: 400; color: var(--ink-3); }
+.ex-up { color: var(--tint-sports-ink); }
+.ex-down { color: var(--tint-rose-ink); }
+.ex-how, .ex-facts { margin: 0; font-size: .88rem; color: var(--ink-2); }
+.ex-how b { color: var(--ink); }
+.ex-facts:empty { display: none; }
+.ex-trade { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--hairline); }
+.ex-own { margin-inline-end: auto; font-size: .9rem; color: var(--ink-2); }
+.ex-own b { color: var(--ink); }
+.ex-trade input { width: 6.5em; height: 34px; padding: 0 10px; border-radius: var(--r-sm); border: 1px solid var(--hairline-strong); background: var(--bg); color: var(--ink); font: inherit; font-size: .9rem; }
+.ex-trade input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ex-msg { flex-basis: 100%; font-size: .84rem; }
+.ex-msg:empty { display: none; }
+.ex-msg.bad { color: var(--tint-rose-ink); }
+@media (max-width: 480px) { .ex-own { flex-basis: 100%; } .ex-trade input { flex: 1; } }
+
 .ms-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; font-size: .95rem; color: var(--ink-2); }
 .ms-bar b { color: var(--ink); font-family: var(--font-display); font-size: 1.2rem; }
 .ms-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; max-width: 420px; margin-inline: auto; }

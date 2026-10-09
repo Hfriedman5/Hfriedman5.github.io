@@ -1,6 +1,6 @@
 // The School of Athens, after Raphael (1509 to 1511), redrawn in pixels for the Academy.
 // The painting is a lunette: a rectangle with a semicircular top, 320 by 208 here (the fresco is about 770 by 500 cm).
-import { figureCanvas, avatarCanvas } from './world.js?v=20261010n';
+import { figureCanvas, avatarCanvas } from './world.js?v=20261010p';
 
 export const SW = 320, SH = 208;
 const CX = 160, SPRING = 160, R = 160; // the frame's arch
