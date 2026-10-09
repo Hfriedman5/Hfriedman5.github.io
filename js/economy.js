@@ -116,7 +116,10 @@ export function market(today = new Date()) {
         st.F = .6 * e + .4 * st.F; st.sum = 0; st.last = report; // the market's next guess leans on this week's number
         headlines.push({ co: c.id, report: true, good: report.surprise >= 0, text: `${c.name} reports a profit of ${report.e.toFixed(1)} per share, ${Math.abs(Math.round(report.surprise * 100))}% ${report.surprise >= 0 ? 'above' : 'below'} what the market expected.` });
       }
-      const price = Math.max(5, c.M * st.F * (1 + BELIEF * st.sum) * (1 + st.u));
+      // Like a real share, the price carries the dividend building up since the last report, and drops by it once it's paid,
+      // so buying the day before a report just to collect the dividend doesn't pay.
+      const sinceReport = (d.getDay() - c.day + 7) % 7;
+      const price = Math.max(5, c.M * st.F * (1 + BELIEF * st.sum) * (1 + st.u) + c.payout * st.F * (sinceReport / 7));
       st.days.push({ key: k, price, report, expected: st.F * (1 + BELIEF * st.sum) });
     }
     // The sea report makes the news too: storms and unusual demand on each route.
