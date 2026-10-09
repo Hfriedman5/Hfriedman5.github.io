@@ -574,6 +574,23 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .ex-msg:empty { display: none; }
 .ex-msg.bad { color: var(--tint-rose-ink); }
 @media (max-width: 480px) { .ex-own { flex-basis: 100%; } .ex-trade input { flex: 1; } }
+/* Your money (Little Athens bank) */
+.mo-total { margin: 0 0 10px; font-size: 1rem; color: var(--ink-2); }
+.mo-total b { color: var(--ink); font-family: var(--font-display); font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.mo-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--surface-2); margin: 0 0 14px; }
+.mo-bar span { flex-basis: 0; min-width: 3px; }
+.mo-purse { background: #e0b44c; } .mo-bank { background: #5f7896; } .mo-bonds { background: #6b8f4e; } .mo-shares { background: var(--accent); }
+.mo-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: 0; }
+.mo-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.mo-table th, .mo-table td { padding: 8px 6px; border-top: 1px solid var(--hairline); text-align: left; vertical-align: top; }
+.mo-table th { font-weight: 600; color: var(--ink); white-space: nowrap; }
+.mo-table thead th { font-size: .78rem; font-weight: 600; color: var(--ink-3); border-top: 0; }
+.mo-num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mo-note { color: var(--ink-2); font-size: .84rem; }
+.mo-h { margin: 18px 0 6px; font-size: .95rem; }
+.mo-list { margin: 0; padding-left: 18px; font-size: .9rem; color: var(--ink-2); }
+.mo-holdings th { white-space: normal; }
+@media (max-width: 480px) { .mo-table:not(.mo-holdings) tr { display: grid; grid-template-columns: 1fr auto auto; } .mo-table:not(.mo-holdings) td.mo-note { grid-column: 1 / -1; border-top: 0; padding-top: 0; } .mo-holdings .mo-pct { display: none; } }
 
 .ms-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; font-size: .95rem; color: var(--ink-2); }
 .ms-bar b { color: var(--ink); font-family: var(--font-display); font-size: 1.2rem; }

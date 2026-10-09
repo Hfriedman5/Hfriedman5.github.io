@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#0b1424" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/pixelify.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=20261010s">
+<link rel="stylesheet" href="style.css?v=20261010u">
 <script>try { const r = document.documentElement; if (localStorage.getItem('hf-hannah-mode') === '1') r.classList.add('hannah-mode'); } catch (e) {}</script>
 </head>
 <body class="play-page">
@@ -223,6 +223,14 @@
 </dialog>
 
 <!-- Agora market: outfits and gadgets -->
+<dialog class="modal" id="money" aria-labelledby="money-h">
+  <div class="modal-head">
+    <h2 id="money-h">Your money</h2>
+    <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="modal-body" id="money-body"></div>
+</dialog>
+
 <dialog class="modal modal-wide" id="exchange" aria-labelledby="ex-h">
   <div class="modal-head">
     <h2 id="ex-h">The Athenian Exchange</h2>
@@ -303,7 +311,7 @@
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="script.js?v=20261010s" defer></script>
-<script type="module" src="js/play.js?v=20261010s"></script>
+<script src="script.js?v=20261010u" defer></script>
+<script type="module" src="js/play.js?v=20261010u"></script>
 </body>
 </html>

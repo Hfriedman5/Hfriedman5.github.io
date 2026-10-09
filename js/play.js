@@ -1,9 +1,9 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010s';
-import { createRace } from './race.js?v=20261010s';
-import { createWeather, currentWeather } from './weather.js?v=20261010s';
-import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines } from './economy.js?v=20261010s';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010s';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010u';
+import { createRace } from './race.js?v=20261010u';
+import { createWeather, currentWeather } from './weather.js?v=20261010u';
+import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines } from './economy.js?v=20261010u';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010u';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -320,8 +320,14 @@ const amounts = (max) => [...[100, 500, 1000, 5000].filter((n) => n < max).map((
 // dividends were paid live in localStorage. Each trade has a 1% fee, and no one can hold more than STOCK_CAP coins
 // of any one company, so the market helps toward the coin flex award without handing it out.
 const STOCK_CAP = 10000, FEE = .01;
-const portfolio = Object.assign({ shares: {}, cost: {}, paidThrough: null }, lsGet('hf-stocks', {}));
+const portfolio = Object.assign({ lots: {}, cost: {}, paidThrough: null }, lsGet('hf-stocks', {}));
+if (portfolio.shares) { for (const [id, n] of Object.entries(portfolio.shares)) portfolio.lots[id] = [{ n, day: portfolio.paidThrough || dayKey() }]; delete portfolio.shares; }
 const savePortfolio = () => lsSet('hf-stocks', portfolio);
+const sharesOf = (id) => (portfolio.lots[id] || []).reduce((t, l) => t + l.n, 0);
+// A dividend goes to shares owned for at least a full week before the report, like a real company's record date.
+// That keeps "buy the day before, collect, sell" from being free money.
+const dayIndex = (m, key) => { const i = m.news.findIndex((n) => n.key === key); return i < 0 ? 0 : i; };
+const eligibleOn = (m, id, reportIdx) => (portfolio.lots[id] || []).filter((l) => dayIndex(m, l.day) <= reportIdx - 7).reduce((t, l) => t + l.n, 0);
 const signed = (n) => `${n >= 0 ? '+' : '−'}${Math.abs(Math.round(n)).toLocaleString()}`;
 // Owners are paid on each report day. Shares only change at the banker's table, so whatever someone owns now is what
 // they owned on every report day since their last visit.
@@ -329,10 +335,10 @@ function payDividends(m) {
   const today = m.news.length - 1, from = m.news.findIndex((n) => n.key === portfolio.paidThrough);
   let total = 0;
   if (from >= 0) for (const c of COMPANIES) {
-    const n = portfolio.shares[c.id] || 0;
-    if (n) for (let i = from + 1; i <= today; i++) total += (m.companies[c.id][i].report?.dividend || 0) * n;
+    if (sharesOf(c.id)) for (let i = from + 1; i <= today; i++) { const div = m.companies[c.id][i].report?.dividend; if (div) total += div * eligibleOn(m, c.id, i); }
   }
   portfolio.paidThrough = m.news[today].key; savePortfolio();
+  total = Math.floor(total);
   if (total) { wallet.coins = wallet.coins + total; bumpRecord('dividends', (v = 0) => v + total); }
   return total;
 }
@@ -349,13 +355,13 @@ function spark(prices) {
 function renderExchange(note = '', tone = '') {
   const m = market(), dayNow = new Date().getDay(), body = $('#ex-body');
   const price = (c) => tradePrice(m.companies[c.id].at(-1).price);
-  const held = COMPANIES.reduce((t, c) => t + (portfolio.shares[c.id] || 0) * price(c), 0);
+  const held = COMPANIES.reduce((t, c) => t + sharesOf(c.id) * price(c), 0);
   const paidIn = COMPANIES.reduce((t, c) => t + (portfolio.cost[c.id] || 0), 0);
   const order = [...COMPANIES].sort((a, b) => ((a.day - dayNow + 7) % 7) - ((b.day - dayNow + 7) % 7)); // today's reporter first
   const week = m.news.slice(-7, -1).reverse().filter((d) => d.headlines.length);
   const item = (h) => `<li class="${h.good === true ? 'ex-good' : h.good === false ? 'ex-bad' : ''}">${h.text}</li>`;
   body.innerHTML = `
-    <p class="ex-intro">Seven businesses, one report a day. On its day, each company reports its profit for the week. Beat what the market expected and the price usually jumps; miss and it usually falls. Owners get part of the profit each report day. Every trade costs a 1% fee, and you can hold up to ${STOCK_CAP.toLocaleString()} coins in any one company.</p>
+    <p class="ex-intro">Seven businesses, one report a day. On its day, each company reports its profit for the week. Beat what the market expected and the price usually jumps; miss and it usually falls. Owners get part of the profit each report day, on shares they have owned for at least a week. Every trade costs a 1% fee, and you can hold up to ${STOCK_CAP.toLocaleString()} coins in any one company.</p>
     <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>Your shares are worth <b>${held.toLocaleString()}</b>${paidIn ? ` <span class="${held >= paidIn ? 'ex-up' : 'ex-down'}">(${signed(held - paidIn)} on what you paid)</span>` : ''}</span></p>
     ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
     ${stormy() ? '<p class="ex-note">The weather dial in the Machine Room does not move these prices. The real sea is bigger than your lever.</p>' : ''}
@@ -364,7 +370,8 @@ function renderExchange(note = '', tone = '') {
       ${week.length ? `<details><summary>Earlier this week</summary>${week.map((d) => `<h4>${DAY_NAMES[d.date.getDay()]}</h4><ul>${d.headlines.map(item).join('')}</ul>`).join('')}</details>` : ''}</section>
     <div class="ex-list">${order.map((c) => {
       const days = m.companies[c.id], now = days.at(-1), p = price(c), change = now.price / days.at(-2).price - 1;
-      const last = [...days].reverse().find((d) => d.report), r = last?.report, n = portfolio.shares[c.id] || 0;
+      const last = [...days].reverse().find((d) => d.report), r = last?.report, n = sharesOf(c.id);
+      const nextIdx = m.news.length - 1 + (((c.day - dayNow + 7) % 7) || 7), ready = eligibleOn(m, c.id, nextIdx);
       const reportsToday = c.day === dayNow, tomorrow = c.day === (dayNow + 1) % 7;
       return `<article class="ex-co${reportsToday ? ' today' : ''}" data-co="${c.id}">
         <div class="ex-top"><h3>${c.name}</h3><span class="ex-day">${reportsToday ? 'Reported today' : tomorrow ? 'Reports tomorrow' : `Reports ${DAY_NAMES[c.day]}s`}</span></div>
@@ -372,7 +379,7 @@ function renderExchange(note = '', tone = '') {
         <p class="ex-how"><b>Makes money:</b> ${c.makes} <b>Watch:</b> ${c.watch}</p>
         <p class="ex-facts">${r ? `Last report: profit ${r.e.toFixed(1)} per share, ${Math.abs(Math.round(r.surprise * 100))}% ${r.surprise >= 0 ? 'above' : 'below'} expectations. Paid owners ${r.dividend} per share.` : ''} ${reportsToday ? '' : `The market expects about ${now.expected.toFixed(1)} per share this week.`}</p>
         <form class="ex-trade" data-co="${c.id}">
-          <span class="ex-own">${n ? `You own <b>${n.toLocaleString()}</b> (worth ${(n * p).toLocaleString()}, <span class="${n * p >= (portfolio.cost[c.id] || 0) ? 'ex-up' : 'ex-down'}">${signed(n * p - (portfolio.cost[c.id] || 0))}</span>)` : 'You own none'}</span>
+          <span class="ex-own">${n ? `You own <b>${n.toLocaleString()}</b> (worth ${(n * p).toLocaleString()}, <span class="${n * p >= (portfolio.cost[c.id] || 0) ? 'ex-up' : 'ex-down'}">${signed(n * p - (portfolio.cost[c.id] || 0))}</span>)${ready < n ? `. ${ready ? `${ready.toLocaleString()} of them` : 'None of them'} will get the next dividend.` : ''}` : 'You own none'}</span>
           <input type="text" inputmode="numeric" autocomplete="off" placeholder="Shares" aria-label="Number of ${c.name} shares">
           <button type="submit" class="btn btn-primary btn-sm" value="buy">Buy</button>
           <button type="submit" class="btn btn-secondary btn-sm" value="sell"${n ? '' : ' disabled'}>Sell</button>
@@ -389,23 +396,94 @@ function trade(c, side, raw, msg) {
   const say = (t) => { msg.textContent = t; msg.className = 'ex-msg bad'; };
   const text = String(raw).trim().replace(/,/g, '');
   if (!/^\d{1,7}$/.test(text) || Number(text) < 1) return say('Enter a whole number of shares, like 5.');
-  const qty = Number(text), p = tradePrice(market().companies[c.id].at(-1).price), n = portfolio.shares[c.id] || 0;
+  const qty = Number(text), p = tradePrice(market().companies[c.id].at(-1).price), n = sharesOf(c.id);
   const fee = Math.max(1, Math.ceil(qty * p * FEE));
   if (side === 'buy') {
     const cost = qty * p + fee;
     if (cost > wallet.coins) return say(`That costs ${cost.toLocaleString()} coins with the fee. You have ${wallet.coins.toLocaleString()}.`);
     if ((n + qty) * p > STOCK_CAP) return say(`That would put more than ${STOCK_CAP.toLocaleString()} coins in one company. You can buy up to ${Math.max(0, Math.floor(STOCK_CAP / p) - n).toLocaleString()} more.`);
     wallet.coins = wallet.coins - cost;
-    portfolio.shares[c.id] = n + qty; portfolio.cost[c.id] = (portfolio.cost[c.id] || 0) + cost; savePortfolio();
+    const lots = (portfolio.lots[c.id] ||= []), todayLot = lots.find((l) => l.day === dayKey());
+    if (todayLot) todayLot.n += qty; else lots.push({ n: qty, day: dayKey() });
+    portfolio.cost[c.id] = (portfolio.cost[c.id] || 0) + cost; savePortfolio();
     return renderExchange(`Bought ${qty.toLocaleString()} ${c.name} shares at ${p} each, plus a fee of ${fee} coins.`, 'ok');
   }
   if (qty > n) return say(`You only own ${n.toLocaleString()} ${c.name} shares.`);
   const proceeds = qty * p - fee, basis = (portfolio.cost[c.id] || 0) * (qty / n);
-  portfolio.shares[c.id] = n - qty; portfolio.cost[c.id] = Math.max(0, (portfolio.cost[c.id] || 0) - basis);
-  if (!portfolio.shares[c.id]) { delete portfolio.shares[c.id]; delete portfolio.cost[c.id]; }
+  // Sell the newest shares first, so the ones that already qualify for dividends stay put.
+  let left = qty; const lots = portfolio.lots[c.id];
+  while (left && lots.length) { const l = lots.at(-1), take = Math.min(left, l.n); l.n -= take; left -= take; if (!l.n) lots.pop(); }
+  portfolio.cost[c.id] = Math.max(0, (portfolio.cost[c.id] || 0) - basis);
+  if (!sharesOf(c.id)) { delete portfolio.lots[c.id]; delete portfolio.cost[c.id]; }
   savePortfolio(); wallet.coins = wallet.coins + proceeds;
   bumpRecord('stockGains', (v = 0) => v + (proceeds - basis));
   renderExchange(`Sold ${qty.toLocaleString()} ${c.name} shares at ${p} each, less a fee of ${fee} coins. That is ${signed(proceeds - basis)} coins compared with what you paid.`, proceeds >= basis ? 'ok' : '');
+}
+
+/* ---------------- City bonds, sold at the banker's table ---------------- */
+// Lend coins to the city for 30 days and get them back with a fixed 25% on top, guaranteed. The catch: the coins are
+// locked away. Cashing out early returns only what you lent. Up to three bonds at a time, 10,000 coins each.
+const BOND_RATE = .25, BOND_DAYS = 30, BOND_MAX = 10000, BOND_SLOTS = 3;
+let bonds = lsGet('hf-bonds', []);
+const saveBonds = () => lsSet('hf-bonds', bonds);
+const onDate = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+const bondLine = (b) => `${b.amt.toLocaleString()} coins, paying ${Math.round(b.amt * (1 + BOND_RATE)).toLocaleString()} on ${onDate(b.due)}`;
+// Bonds that have come due are paid as soon as you walk into the bank.
+function payBonds() {
+  const due = bonds.filter((b) => b.due <= Date.now());
+  if (!due.length) return '';
+  bonds = bonds.filter((b) => b.due > Date.now()); saveBonds();
+  const back = due.reduce((t, b) => t + Math.round(b.amt * (1 + BOND_RATE)), 0), bonus = due.reduce((t, b) => t + Math.round(b.amt * BOND_RATE), 0);
+  wallet.coins = wallet.coins + back; bumpRecord('bonds', (v = 0) => v + bonus);
+  return `${due.length > 1 ? `${due.length} of your bonds came due` : 'Your bond came due'}. The city paid back ${back.toLocaleString()} coins, ${bonus.toLocaleString()} more than you lent. It is in your purse.`;
+}
+async function bondDesk() {
+  const v = await say([`City bonds: lend the city coins for ${BOND_DAYS} days and get them back with ${Math.round(BOND_RATE * 100)}% on top, guaranteed. The coins stay locked until then; cash out early and you only get back what you lent.`,
+    bonds.length ? `Your bonds:\n${bonds.map(bondLine).join('\n')}` : `You have no bonds yet. You can hold up to ${BOND_SLOTS} at a time, up to ${BOND_MAX.toLocaleString()} coins each.`],
+    [...(bonds.length < BOND_SLOTS ? [{ label: 'Buy a bond', value: 'buy' }] : []), ...(bonds.length ? [{ label: 'Cash one out early', value: 'cash' }] : []), { label: 'Back', value: null }]);
+  if (v === 'buy') {
+    const most = Math.min(BOND_MAX, wallet.coins);
+    if (most < 100) return say('A bond takes at least 100 coins.');
+    const amt = await say(`How much will you lend the city? From 100 to ${most.toLocaleString()}. In ${BOND_DAYS} days it pays back ${Math.round(BOND_RATE * 100)}% more.`,
+      [...[100, 500, 1000, 5000].filter((n) => n <= most).map((n) => ({ label: n.toLocaleString(), value: n })), { label: 'Other amount', amount: { min: 100, max: most } }, { label: 'Never mind', value: null }]);
+    if (!amt) return;
+    if (!Number.isInteger(amt) || amt < 100 || amt > Math.min(BOND_MAX, wallet.coins) || bonds.length >= BOND_SLOTS) return say('The banker checks your purse twice. That amount does not work.');
+    wallet.coins = wallet.coins - amt;
+    const b = { amt, bought: Date.now(), due: Date.now() + BOND_DAYS * 864e5 }; bonds.push(b); saveBonds();
+    return say(`Done. You lent the city ${amt.toLocaleString()} coins. On ${onDate(b.due)} it pays you back ${Math.round(amt * (1 + BOND_RATE)).toLocaleString()}. Collect it here.`);
+  }
+  if (v === 'cash') {
+    const i = bonds.length === 1 ? 0 : await say('Which bond?', [...bonds.map((b, j) => ({ label: bondLine(b), value: j })), { label: 'Never mind', value: null }]);
+    if (i == null) return;
+    const b = bonds[i];
+    const ok = await say(`Cash out early and you get back ${b.amt.toLocaleString()} coins, with no bonus. Wait until ${onDate(b.due)} and you get ${Math.round(b.amt * (1 + BOND_RATE)).toLocaleString()}.`, [{ label: 'Cash it out', value: 'yes' }, { label: 'Keep it', value: null }]);
+    if (ok !== 'yes') return;
+    bonds.splice(i, 1); saveBonds(); wallet.coins = wallet.coins + b.amt;
+    return say(`The city returns your ${b.amt.toLocaleString()} coins.`);
+  }
+}
+
+/* ---------------- Your money: everything in one place ---------------- */
+function openMoney() {
+  const m = market(), paid = payDividends(m); settleBank();
+  const price = (c) => tradePrice(m.companies[c.id].at(-1).price);
+  const owned = COMPANIES.filter((c) => sharesOf(c.id)).map((c) => ({ c, n: sharesOf(c.id), value: sharesOf(c.id) * price(c), cost: portfolio.cost[c.id] || 0 }));
+  const sharesValue = owned.reduce((t, o) => t + o.value, 0), lent = bonds.reduce((t, b) => t + b.amt, 0);
+  const parts = [
+    { id: 'purse', label: 'Purse', value: wallet.coins, note: 'Ready to spend.' },
+    { id: 'bank', label: 'Bank', value: Math.floor(bank.bal), note: `Grows ${+(BANK_RATE * 100).toFixed(2)}% a day. Take it out anytime.` },
+    { id: 'bonds', label: 'Bonds', value: lent, note: lent ? `Pays back ${Math.round(lent * (1 + BOND_RATE)).toLocaleString()} in all. Next on ${onDate(Math.min(...bonds.map((b) => b.due)))}.` : 'None right now.' },
+    { id: 'shares', label: 'Shares', value: sharesValue, note: sharesValue ? `${signed(sharesValue - owned.reduce((t, o) => t + o.cost, 0))} compared with what you paid.` : 'None right now.' },
+  ];
+  const total = parts.reduce((t, x) => t + x.value, 0), pct = (v) => (total ? Math.round((100 * v) / total) : 0);
+  $('#money-body').innerHTML = `
+    ${paid ? `<p class="ex-note ok" role="status">Dividends paid since your last visit: ${paid.toLocaleString()} coins, added to your purse.</p>` : ''}
+    <p class="mo-total">Everything you own: <b>${total.toLocaleString()}</b> coins</p>
+    <div class="mo-bar" role="img" aria-label="${parts.map((x) => `${x.label} ${pct(x.value)}%`).join(', ')}">${parts.filter((x) => x.value).map((x) => `<span class="mo-${x.id}" style="flex-grow:${x.value}"></span>`).join('')}</div>
+    <table class="mo-table"><tbody>${parts.map((x) => `<tr><th><span class="mo-dot mo-${x.id}"></span>${x.label}</th><td class="mo-num">${x.value.toLocaleString()}</td><td class="mo-num">${pct(x.value)}%</td><td class="mo-note">${x.note}</td></tr>`).join('')}</tbody></table>
+    ${bonds.length ? `<h3 class="mo-h">Your bonds</h3><ul class="mo-list">${bonds.map((b) => `<li>${bondLine(b)}</li>`).join('')}</ul>` : ''}
+    ${owned.length ? `<h3 class="mo-h">Your shares</h3><table class="mo-table mo-holdings"><thead><tr><th>Company</th><th class="mo-num">Shares</th><th class="mo-num">Worth</th><th class="mo-num mo-pct">Of your shares</th><th class="mo-num">Gain</th></tr></thead><tbody>${owned.map((o) => `<tr><th>${o.c.name}</th><td class="mo-num">${o.n.toLocaleString()}</td><td class="mo-num">${o.value.toLocaleString()}</td><td class="mo-num mo-pct">${Math.round((100 * o.value) / sharesValue)}%</td><td class="mo-num ${o.value >= o.cost ? 'ex-up' : 'ex-down'}">${signed(o.value - o.cost)}</td></tr>`).join('')}</tbody></table>` : ''}`;
+  openModal('#money');
 }
 
 /* ---------------- Trading voyages from the beach ---------------- */
@@ -551,15 +629,19 @@ const INTERACT = {
   },
   async bank() {
     if (await requestTalk('bank')) return;
+    const matured = payBonds();
+    if (matured) await say(matured);
     settleBank();
     const whole = Math.floor(bank.bal), grew = whole - Math.floor(bank.seen || 0);
     bank.seen = bank.bal; lsSet('hf-bank', bank);
     const allTime = Math.floor(lsGet('hf-records', {}).interest || 0);
     const total = allTime ? ` In all, your account has earned ${allTime.toLocaleString()} coins of interest.` : '';
-    const v = await say(['The Bank. A banker sits at a long table, a trapeza, stacking silver. He also runs the Athenian Exchange, where you can buy shares in town businesses.',
+    const v = await say(['The Bank. A banker sits at a long table, a trapeza, stacking silver. He also sells city bonds and runs the Athenian Exchange, where you can buy shares in town businesses.',
       whole ? `Your account: ${whole.toLocaleString()} coins.${grew > 0 ? ` It earned ${grew.toLocaleString()} since your last visit.` : ''}${total} It grows ${+(BANK_RATE * 100).toFixed(2)}% a day, on up to ${BANK_CAP.toLocaleString()} coins.` : `Coins you leave here grow ${+(BANK_RATE * 100).toFixed(2)}% every day, on up to ${BANK_CAP.toLocaleString()} coins. Take them out whenever you like.${total}`],
-      [{ label: 'Deposit', value: 'in' }, ...(whole ? [{ label: 'Withdraw', value: 'out' }] : []), { label: 'The Exchange', value: 'stocks' }, { label: 'Leave', value: null }]);
+      [{ label: 'Deposit', value: 'in' }, ...(whole ? [{ label: 'Withdraw', value: 'out' }] : []), { label: 'Bonds', value: 'bonds' }, { label: 'The Exchange', value: 'stocks' }, { label: 'Your money', value: 'money' }, { label: 'Leave', value: null }]);
     if (v === 'stocks') return openExchange();
+    if (v === 'bonds') return bondDesk();
+    if (v === 'money') return openMoney();
     if (v === 'in') {
       if (!wallet.coins) return say('Your purse is empty. The olive trees are a good place to start.');
       const amt = await say(`You have ${wallet.coins.toLocaleString()} coins with you. How much will you deposit?`, amounts(wallet.coins));
@@ -582,7 +664,7 @@ const INTERACT = {
     const r = lsGet('hf-records', {}), lap = lsGet('hf-stadion-best', null), interest = Math.floor(r.interest || 0);
     const none = 'not yet';
     await say(['The record keeper chisels away at a stone tablet. "Every record in Athens goes in stone. Let me read you yours."',
-      `Fastest winning lap: ${lap != null ? `${lap.toFixed(2)} seconds` : none}\nBiggest blackjack win: ${r.bjBest ? `${r.bjBest.toLocaleString()} coins` : none}\nVoyages that made it home: ${r.home || 0}${r.sunk ? ` (${r.sunk} lost at sea)` : ''}\nTotal interest earned: ${interest ? `${interest.toLocaleString()} coins` : none}\nRequests completed: ${r.requests || 0}\nProfit from the Exchange: ${r.stockGains || r.dividends ? `${signed((r.stockGains || 0) + (r.dividends || 0))} coins` : none}`,
+      `Fastest winning lap: ${lap != null ? `${lap.toFixed(2)} seconds` : none}\nBiggest blackjack win: ${r.bjBest ? `${r.bjBest.toLocaleString()} coins` : none}\nVoyages that made it home: ${r.home || 0}${r.sunk ? ` (${r.sunk} lost at sea)` : ''}\nTotal interest earned: ${interest ? `${interest.toLocaleString()} coins` : none}\nRequests completed: ${r.requests || 0}\nProfit from the Exchange: ${r.stockGains || r.dividends ? `${signed((r.stockGains || 0) + (r.dividends || 0))} coins` : none}\nEarned from bonds: ${r.bonds ? `${r.bonds.toLocaleString()} coins` : none}`,
       '"Come back when you break one. I have plenty of chisels."']);
   },
   async student() {

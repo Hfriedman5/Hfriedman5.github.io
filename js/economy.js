@@ -49,31 +49,31 @@ export function seasonLines(d = new Date()) {
 }
 
 export const COMPANIES = [
-  { id: 'olive', name: 'Athena Olive Press', day: 1, e0: 4, M: 20, payout: .5,
+  { id: 'olive', name: 'Athena Olive Press', day: 1, e0: 4, M: 9, payout: .72,
     makes: 'Presses olives and ships the oil.', watch: 'Demand for olive oil on the Crete route in the captain\'s sea report, and the olive harvest (October to December).',
     news: (d, s) => .04 * demandScore(s.crete) + seasonal('olive', d),
     good: 'A second olive press opens at Athena Olive Press.', bad: 'A cracked millstone halts the Athena Olive Press.' },
-  { id: 'ship', name: 'Piraeus Shipyard', day: 2, e0: 5.5, M: 20, payout: .3,
+  { id: 'ship', name: 'Piraeus Shipyard', day: 2, e0: 5.5, M: 9, payout: .6,
     makes: 'Builds and repairs ships.', watch: 'Storms in the sea report. Storms are good for business: damaged and sunk ships need replacing.',
     news: (d, s) => ROUTES.reduce((t, r) => t + (s[r.id].storm ? .025 : s[r.id].calm ? -.005 : 0), 0),
     good: 'The navy orders new triremes from Piraeus Shipyard.', bad: 'A timber shortage slows work at Piraeus Shipyard.' },
-  { id: 'pottery', name: 'Agora Pottery', day: 3, e0: 2.5, M: 18, payout: .5,
+  { id: 'pottery', name: 'Agora Pottery', day: 3, e0: 2.5, M: 8, payout: .6,
     makes: 'Makes amphorae, the jars that oil and grain ship in.', watch: 'Last week\'s demand for olive oil and grain. Orders for jars come a week after the cargo does.',
     news: (d, s, past) => .03 * (demandScore(past.crete) + demandScore(past.egypt)),
     good: 'Agora Pottery wins a contract for new temple vases.', bad: 'A kiln fire damages the Agora Pottery workshop.' },
-  { id: 'pistachio', name: 'Aegina Pistachio Growers', day: 4, e0: 3, M: 18, payout: .4,
+  { id: 'pistachio', name: 'Aegina Pistachio Growers', day: 4, e0: 3, M: 8.5, payout: .66,
     makes: 'Grows pistachios on Aegina and ships them to Athens.', watch: 'Demand for pistachios on the Aegina route, and storms there that hold the boats in port.',
     news: (d, s) => .05 * demandScore(s.aegina) - (s.aegina.storm ? .02 : 0),
     good: 'Aegina\'s pistachio harvest is the biggest in years.', bad: 'Pests hit the pistachio orchards on Aegina.' },
-  { id: 'grain', name: 'Nile Grain Traders', day: 5, e0: 4.5, M: 20, payout: .4,
+  { id: 'grain', name: 'Nile Grain Traders', day: 5, e0: 4.5, M: 9, payout: .72,
     makes: 'Buys grain in Egypt and ships it to Athens.', watch: 'Demand for grain on the Egypt route, and storms there that sink cargo.',
     news: (d, s) => .04 * demandScore(s.egypt) - (s.egypt.storm ? .03 : 0),
     good: 'The Nile floods right on schedule, promising a big grain harvest.', bad: 'A low Nile means a thin grain harvest this year.' },
-  { id: 'silver', name: 'Laurion Silver Mines', day: 6, e0: 6, M: 22, payout: .8, events: .3,
+  { id: 'silver', name: 'Laurion Silver Mines', day: 6, e0: 6, M: 11, payout: .92, events: .3,
     makes: 'Mines the silver that Athens turns into coins.', watch: 'Only the headlines. The mines ignore the sea, so news from Laurion is the whole story. It pays the biggest share of its profit out to owners.',
     news: () => 0,
     good: 'Miners strike a rich new silver vein at Laurion.', bad: 'Flooding closes a shaft at the Laurion mines.' },
-  { id: 'tours', name: 'Acropolis Tours', day: 0, e0: 3.5, M: 20, payout: .2,
+  { id: 'tours', name: 'Acropolis Tours', day: 0, e0: 3.5, M: 8, payout: .55,
     makes: 'Guides visitors around the Acropolis.', watch: 'Calm seas, since visitors arrive by boat, and the season: busy in summer, quiet in winter.',
     news: (d, s) => ROUTES.reduce((t, r) => t + (s[r.id].calm ? .02 : s[r.id].storm ? -.02 : 0), 0) + seasonal('tours', d),
     good: 'A famous poet will perform at the Acropolis this week.', bad: 'Rumors of pirates keep visitors away from Athens.' },
@@ -112,14 +112,11 @@ export function market(today = new Date()) {
         const base = c.e0 * Math.pow(1.003, (d - EPOCH) / 6048e5), luck = (seeded(`${k}:${c.id}:luck`) - .5) * .12;
         const e = base * (1 + st.sum) * (1 + luck);
         const expected = st.F * (1 + BELIEF * st.sum);
-        report = { e, expected, surprise: e / expected - 1, dividend: Math.max(0, Math.round(c.payout * e)) };
+        report = { e, expected, surprise: e / expected - 1, dividend: Math.max(0, Math.round(c.payout * e * 10) / 10) };
         st.F = .6 * e + .4 * st.F; st.sum = 0; st.last = report; // the market's next guess leans on this week's number
         headlines.push({ co: c.id, report: true, good: report.surprise >= 0, text: `${c.name} reports a profit of ${report.e.toFixed(1)} per share, ${Math.abs(Math.round(report.surprise * 100))}% ${report.surprise >= 0 ? 'above' : 'below'} what the market expected.` });
       }
-      // Like a real share, the price carries the dividend building up since the last report, and drops by it once it's paid,
-      // so buying the day before a report just to collect the dividend doesn't pay.
-      const sinceReport = (d.getDay() - c.day + 7) % 7;
-      const price = Math.max(5, c.M * st.F * (1 + BELIEF * st.sum) * (1 + st.u) + c.payout * st.F * (sinceReport / 7));
+      const price = Math.max(5, c.M * st.F * (1 + BELIEF * st.sum) * (1 + st.u));
       st.days.push({ key: k, price, report, expected: st.F * (1 + BELIEF * st.sum) });
     }
     // The sea report makes the news too: storms and unusual demand on each route.
