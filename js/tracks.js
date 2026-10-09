@@ -1,4 +1,4 @@
-// The record collection, shared by the turntable (music.js) and the Odeon in Little Athens (play.js).
+// The record collection for the homepage turntable (music.js).
 // Recordings still under copyright play Apple Music's 30-second previews and link to the full song.
 // The Canon (U.S. Air Force Band) and Vivaldi (Modena Chamber Orchestra, via Musopen) recordings are public domain and play in full.
 export const TRACKS = [

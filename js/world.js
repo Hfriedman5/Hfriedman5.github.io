@@ -11,7 +11,7 @@ const P = {
   water: '#2f80c6', water2: '#63aee4', water3: '#1f5f9e',
   leaf: '#8fa66b', leaf2: '#b6c78e', leaf3: '#6a7f4b', trunk: '#7a5a3a', cypress: '#3f6b3c', cypress2: '#56864f', cypress3: '#2c4f2b',
   wall: '#f4f0e7', wall2: '#ddd6c6', wall3: '#bfb5a2', col: '#fbf9f4',
-  roof: '#c8643c', roof2: '#a14c2c', roofR: '#c8643c', roofR2: '#a14c2c', roofT: '#d39a4a', roofT2: '#a8762f', roofP: '#b85a48', roofP2: '#8e4234',
+  roof: '#c8643c', roof2: '#a14c2c', roofR: '#c8643c', roofR2: '#a14c2c', roofT: '#d39a4a', roofT2: '#a8762f', roofP: '#b85a48', roofP2: '#8e4234', roofB: '#5f7896', roofB2: '#46607e',
   ped: '#3d6fa8', ped2: '#c8643c',
   win: '#4a3a2c', win2: '#7a6248', door: '#6b4a2f', door2: '#4e3420',
   ice: '#d9a46b', ice2: '#f6efe2', board: '#e3dac8', boardLine: '#c7bca6',
@@ -53,7 +53,7 @@ export const BUILDINGS = [
   { id: 'gaming', name: 'Gaming Hall', kind: 'house', roof: ['roofR', 'roofR2'], x: 3, y: 3, w: 6, h: 5, door: [5, 7] },
   { id: 'academy', name: 'The Academy', kind: 'house', roof: ['roofT', 'roofT2'], x: 28, y: 3, w: 6, h: 5, door: [30, 7], pediment: true },
   { id: 'library', name: 'Library', kind: 'house', roof: ['roof', 'roof2'], x: 3, y: 15, w: 6, h: 5, door: [5, 19] },
-  { id: 'odeon', name: 'The Odeon', kind: 'house', roof: ['roofP', 'roofP2'], x: 28, y: 15, w: 6, h: 5, door: [30, 19] },
+  { id: 'bank', name: 'The Bank', kind: 'house', roof: ['roofB', 'roofB2'], x: 28, y: 15, w: 6, h: 5, door: [30, 19], pediment: true },
 ];
 export const RINK = { x: 14, y: 15, w: 9, h: 5 };
 // Places on the map. `at` is where the label sits (tile coords); `go` is where travel puts you, and which way you face.
@@ -63,12 +63,13 @@ export const MAP_PLACES = [
   { id: 'academy', name: 'The Academy', desc: "Raphael's School of Athens, in pixels.", at: [31, 3.4], go: [30, 8, 'up'] },
   { id: 'market', name: 'Agora market', desc: 'Outfits and gadgets, paid in coins.', at: [23.5, 10.2], go: [23, 13, 'up'] },
   { id: 'library', name: 'Library', desc: 'Scrolls, and a diary that writes back.', at: [6, 15.4], go: [5, 20, 'up'] },
-  { id: 'odeon', name: 'The Odeon', desc: 'Live music. The set list is one song.', at: [31, 15.4], go: [30, 20, 'up'] },
+  { id: 'bank', name: 'The Bank', desc: 'Coins left with the banker grow 2% a day.', at: [31, 15.4], go: [30, 20, 'up'] },
+  { id: 'board', name: 'Request board', desc: 'One small job for the town, every day.', at: [19.5, 8.3], go: [19, 10, 'up'] },
   { id: 'stadium', name: 'The Stadium', desc: 'Race the runner, one lap.', at: [18.5, 17.5], go: [18, 14, 'down'] },
-  { id: 'shore', name: 'The Aegean Sea', desc: 'Sand, sea, and now and then a sandal.', at: [18, 22.6], go: [18, 21, 'down'] },
+  { id: 'shore', name: 'The Aegean Sea', desc: 'Sand, sea, and a captain with ships for hire.', at: [18, 22.6], go: [18, 21, 'down'] },
 ];
-// Where Socrates keeps losing his sandal (sand and grass only).
 export const STALL = { x: 22, y: 11, w: 3, h: 1 };
+// Where lost things turn up for the request board's fetch jobs (sand and grass only).
 export const SANDAL_SPOTS = [[4, 21], [31, 21], [17, 21], [2, 17], [11, 19], [33, 10]];
 
 export const SIGNS = [
@@ -76,7 +77,8 @@ export const SIGNS = [
   { x: 9, y: 8, text: 'Gaming Hall.\nMinesweeper and blackjack. Bring coins.' },
   { x: 26, y: 8, text: "Plato's Academy.\nInside: the whole School of Athens, painted on one wall." },
   { x: 9, y: 15, text: 'Library. The door is around the front, on the beach side.\nQuiet, please. Something in here writes back.' },
-  { x: 27, y: 15, text: 'The Odeon. The door is around the front, on the beach side.\nLive music nightly. The set list is one song long.' },
+  { x: 27, y: 15, text: 'The Bank. The door is around the front, on the beach side.\nThe banker sits at a table, a trapeza. Coins left with him grow 2% a day.' },
+  { x: 19, y: 9, board: true, text: 'Town request board.' },
   { x: 25, y: 20, text: 'The Aegean Sea.\nHomer called it wine-dark. It looks blue to you.' },
 ];
 
@@ -89,6 +91,7 @@ export const NPCS = [
   { id: 'merchant', x: 23, y: 12, sprite: 'merchant', facing: 'down', still: true },
   { id: 'recruiter', x: 26, y: 14, sprite: 'recruiter', facing: 'left' },
   { id: 'runner', x: 18, y: 17, sprite: 'runner', facing: 'down', wander: true, on: ['i'] },
+  { id: 'captain', x: 22, y: 21, sprite: 'captain', facing: 'down' },
 ];
 
 export function buildGrid() {
@@ -188,6 +191,14 @@ function paintSign(c, ox, oy, tx, ty, grid) {
   const under = grid[ty][tx - 1] === '=' || grid[ty][tx + 1] === '=' ? 'path' : 'grass';
   under === 'path' ? px(c, ox, oy, 16, 16, P.path) : paintGrass(c, ox, oy, tx, ty);
   px(c, ox + 3, oy + 14, 11, 2, 'rgba(0,0,0,.16)');
+  if (SIGNS.find((s) => s.x === tx && s.y === ty)?.board) { // the request board: two posts, a wooden board, pinned notes
+    px(c, ox + 2, oy + 9, 2, 6, P.trunk); px(c, ox + 12, oy + 9, 2, 6, P.trunk);
+    px(c, ox + 1, oy + 1, 14, 10, P.door2); px(c, ox + 2, oy + 2, 12, 8, P.door);
+    px(c, ox + 3, oy + 3, 4, 5, P.sign); px(c, ox + 8, oy + 3, 5, 3, P.flowerW); px(c, ox + 9, oy + 7, 3, 2, P.sign);
+    px(c, ox + 4, oy + 3, 2, 1, P.flowerR); px(c, ox + 10, oy + 3, 1, 1, P.flowerR); px(c, ox + 10, oy + 7, 1, 1, P.flowerR);
+    [5, 6].forEach((y) => px(c, ox + 4, oy + y, 2, 1, P.sign2)); px(c, ox + 9, oy + 4, 3, 1, P.sign2);
+    return;
+  }
   px(c, ox + 4, oy + 2, 8, 13, P.sign2);
   px(c, ox + 5, oy + 3, 6, 11, P.sign);
   px(c, ox + 4, oy + 1, 8, 2, P.sign2);
@@ -286,7 +297,17 @@ const SANDAL = pad16(['................', '................', '................'
 const BEAVER = ['................', '....oo....oo....', '...ouuuuuuuuo...', '..ouuuuuuuuuuo..', '..ouueuuuueuuo..', '..ouuuulluuuuo..', '..ouuulnnluuuo..', '..ouuuuwwuuuuo..', '...ouuuuuuuuo...', '..ouullllllluo..', '.ouuullllllluuo.', '.ouuullllllluuo.', '..ouulllllluuo..', '...ouuuuuuuuoUU.', '...ouo....ouoUUU', '...ooo....oooUU.'];
 const HAT = ['........oo......', '.......oAo......', '......oaAo......', '......oaao......', '.....oafaao.....', '.....oaaAao.....', '....oaAAaaao....', '....oafaaaAo....', '...oaaeaaeaao...', '..oaaaAAAAaaao..', '.oaaaaaaaaaaaao.', 'oooooooooooooooo', '...okkkkkkkko...', '....oKo..oKo....', '....oKo..oKo....', '....ooo..ooo....'];
 
+const YARN = pad16(['................', '................', '................', '................', '...........y....', '..........yyy...', '...........y....', '.....oooo.......', '....orrRro......', '...orRrrRro.....', '...orrRrrro.....', '...oRrrRrro.....', '....orrrRo.r....', '.....oooo..r....', '................', '................']);
+const FEATHER = pad16(['................', '................', '................', '................', '...........y....', '..........yyy...', '...........y....', '.........oo.....', '........ollo....', '.......ollfo....', '......ollfo.....', '.....ollfo......', '....olffo.......', '...ooqo.........', '..q.............', '................']);
+const PURSE = pad16(['................', '................', '................', '................', '...........y....', '..........yyy...', '......t....y....', '.....ooo........', '....oyyyo.......', '...obbbbbo......', '..obbBbbbbo.....', '..obbbbbBbo.....', '..obbbbbbbo.....', '...ooooooo......', '................', '................']);
+const COMPASS = pad16(['................', '................', '................', '................', '...........y....', '..........yyy...', '...........y....', '.....ooooo......', '....owwrwwo.....', '...owwwrwwwo....', '...owwwkwwwo....', '...owwwkwwwo....', '....owwwwwo.....', '.....ooooo......', '................', '................']);
+
 const PALETTES = {
+  yarn: { o: '#2a2f3d', r: '#d9423b', R: '#a8302c', y: '#f6d24a' },
+  feather: { o: '#2a2f3d', l: '#c9c3b6', f: '#8e8778', q: '#6e6658', y: '#f6d24a' },
+  purse: { o: '#3a2a1c', b: '#8a5a34', B: '#6e4a26', y: '#f6d24a', t: '#f6d24a' },
+  compass: { o: '#5a412a', w: '#f6efe2', r: '#d9423b', k: '#2a2f3d', y: '#f6d24a' },
+  captain: { o: '#2a2f3d', h: '#3a2a1c', H: '#5a412a', s: '#c98d64', S: '#ab7350', e: '#2a2f3d', k: '#d98a78', m: '#8a4a32', r: '#2f5a8c', R: '#f6f2e8', p: '#24466d', b: '#6b4a2f' },
   hannah: { o: '#2a2f3d', h: '#6b3f24', H: '#8f5a35', s: '#f6c9a4', S: '#e2a985', e: '#2a2f3d', k: '#f2a6a0', m: '#c0604a', r: '#f6f2e8', R: '#c8643c', p: '#ebe4d4', b: '#8a5a34' },
   recruiter: { o: '#2a2f3d', h: '#3b3b44', H: '#55555f', s: '#e9b48c', S: '#cf9a74', e: '#2a2f3d', k: '#e9a090', m: '#a0503a', r: '#2b3652', R: '#1c2438', p: '#1c2438', b: '#1b1b1b' },
   runner: { o: '#2a2f3d', h: '#2f2219', H: '#4a3626', s: '#e2a67c', S: '#c88b62', e: '#2a2f3d', k: '#e9a090', m: '#a0503a', r: '#c8643c', R: '#9e4a2a', p: '#e2a67c', b: '#7a5a3a' },
@@ -326,6 +347,10 @@ export function spriteCanvas(kind, dir = 'down', step = 0) {
   else if (kind === 'birdpet') paintSprite(c, BIRD, PALETTES.birdpet, 0, 0, dir === 'right');
   else if (kind.startsWith('hatch:')) c.drawImage(creatureCanvas(kind.slice(6), dir === 'right' ? 'right' : 'left'), 0, 0);
   else if (kind === 'sandal') paintSprite(c, SANDAL, PALETTES.sandal, 0, 0);
+  else if (kind === 'yarn') paintSprite(c, YARN, PALETTES.yarn, 0, 0);
+  else if (kind === 'feather') paintSprite(c, FEATHER, PALETTES.feather, 0, 0);
+  else if (kind === 'purse') paintSprite(c, PURSE, PALETTES.purse, 0, 0);
+  else if (kind === 'compass') paintSprite(c, COMPASS, PALETTES.compass, 0, 0);
   else if (kind === 'socrates') paintSprite(c, [...pad16(SOCRATES_HEAD), ...BODY_LOWER.down, ...LEGS.down[0]], PALETTES.socrates, 0, 0);
   else if (kind === 'beaver') paintSprite(c, BEAVER, PALETTES.beaver, 0, 0, dir === 'right');
   else if (kind === 'hat') paintSprite(c, HAT, PALETTES.hat, 0, 0);
@@ -642,6 +667,20 @@ export function boatCanvas(part) {
   };
   return boatCache[part];
 }
+
+/* ---------------- Hatchling errands: sent from the Machine Room incubator, back with coins hours later ---------------- */
+export const ERRAND_HOURS = 8, ERRAND_PAY = [100, 250];
+export const ERRANDS = {
+  gryffindor: { job: 'Patrol the Agora market', back: 'The merchants felt so safe they tipped it' },
+  console: { job: 'Hunt for loose change in the code', back: 'It found coins hiding in unused variables' },
+  konami: { job: 'Trade with a passing UFO', back: 'It came back with space coins, which spend like regular ones' },
+  vienna: { job: 'Sing for tips in the Agora', back: 'It sang "Vienna" eleven times and the crowd paid up' },
+  cups: { job: 'Visit its hoard in the hills', back: 'It brought back a little of its hoard and kept the rest' },
+  crash: { job: 'Gather honey to sell', back: 'It sold most of the honey' },
+  diary: { job: 'Stare down pickpockets in the Agora', back: 'No pockets were picked. A grateful shopkeeper paid it' },
+  hat: { job: 'Search the ashes of old fires', back: 'It found coins in the ashes. Phoenixes are good at that' },
+  mines: { job: 'Comb the beach', back: 'It dug up coins in the sand, and only one flag' },
+};
 
 /* ---------------- Hatchlings: what each easter egg hatches into (Machine Room incubator, 500 coins) ---------------- */
 // Drawn facing left on a 12-wide grid, padded into 16x16 with the feet on row 14, then outlined.

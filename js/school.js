@@ -1,6 +1,6 @@
 // The School of Athens, after Raphael (1509 to 1511), redrawn in pixels for the Academy.
 // The painting is a lunette: a rectangle with a semicircular top, 320 by 208 here (the fresco is about 770 by 500 cm).
-import { figureCanvas, avatarCanvas } from './world.js?v=20261009n';
+import { figureCanvas, avatarCanvas } from './world.js?v=20261009r';
 
 export const SW = 320, SH = 208;
 const CX = 160, SPRING = 160, R = 160; // the frame's arch
@@ -35,7 +35,7 @@ export const FIGURES = [
   { id: 'hannah', name: 'Hannah', where: 'Far right, next to Raphael', x: 290, y: 164,
     text: 'Not in the original. Raphael put himself in the painting, so Hannah figured she could too. She is wearing whatever outfit you have on right now.' },
   { id: 'apollo', name: 'Apollo', where: 'Statue, left wall', x: 18, y: 100,
-    text: 'Apollo, god of music and poetry, holding his lyre. He has heard about the Odeon\'s one-song set list.' },
+    text: 'Apollo, god of music and poetry, holding his lyre. He is still upset that the Odeon became a bank.' },
   { id: 'athena', name: 'Athena', where: 'Statue, right wall', x: 286, y: 100,
     text: 'Athena, goddess of wisdom. Raphael painted her under her Roman name, Minerva. The Parthenon outside is her temple.' },
 ];

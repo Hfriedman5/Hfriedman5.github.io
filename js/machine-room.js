@@ -1,7 +1,7 @@
 // The Machine Room: the translation switchboard, the weather machine, the harbor works, the aviary,
 // the egg incubator, and the factory reset lever. Every setting lives in this visitor's localStorage; the other pages read them.
-import { renderWorld, buildGrid, spriteCanvas, boatCanvas, creatureCanvas, CREATURES, NPCS } from './world.js?v=20261009n';
-import { WEATHER, createWeather } from './weather.js?v=20261009n';
+import { renderWorld, buildGrid, spriteCanvas, boatCanvas, creatureCanvas, CREATURES, NPCS, ERRANDS, ERRAND_HOURS, ERRAND_PAY } from './world.js?v=20261009r';
+import { WEATHER, createWeather } from './weather.js?v=20261009r';
 
 const $ = (s, r = document) => r.querySelector(s);
 const root = document.documentElement;
@@ -43,7 +43,7 @@ function init() {
       ['Weather, Athens', weatherName(), s.weather === 'clear'],
       ['Sailboat', s.boat ? 'Launched' : 'In the shed', !s.boat],
       ['Aviary', birdText(), !s.birds],
-      ['Egg incubator', `${warm} warm, ${born.length} hatched`, true],
+      ['Egg incubator', `${warm} warm, ${born.length} hatched${Object.keys(store.get('hf-errands', {})).length ? `, ${Object.keys(store.get('hf-errands', {})).length} on errands` : ''}`, true],
     ];
     $('#mr-status').innerHTML = rows.map(([k, v, ok]) => `<div><span class="mr-led${ok ? '' : ' warn'}" aria-hidden="true"></span><dt>${k}</dt><dd class="${ok ? 'ok' : ''}">${v}</dd></div>`).join('');
     $('#led-lang').classList.toggle('warn', s.lang !== 'en');
@@ -189,7 +189,7 @@ function init() {
     $('#mr-coins').textContent = have.toLocaleString();
     $('#mr-eggs').innerHTML = HF().eggs().map((e) => {
       const born = done.includes(e.id), cr = CREATURES[e.id];
-      if (born) return `<li class="hatched" data-egg="${e.id}"><span class="mr-dome" aria-hidden="true"><canvas class="mr-hatchling" width="16" height="16"></canvas></span><b>${cr.name}</b><span>Hatched. Lives in the Agora.</span></li>`;
+      if (born) return `<li class="hatched" data-egg="${e.id}"><span class="mr-dome" aria-hidden="true"><canvas class="mr-hatchling" width="16" height="16"></canvas></span><b>${cr.name}</b>${errandCell(e.id)}</li>`;
       if (!e.found) return `<li data-egg="${e.id}"><span class="mr-dome" aria-hidden="true"><span class="mr-egg"></span></span><b>${e.title}</b><span>Still hidden</span></li>`;
       return `<li class="found" data-egg="${e.id}"><span class="mr-dome" aria-hidden="true"><span class="mr-egg"></span></span><b>${e.title}</b><button type="button" class="mr-hatch" data-hatch="${e.id}"${have < HATCH_COST ? ' disabled' : ''} aria-label="Hatch the ${e.title} egg for ${HATCH_COST} coins">Hatch, ${HATCH_COST} coins</button></li>`;
     }).join('');
@@ -198,6 +198,33 @@ function init() {
       c.imageSmoothingEnabled = false; c.drawImage(creatureCanvas(li.dataset.egg, 'right'), 0, 0);
     });
   }
+  // Hatchlings can run an errand: gone for ERRAND_HOURS (and missing from the Agora), then back with coins to collect.
+  const errands = () => store.get('hf-errands', {});
+  const left = (ms) => { const m = Math.ceil(ms / 60e3), h = Math.floor(m / 60); return h ? `${h} h ${m % 60} min` : `${m} min`; };
+  function errandCell(id) {
+    const job = ERRANDS[id], out = errands()[id];
+    if (!out) return `<span>Lives in the Agora</span><button type="button" class="mr-hatch mr-errand" data-errand="${id}" title="${job.job}">Send on an errand</button><span class="mr-job">${job.job}, ${ERRAND_HOURS} hours</span>`;
+    if (out.back > Date.now()) return `<span class="mr-away">Out: ${job.job.toLowerCase()}</span><span class="mr-job">Back in ${left(out.back - Date.now())}</span>`;
+    return `<span class="mr-back">Back from its errand</span><button type="button" class="mr-hatch" data-collect="${id}">Collect ${out.pay} coins</button>`;
+  }
+  $('#mr-eggs').addEventListener('click', (e) => {
+    const send = e.target.closest('[data-errand]'), take = e.target.closest('[data-collect]');
+    if (send) {
+      const id = send.dataset.errand, all = errands();
+      all[id] = { back: Date.now() + ERRAND_HOURS * 3600e3, pay: ERRAND_PAY[0] + Math.floor(Math.random() * (ERRAND_PAY[1] - ERRAND_PAY[0] + 1)) };
+      store.set('hf-errands', all); renderEggs(); status();
+      $('#egg-status').textContent = `The ${CREATURES[id].name.toLowerCase()} set off to ${ERRANDS[id].job.toLowerCase()}. Back in ${ERRAND_HOURS} hours.`;
+    }
+    if (take) {
+      const id = take.dataset.collect, all = errands(), out = all[id];
+      if (!out || out.back > Date.now()) return;
+      delete all[id]; store.set('hf-errands', all);
+      store.set('hf-coins', coins() + out.pay); renderEggs(); status();
+      $('#egg-status').textContent = `${ERRANDS[id].back}: ${out.pay} coins, added to your Little Athens wallet.`;
+      HF().toast(`+${out.pay} coins`, `Your ${CREATURES[id].name.toLowerCase()} is back from its errand.`, 'egg');
+    }
+  });
+  setInterval(() => { if (Object.keys(errands()).length) renderEggs(); }, 30e3);
   // The egg wobbles, cracks, and the hatchling pops out. It moves into the Agora in Little Athens.
   $('#mr-eggs').addEventListener('click', (e) => {
     const b = e.target.closest('[data-hatch]');

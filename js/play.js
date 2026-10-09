@@ -1,9 +1,8 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009n';
-import { createRace } from './race.js?v=20261009n';
-import { createWeather, currentWeather } from './weather.js?v=20261009n';
-import { TRACKS } from './tracks.js?v=20261009n';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009n';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009r';
+import { createRace } from './race.js?v=20261009r';
+import { createWeather, currentWeather } from './weather.js?v=20261009r';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009r';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -30,7 +29,8 @@ const player = { tx: saved?.tx ?? 18, ty: saved?.ty ?? 11, dir: saved?.dir ?? 'u
 if (isSolid(grid, player.tx, player.ty)) { player.tx = 18; player.ty = 11; }
 // Hatchlings from the Machine Room incubator move into the Agora and wander its grass.
 const HATCH_SPOTS = [[12, 10], [14, 9], [16, 11], [19, 9], [20, 11], [22, 10], [13, 12], [19, 12], [24, 9]];
-const hatched = (HF().store?.get?.('hf-hatched', []) || []).filter((id) => CREATURES[id]);
+const errands = HF().store?.get?.('hf-errands', {}) || {};
+const hatched = (HF().store?.get?.('hf-hatched', []) || []).filter((id) => CREATURES[id] && !(errands[id]?.back > Date.now())); // away on an errand from the Machine Room
 const hatchNpcs = hatched.map((id, i) => ({ id: `hatch-${id}`, creature: id, x: HATCH_SPOTS[i][0], y: HATCH_SPOTS[i][1], sprite: `hatch:${id}`, facing: 'left', wander: true, box: [11, 8, 24, 12], on: ['.', ',', '*'] }));
 const npcs = [...NPCS, ...hatchNpcs].map((n) => ({ ...n, tx: n.x, ty: n.y, dir: n.facing, moving: false, t: 0, fromX: n.x, fromY: n.y, step: 0, nextWander: 1500 + Math.random() * 1500 }));
 
@@ -166,7 +166,7 @@ function earn(amount, label = '') {
 const cooldowns = lsGet('hf-cooldowns', {});
 const ready = (key, ms) => Date.now() - (cooldowns[key] || 0) >= ms;
 // How long each way of earning coins needs to rest, so nobody can farm Athens.
-const COOLDOWN = { olives: 5 * 60e3, cat: 20 * 60e3, plato: 30 * 60e3, stadion: 10 * 60e3, sandal: 120 * 60e3 };
+const COOLDOWN = { olives: 5 * 60e3, cat: 20 * 60e3, plato: 30 * 60e3, stadion: 10 * 60e3 };
 const leftOf = (key) => Math.max(0, COOLDOWN[key] - (Date.now() - (cooldowns[key] || 0)));
 const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'}`;
 const inTime = (ms) => {
@@ -182,87 +182,129 @@ const wardrobe = Object.assign({ owned: ['chiton'], equipped: { outfit: 'chiton'
 const saveWardrobe = () => lsSet('hf-wardrobe', wardrobe);
 const companion = { x: null, y: null };
 
-// Socrates keeps losing a sandal somewhere in Athens.
-const sandal = Object.assign({ spot: 0, carrying: false, hiddenUntil: 0 }, lsGet('hf-sandal', {}));
-const saveSandal = () => lsSet('hf-sandal', sandal);
-const sandalVisible = () => !sandal.carrying && Date.now() >= sandal.hiddenUntil;
-const sandalAt = (x, y) => sandalVisible() && SANDAL_SPOTS[sandal.spot][0] === x && SANDAL_SPOTS[sandal.spot][1] === y;
-function sandalHint() {
-  const [x, y] = SANDAL_SPOTS[sandal.spot];
-  if (y >= 21) return 'Last I saw it, it was on the beach. The beach is long, I know.';
-  if (x <= 4) return 'Last I saw it, it was in the grass behind the library.';
-  if (x >= 32) return 'Last I saw it, it was in the grass beyond the Academy.';
-  return 'Last I saw it, it was near the stadium.';
-}
-async function pickUpSandal() {
-  sandal.carrying = true; saveSandal();
-  await say(['You found a sandal. Leather, well worn, and it smells faintly of philosophy.', 'Socrates is standing by the Academy, barefoot.']);
-}
-// History, science, simple math, and a little Greece. Answers are shown in a fixed order; the right one moves around.
-const PLATO_QUIZ = [
-  { q: 'Who was my teacher?', a: ['Socrates', 'Aristotle', 'Pythagoras'], right: 0 },
-  { q: 'Which school did I found here in Athens?', a: ['The Lyceum', 'The Academy', 'The Stoa'], right: 1 },
-  { q: 'Who did my student Aristotle tutor?', a: ['Julius Caesar', 'Alexander the Great', 'Pericles'], right: 1 },
-  { q: 'Which goddess is the Parthenon dedicated to?', a: ['Hera', 'Athena', 'Aphrodite'], right: 1 },
-  { q: 'Where were the ancient Olympic Games held?', a: ['Athens', 'Olympia', 'Delphi'], right: 1 },
-  { q: 'What does the Greek word "philosophia" mean?', a: ['Love of wisdom', 'Fear of knowledge', 'Study of numbers'], right: 0 },
-  { q: 'At the Battle of Marathon, Athens fought an army from which empire?', a: ['Persia', 'Rome', 'Egypt'], right: 0 },
-  { q: 'Which city was Athens\u2019s great rival in the Peloponnesian War?', a: ['Corinth', 'Thebes', 'Sparta'], right: 2 },
-  { q: 'Who is traditionally credited with the Iliad and the Odyssey?', a: ['Homer', 'Sophocles', 'Herodotus'], right: 0 },
-  { q: 'Who is often called the father of history?', a: ['Thucydides', 'Herodotus', 'Plutarch'], right: 1 },
-  { q: 'Which of the Seven Wonders of the Ancient World still stands?', a: ['The Colossus of Rhodes', 'The Lighthouse of Alexandria', 'The Great Pyramid of Giza'], right: 2 },
-  { q: 'Which language did the ancient Romans speak?', a: ['Latin', 'Greek', 'Etruscan'], right: 0 },
-  { q: 'In which country was the Magna Carta sealed, in 1215?', a: ['France', 'England', 'Spain'], right: 1 },
-  { q: 'Which civilization built Machu Picchu?', a: ['The Aztecs', 'The Maya', 'The Inca'], right: 2 },
-  { q: 'In what year did Columbus first reach the Americas?', a: ['1492', '1607', '1776'], right: 0 },
-  { q: 'Who was the first President of the United States?', a: ['Thomas Jefferson', 'George Washington', 'John Adams'], right: 1 },
-  { q: 'In what year did the Berlin Wall fall?', a: ['1961', '1989', '1991'], right: 1 },
-  { q: 'Democritus said everything is made of tiny pieces that cannot be cut. What do we call them now?', a: ['Cells', 'Atoms', 'Quarks'], right: 1 },
-  { q: 'What gas do plants take in from the air to make their food?', a: ['Oxygen', 'Nitrogen', 'Carbon dioxide'], right: 2 },
-  { q: 'What is the chemical symbol for gold?', a: ['Au', 'Ag', 'Gd'], right: 0 },
-  { q: 'Which planet is closest to the Sun?', a: ['Venus', 'Mercury', 'Mars'], right: 1 },
-  { q: 'How many bones are in an adult human body?', a: ['106', '306', '206'], right: 2 },
-  { q: 'What force keeps the planets in orbit around the Sun?', a: ['Gravity', 'Magnetism', 'Friction'], right: 0 },
-  { q: 'At sea level, at what temperature does water boil?', a: ['90 \u00b0C', '100 \u00b0C', '120 \u00b0C'], right: 1 },
-  { q: 'Who came up with the theory of general relativity?', a: ['Isaac Newton', 'Niels Bohr', 'Albert Einstein'], right: 2 },
-  { q: 'What is the hardest natural substance?', a: ['Diamond', 'Quartz', 'Iron'], right: 0 },
-  { q: 'Which part of a cell is known as its powerhouse?', a: ['The nucleus', 'The mitochondria', 'The cell wall'], right: 1 },
-  { q: 'What do we call a number that cannot be written as a fraction?', a: ['Rational', 'Irrational', 'Imaginary'], right: 1 },
-  { q: 'How many faces does a cube have?', a: ['Four', 'Eight', 'Six'], right: 2 },
-  { q: 'What is the square root of 144?', a: ['12', '14', '72'], right: 0 },
-  { q: 'What is 7 times 8?', a: ['54', '56', '64'], right: 1 },
-  { q: 'What is 15% of 200?', a: ['15', '45', '30'], right: 2 },
-  { q: 'The three angles of a triangle always add up to how many degrees?', a: ['180', '90', '360'], right: 0 },
-  { q: 'What is the next prime number after 7?', a: ['9', '11', '13'], right: 1 },
-  { q: 'What is 2 to the 10th power?', a: ['512', '2,048', '1,024'], right: 2 },
-  { q: 'What is pi, rounded to two decimal places?', a: ['3.14', '3.16', '3.41'], right: 0 },
-  { q: 'How many sides does a hexagon have?', a: ['Five', 'Six', 'Eight'], right: 1 },
-  { q: 'A right triangle has legs of 3 and 4. How long is the third side?', a: ['5', '6', '7'], right: 0 },
-  { q: 'What is one half plus one quarter?', a: ['Two sixths', 'One eighth', 'Three quarters'], right: 2 },
-  { q: 'What do you get when you divide a number (other than zero) by itself?', a: ['Zero', 'One', 'The same number'], right: 1 },
+/* ---------------- Town request board: one small job a day ---------------- */
+// The board by the Parthenon posts one request a day, picked at random the first time anyone looks. Fetch jobs hide
+// something in town, delivery jobs start with one person and end with another, and the others ask you to make the rounds.
+const NAMES = { socrates: 'Socrates', plato: 'Plato', owl: 'the owl', cat: 'the cat', merchant: 'the merchant', runner: 'the runner', captain: 'the captain', bank: 'the bank', library: 'the library', parthenon: 'the Parthenon', academy: 'the Academy' };
+const REQUESTS = [
+  { id: 'sandal', pay: 500, kind: 'fetch', item: 'sandal', thing: 'sandal', to: 'socrates', post: 'Socrates has lost a sandal again. He says he does not need it. He would like it back.',
+    found: 'You found a sandal. Leather, well worn, and it smells faintly of philosophy.', thanks: ['"My sandal! I did not need it, of course. The unexamined foot is not worth shoeing."'] },
+  { id: 'purse', pay: 450, kind: 'fetch', item: 'purse', thing: 'coin purse', to: 'bank', post: 'The banker dropped his coin purse on the way to work. Please return it to the bank.',
+    found: 'A heavy little coin purse, tied with gold string.', thanks: ['The banker counts every coin twice.', '"All here. Honesty is rarer than silver."'] },
+  { id: 'compass', pay: 400, kind: 'fetch', item: 'compass', thing: 'compass', to: 'captain', post: 'The ship captain lost a compass and would like to stop sailing in circles.',
+    found: 'A brass compass. The needle still points north, which is reassuring.', thanks: ['"My compass! Now I know which way Egypt is again."'] },
+  { id: 'yarn', pay: 350, kind: 'fetch', item: 'yarn', thing: 'ball of yarn', to: 'cat', post: "The cat's ball of yarn rolled away. The cat is pretending not to care.",
+    found: 'A ball of red yarn, slightly chewed.', thanks: ['The cat bats the yarn once, then ignores it completely. It is clearly delighted.'] },
+  { id: 'feather', pay: 350, kind: 'fetch', item: 'feather', thing: 'feather', to: 'owl', post: "Athena's owl dropped a feather and wants it back for its nest.",
+    found: 'A soft gray owl feather. It looks wise, somehow.', thanks: ['"Hoo. Thank you. Wisdom is mostly remembering where you left things."'] },
+  { id: 'scroll', pay: 400, kind: 'deliver', from: 'plato', to: 'library', thing: 'scroll', post: "Plato's library scroll is overdue. Pick it up from Plato and return it to the library.",
+    got: ['"Ah, yes. The Odyssey. I meant to finish it. Would you take it back for me?"', 'You take the scroll.'], thanks: ['You slide the scroll back onto its shelf. The librarian waives the late fee, this once.'] },
+  { id: 'letter', pay: 300, kind: 'deliver', from: 'merchant', to: 'socrates', thing: 'letter', post: 'The merchant has a letter for Socrates. Please carry it across town.',
+    got: ['"A letter for Socrates. He never answers them, but deliver it anyway."', 'You take the letter.'], thanks: ['Socrates reads it. "It is a question. Wonderful. I will answer it with another question."'] },
+  { id: 'olives', pay: 350, kind: 'olives', to: 'merchant', thing: 'basket of olives', post: 'The merchant needs a basket of fresh olives. Pick some from any olive tree and bring them over.',
+    thanks: ['"Beautiful olives. These will sell before lunch."'] },
+  { id: 'news', pay: 400, kind: 'visit', stops: ['runner', 'merchant', 'owl'], post: 'Town crier wanted: tell the runner, the merchant, and the owl that the games start tomorrow.',
+    stop: (who) => `You tell ${NAMES[who]} that the games start tomorrow.`, thanks: ['Everyone has heard the news. The whole town is talking about the games.'] },
+  { id: 'tour', pay: 400, kind: 'visit', stops: ['parthenon', 'academy', 'library'], post: 'A visitor from Sparta wants a tour. Show them the Parthenon, the Academy, and the library.',
+    stop: (who) => `You show the Spartan visitor ${NAMES[who]}. They are trying very hard not to look impressed.`, thanks: ['The tour is over. The Spartan admits, quietly, that Athens is nice.'] },
 ];
-const quizSeen = [];
-function nextQuestion() {
-  // never repeat one of the last 15 questions
-  const fresh = PLATO_QUIZ.filter((q) => !quizSeen.includes(q));
-  const item = fresh[Math.floor(Math.random() * fresh.length)];
-  quizSeen.push(item); if (quizSeen.length > 15) quizSeen.shift();
-  return item;
+const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+let request = lsGet('hf-request', null);
+const saveRequest = () => lsSet('hf-request', request);
+function todaysRequest() {
+  if (!request || request.day !== dayKey() || !REQUESTS.some((r) => r.id === request.id)) {
+    request = { day: dayKey(), id: REQUESTS[Math.floor(Math.random() * REQUESTS.length)].id, taken: false, carrying: false, done: false, spot: Math.floor(Math.random() * SANDAL_SPOTS.length), seen: [] };
+    saveRequest();
+  }
+  return REQUESTS.find((r) => r.id === request.id);
+}
+// Where today's lost thing is lying, if there is one to find right now.
+function lostItem() {
+  const r = todaysRequest();
+  if (r.kind !== 'fetch' || !request.taken || request.done || request.carrying) return null;
+  const [x, y] = SANDAL_SPOTS[request.spot];
+  return { x, y, sprite: r.item };
+}
+const lostAt = (x, y) => { const it = lostItem(); return !!it && it.x === x && it.y === y; };
+function spotHint() {
+  const [x, y] = SANDAL_SPOTS[request.spot];
+  if (y >= 21) return 'Someone saw it on the beach. The beach is long, I know.';
+  if (x <= 4) return 'Someone saw it in the grass behind the library.';
+  if (x >= 32) return 'Someone saw it in the grass beyond the Academy.';
+  return 'Someone saw it near the stadium.';
+}
+async function pickUpLost() {
+  const r = todaysRequest();
+  request.carrying = true; saveRequest();
+  await say([r.found, `Bring it to ${NAMES[r.to]}.`]);
+}
+async function finishRequest(r) {
+  request.done = true; request.carrying = false; saveRequest();
+  const n = earn(r.pay);
+  await say([...r.thanks, `Request complete. You earned ${n} coins. A new request goes up on the board tomorrow.`]);
+}
+// Called before anyone's usual conversation. Returns true when the request board's job took over the moment.
+async function requestTalk(who) {
+  const r = todaysRequest();
+  if (!request.taken || request.done) return false;
+  if (r.kind === 'deliver' && !request.carrying && r.from === who) { request.carrying = true; saveRequest(); await say([...r.got, `Bring it to ${NAMES[r.to]}.`]); return true; }
+  if (request.carrying && r.to === who) { await finishRequest(r); return true; }
+  if (r.kind === 'visit' && r.stops.includes(who) && !request.seen.includes(who)) {
+    request.seen.push(who); saveRequest();
+    if (request.seen.length === r.stops.length) { await say(r.stop(who)); await finishRequest(r); }
+    else await say(`${r.stop(who)} (${request.seen.length} of ${r.stops.length})`);
+    return true;
+  }
+  return false;
+}
+async function readBoard() {
+  const r = todaysRequest();
+  if (request.done) return say(['Town request board.', "Today's request is done. Thank you! A new one goes up tomorrow."]);
+  request.taken = true; saveRequest();
+  let status = '';
+  if (r.kind === 'fetch') status = request.carrying ? `You have the ${r.thing}. Bring it to ${NAMES[r.to]}.` : spotHint();
+  if (r.kind === 'deliver') status = request.carrying ? `You have the ${r.thing}. Bring it to ${NAMES[r.to]}.` : `Start with ${NAMES[r.from]}.`;
+  if (r.kind === 'olives') status = request.carrying ? `You have the olives. Bring them to ${NAMES[r.to]}.` : 'Any olive tree will do.';
+  if (r.kind === 'visit') status = `So far: ${request.seen.length} of ${r.stops.length}.`;
+  await say(['Town request board. One request a day.', r.post, `${status} Reward: ${r.pay} coins.`]);
 }
 
-/* ---------------- Interactions ---------------- */
-const music = { audio: null };
+/* ---------------- The bank: coins left here grow 2% a day ---------------- */
+// Interest compounds continuously at 2% a day on up to BANK_CAP coins; anything above the cap waits without growing.
+const BANK_RATE = .02, BANK_CAP = 25000;
+const bank = Object.assign({ bal: 0, at: Date.now(), seen: 0 }, lsGet('hf-bank', {}));
+function settleBank() {
+  const days = Math.max(0, (Date.now() - bank.at) / 864e5), k = Math.log(1 + BANK_RATE);
+  let b = bank.bal;
+  if (b > 0 && b < BANK_CAP) { const toCap = Math.log(BANK_CAP / b) / k; b = days <= toCap ? b * Math.exp(k * days) : BANK_CAP + k * BANK_CAP * (days - toCap); }
+  else if (b >= BANK_CAP) b += k * BANK_CAP * days;
+  bank.bal = b; bank.at = Date.now(); lsSet('hf-bank', bank);
+}
+const amounts = (max) => [...[100, 500, 1000, 5000].filter((n) => n < max).map((n) => ({ label: n.toLocaleString(), value: n })), { label: `All (${max.toLocaleString()})`, value: max }, { label: 'Never mind', value: null }];
+
+/* ---------------- Trading voyages from the beach ---------------- */
+// Pay for a voyage and share the profit when the ship comes home. Longer routes pay more, and some ships sink.
+// Stormy weather from the Machine Room makes every route riskier. Whether a ship sinks is settled when it sails.
+const ROUTES = [
+  { id: 'aegina', name: 'Aegina', hours: 2, mult: 1.1, risk: 0, cargo: 'pistachios', line: 'A short hop across the gulf. Safe as houses, and it pays like it.' },
+  { id: 'crete', name: 'Crete', hours: 4, mult: 1.5, risk: .2, cargo: 'olive oil and honey', line: 'Open sea all the way to Crete. Usually fine.' },
+  { id: 'egypt', name: 'Egypt', hours: 8, mult: 2, risk: .35, cargo: 'papyrus and grain', line: 'All the way to Alexandria. Big money, big storms.' },
+];
+const stormy = () => ['rain', 'ominous'].includes(weatherKind) ? .1 : ['fog', 'snow'].includes(weatherKind) ? .05 : 0;
+const riskOf = (rt) => Math.min(.9, rt.risk + (rt.risk ? stormy() : stormy() / 2));
 const INTERACT = {
   async hat() {
     await say(['A hat on a stool, a very long way from Scotland. It clears its throat.', 'Hmm. Difficult. Very difficult.', 'Plenty of courage, I see. Not a bad mind, either. A real taste for proving people wrong…', 'Better be… GRYFFINDOR!']);
     HF().foundEgg('hat');
-    await say('Psst. That word is also a password. Press the ` key and say it to the terminal.');
+    await say(matchMedia('(hover: none) and (pointer: coarse)').matches ? 'Psst. That word is also a password. Tap Terminal at the bottom of the page and say it there.' : 'Psst. That word is also a password. Press the ` key and say it to the terminal.');
   },
   async owl() {
+    if (await requestTalk('owl')) return;
     const weatherLine = { rain: 'It is raining in Athens. Somebody has been turning dials in the Machine Room.', snow: 'Snow in Athens. It happens every few years. This time somebody did it on purpose.', fog: 'I cannot see a thing. Who touched the weather machine?', ominous: 'The weather is mildly ominous today. I blame the Machine Room.' }[weatherKind];
     await say(['I am the owl of Athena. Wisdom is my whole thing.', weatherLine || "Hannah once explained Black-Scholes to me. I said \"who?\" She explained it again. Very patient."]);
   },
   async plato() {
+    if (await requestTalk('plato')) return;
     if (!ready('plato', COOLDOWN.plato)) return say(`Plato is still thinking about your last answer. Come back in ${inTime(leftOf('plato'))}.`);
     const v = await say(['Plato here. Most people read me in translation.', 'Hannah is trying to learn Greek so she can read me in the original someday. Take your time. I have waited 2,400 years.', 'While you are here: answer a question and I will pay you in coins.'], [{ label: 'Ask me', value: 'quiz' }, { label: 'Maybe later', value: null }]);
     if (v !== 'quiz') return;
@@ -274,15 +316,15 @@ const INTERACT = {
     else { const n = earn(100); await say([`Not quite. It was "${item.a[item.right]}".`, `Here are ${n} coins anyway, for showing up. Socrates would say that counts for something.`]); }
   },
   async socrates() {
-    if (sandal.carrying) {
-      sandal.carrying = false; sandal.spot = (sandal.spot + 1 + Math.floor(Math.random() * (SANDAL_SPOTS.length - 1))) % SANDAL_SPOTS.length; sandal.hiddenUntil = Date.now() + COOLDOWN.sandal; saveSandal();
-      const n = earn(500);
-      return say(['My sandal! I did not need it, of course. The unexamined foot is not worth shoeing.', `Still, thank you. Take these ${n} coins.`, 'I will probably lose it again in a couple of hours.']);
+    if (await requestTalk('socrates')) return;
+    if (todaysRequest().id === 'sandal' && !request.done) {
+      request.taken = true; saveRequest();
+      return say(['Socrates here. I seem to have lost a sandal.', 'I tell everyone I do not need it. I would like it back.', spotHint(), `Bring it to me and I will pay you ${todaysRequest().pay} coins.`]);
     }
-    if (!sandalVisible()) return say(['Socrates here. I have both sandals, for once.', `Check back in ${inTime(sandal.hiddenUntil - Date.now())}. I always lose one eventually.`]);
-    await say(['Socrates here. I seem to have lost a sandal.', 'I tell everyone I do not need it. I would like it back.', sandalHint(), 'Bring it to me and I will pay you 500 coins.']);
+    await say(['Socrates here. I have both sandals today, for once.', 'I know that I know nothing. I do know the request board by the Parthenon has work, if you want coins.']);
   },
   async cat() {
+    if (await requestTalk('cat')) return;
     if (!ready('cat', COOLDOWN.cat)) return say(`The cat is grooming itself and would like some privacy. Try again in ${inTime(leftOf('cat'))}.`);
     used('cat');
     const n = earn(10 + Math.floor(Math.random() * 191));
@@ -297,11 +339,13 @@ const INTERACT = {
     else if (v === 'run') await say('Got away safely. (It will be back.)');
   },
   async runner() {
+    if (await requestTalk('runner')) return;
     const v = await say(['I just won the stadion race. One lap, about 192 meters, in about 12 seconds. No shoes.', `Race me for ${RACE_STAKE} coins? Win and I pay you. Lose and you pay me.`], [{ label: 'Race', value: 'race' }, { label: 'Not now', value: null }]);
     if (v === 'race') return race.open();
     await say("Suit yourself. Hannah's Islanders won four straight Stanley Cups, from 1980 to 1983. Here, the prize is a jar of olive oil.");
   },
   async parthenon() {
+    if (await requestTalk('parthenon')) return;
     const v = await say(['The Parthenon. Temple of Athena, goddess of wisdom and strategy.', "Someone carved Hannah's resume into a marble slab by the door. It's a little much."], [{ label: 'Download it', value: 'resume' }, { label: 'Leave', value: null }]);
     if (v === 'resume') downloadResume();
   },
@@ -310,23 +354,67 @@ const INTERACT = {
     if (v === 'ms') { openModal('#arcade'); newMines(); }
     if (v === 'bj') { openModal('#blackjack'); bjRender(); }
   },
-  async academy() { await say(['Plato\'s Academy. Carved over the door: "Let no one ignorant of geometry enter."', 'Inside, someone has painted the entire school across one wall. Raphael got there first, in 1511.']); openSchool(); },
+  async academy() {
+    if (await requestTalk('academy')) return;
+    await say(['Plato\'s Academy. Carved over the door: "Let no one ignorant of geometry enter."', 'Inside, someone has painted the entire school across one wall. Raphael got there first, in 1511.']); openSchool();
+  },
   async library() {
+    if (await requestTalk('library')) return;
     const v = await say(['The library is quiet. Scrolls everywhere.', 'Among them sits a small black diary. It is very old, but not this old.', 'On a shelf nearby, a newer scroll is labeled "Some Random Hannectodes". It is Hannah\u2019s blog.'], [{ label: 'Write in the diary', value: 'diary' }, { label: 'Read the blog', value: 'blog' }, { label: 'Leave', value: null }]);
     if (v === 'diary') HF().openDiary();
     if (v === 'blog') location.href = 'blog.html';
   },
   async merchant() {
+    if (await requestTalk('merchant')) return;
     const v = await say(['Welcome to the Agora market. Finest linen in Athens, and a few things that should not exist for another 2,000 years.', `You have ${wallet.coins.toLocaleString()} coins.`], [{ label: 'Browse', value: 'shop' }, { label: 'Just looking', value: null }]);
     if (v === 'shop') { openModal('#shop'); renderShop(); }
   },
-  async odeon() {
-    const playing = music.audio && !music.audio.paused;
-    const v = await say(['The Odeon. A lyre player is warming up.', playing ? 'He is still playing "Vienna". On a lyre, somehow.' : 'He only knows one song. It is "Vienna".'],
-      playing ? [{ label: 'Stop the music', value: 'stop' }, { label: 'Leave', value: null }] : [{ label: 'Listen', value: 'play' }, { label: 'See the turntable', value: 'deck' }, { label: 'Leave', value: null }]);
-    if (v === 'play') { music.audio = music.audio || new Audio(TRACKS.find((t) => t.egg === 'vienna').src); music.audio.play().then(() => HF().foundEgg('vienna')).catch(() => HF().toast('No sound', 'Your browser blocked the audio.', 'x')); }
-    if (v === 'stop') music.audio.pause();
-    if (v === 'deck') location.href = 'index.html#music';
+  async bank() {
+    if (await requestTalk('bank')) return;
+    settleBank();
+    const whole = Math.floor(bank.bal), grew = whole - Math.floor(bank.seen || 0);
+    bank.seen = bank.bal; lsSet('hf-bank', bank);
+    const v = await say(['The Bank. A banker sits at a long table, a trapeza, stacking silver.',
+      whole ? `Your account: ${whole.toLocaleString()} coins.${grew > 0 ? ` It earned ${grew.toLocaleString()} since your last visit.` : ''} It grows 2% a day, on up to ${BANK_CAP.toLocaleString()} coins.` : `Coins you leave here grow 2% every day, on up to ${BANK_CAP.toLocaleString()} coins. Take them out whenever you like.`],
+      [{ label: 'Deposit', value: 'in' }, ...(whole ? [{ label: 'Withdraw', value: 'out' }] : []), { label: 'Leave', value: null }]);
+    if (v === 'in') {
+      if (!wallet.coins) return say('Your purse is empty. The olive trees are a good place to start.');
+      const amt = await say(`You have ${wallet.coins.toLocaleString()} coins with you. How much will you deposit?`, amounts(wallet.coins));
+      if (!amt) return;
+      settleBank(); wallet.coins = wallet.coins - amt; bank.bal += amt; bank.seen = bank.bal; lsSet('hf-bank', bank);
+      return say(`Deposited ${amt.toLocaleString()} coins. Your account: ${Math.floor(bank.bal).toLocaleString()}. Come back in a few days and it will have grown.`);
+    }
+    if (v === 'out') {
+      const amt = await say(`Your account has ${whole.toLocaleString()} coins. How much will you take out?`, amounts(whole));
+      if (!amt) return;
+      settleBank(); bank.bal = Math.max(0, bank.bal - amt); bank.seen = bank.bal; lsSet('hf-bank', bank); wallet.coins = wallet.coins + amt;
+      return say(`Withdrew ${amt.toLocaleString()} coins. ${Math.floor(bank.bal) ? `Still in the account: ${Math.floor(bank.bal).toLocaleString()}.` : 'Your account is empty, but it stays open.'}`);
+    }
+  },
+  async captain() {
+    if (await requestTalk('captain')) return;
+    const vy = lsGet('hf-voyage', null), rt = vy && ROUTES.find((r) => r.id === vy.route);
+    if (rt && Date.now() < vy.back) return say([`Captain here. Your ship to ${rt.name} is still at sea.`, `It should be home in ${inTime(vy.back - Date.now())}.`]);
+    if (rt) {
+      lsSet('hf-voyage', null);
+      if (vy.sank) return say([`Bad news. Your ship to ${rt.name} met a storm and sank.`, `Your ${vy.stake.toLocaleString()} coins went down with it. The sea gives, and the sea takes.`]);
+      wallet.coins = wallet.coins + vy.stake;
+      const n = earn(Math.round(vy.stake * (rt.mult - 1)));
+      return say([`Your ship is home from ${rt.name}, full of ${rt.cargo}!`, `You get your ${vy.stake.toLocaleString()} coins back, plus ${n.toLocaleString()} in profit.`]);
+    }
+    const storm = stormy() ? ['The weather looks rough today. Somebody has been turning dials in the Machine Room, so every route is riskier.'] : [];
+    const pick = await say(['Captain here. My ships sail to Aegina, Crete, and Egypt.', 'Pay for a voyage and you share the profit when the ship comes home. Longer trips pay more, and not every ship comes back.', ...storm],
+      [...ROUTES.map((r) => ({ label: r.name, value: r.id })), { label: 'Not today', value: null }]);
+    const route = ROUTES.find((r) => r.id === pick);
+    if (!route) return;
+    if (wallet.coins < 100) return say('A voyage takes at least 100 coins. Come back when your purse is heavier.');
+    const risk = riskOf(route), gain = Math.round((route.mult - 1) * 100);
+    const stake = await say([route.line, `Home in ${route.hours} hours. If it makes it, you get your coins back plus ${gain}%. Chance it sinks: ${Math.round(risk * 100)}%.`, `How much will you put in? You have ${wallet.coins.toLocaleString()} coins.`],
+      [...[100, 250, 500, 1000].filter((n) => n <= wallet.coins).map((n) => ({ label: n.toLocaleString(), value: n })), { label: 'Never mind', value: null }]);
+    if (!stake) return;
+    wallet.coins = wallet.coins - stake;
+    lsSet('hf-voyage', { route: route.id, stake, back: Date.now() + route.hours * 3600e3, sank: Math.random() < risk });
+    await say(`The ship sails for ${route.name} with your ${stake.toLocaleString()} coins aboard. Come back in ${route.hours} hours.`);
   },
 };
 async function boardBoat() {
@@ -344,17 +432,19 @@ function pressA() {
   const npc = npcs.find((n) => n.tx === fx && n.ty === fy);
   if (npc) { if (!npc.still) npc.dir = opposite(player.dir); return npc.creature ? say(CREATURES[npc.creature].line) : INTERACT[npc.id](); }
   const sign = SIGNS.find((s) => s.x === fx && s.y === fy);
-  if (sign) return say(sign.text);
+  if (sign) return sign.board ? readBoard() : say(sign.text);
   const b = doorAt(fx, fy);
   if (b) return INTERACT[b.id]();
   if (harbor.boat && fy === DOCK.y && Math.abs(fx - DOCK.x) <= 1) return boardBoat();
+  if (lostAt(fx, fy)) return pickUpLost();
   if (grid[fy]?.[fx] === '~' || grid[fy]?.[fx] === 's' && grid[fy + 1]?.[fx] === '~') return say('The Aegean. Homer called it wine-dark. You decide not to swim in it.');
-  if (sandalAt(fx, fy)) return pickUpSandal();
   if (grid[fy]?.[fx] === 'T') {
     if (!isOlive(fx, fy)) return say('A cypress tree. Very tall, very elegant, no olives.');
     // One timer for every olive tree, so walking from tree to tree doesn't help.
     if (!ready('olives', COOLDOWN.olives)) return say(`Your basket is still full from the last tree. The olive buyers are back in ${inTime(leftOf('olives'))}.`);
     used('olives');
+    const r = todaysRequest();
+    if (r.kind === 'olives' && request.taken && !request.done && !request.carrying) { request.carrying = true; saveRequest(); return say(`You pick a basket of olives and keep it for ${NAMES[r.to]}.`); }
     const n = earn(25);
     return say(`You pick a basket of olives and sell them in the Agora for ${n} coins. Athena would approve.`);
   }
@@ -475,7 +565,7 @@ function update(dt) {
     player.t += dt;
     if (player.t >= player.dur) {
       player.moving = false; player.walkPhase ^= 1; updatePlace();
-      if (sandalAt(player.tx, player.ty)) pickUpSandal();
+      if (lostAt(player.tx, player.ty)) pickUpLost();
       HF().store?.set?.('hf-play-pos', { tx: player.tx, ty: player.ty, dir: player.dir });
     }
   }
@@ -493,7 +583,7 @@ function update(dt) {
       const options = Object.keys(DIRS).filter((d) => {
         const [dx, dy] = DIRS[d], x = n.tx + dx, y = n.ty + dy;
         const inBox = !n.box || (x >= n.box[0] && y >= n.box[1] && x <= n.box[2] && y <= n.box[3]);
-        return inBox && (n.on || ['i']).includes(grid[y]?.[x]) && !occupied(x, y, n) && !sandalAt(x, y);
+        return inBox && (n.on || ['i']).includes(grid[y]?.[x]) && !occupied(x, y, n) && !lostAt(x, y);
       });
       if (options.length) tryMove(n, options[(Math.random() * options.length) | 0]);
     }
@@ -518,7 +608,7 @@ function render(now) {
   const frame = reduceMotion ? 0 : Math.floor(now / 450) % waterFrames.length;
   ctx.drawImage(waterFrames[frame], camX, camY, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
 
-  if (sandalVisible()) { const [sx, sy] = SANDAL_SPOTS[sandal.spot]; ctx.drawImage(spriteCanvas('sandal'), sx * TILE - camX, sy * TILE - camY); }
+  const lost = lostItem(); if (lost) ctx.drawImage(spriteCanvas(lost.sprite), lost.x * TILE - camX, lost.y * TILE - camY);
   drawHarbor(camX, camY, now);
   sailTick(now);
   const drawables = [
@@ -572,7 +662,7 @@ const mapDialog = $('#map'), mapCanvas = $('#map-canvas');
 function openMap() {
   if (!$('#dlg').hidden || document.querySelector('dialog[open]')) return;
   held.clear(); queued = null;
-  // The whole town at 1x, with everyone where they are right now (the sandal stays hidden: that one is a hunt).
+  // The whole town at 1x, with everyone where they are right now (lost things stay hidden: those are a hunt).
   mapCanvas.width = W * TILE; mapCanvas.height = H * TILE;
   const c = mapCanvas.getContext('2d');
   c.imageSmoothingEnabled = false;
