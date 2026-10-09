@@ -1,9 +1,9 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010r';
-import { createRace } from './race.js?v=20261010r';
-import { createWeather, currentWeather } from './weather.js?v=20261010r';
-import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines } from './economy.js?v=20261010r';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010r';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010s';
+import { createRace } from './race.js?v=20261010s';
+import { createWeather, currentWeather } from './weather.js?v=20261010s';
+import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines } from './economy.js?v=20261010s';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010s';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -301,9 +301,9 @@ async function readBoard() {
   await say(['Town request board. One request a day.', r.post, `${status} Reward: ${r.pay} coins.`]);
 }
 
-/* ---------------- The bank: coins left here grow 3% a day ---------------- */
-// Interest compounds continuously at 3% a day on up to BANK_CAP coins; anything above the cap waits without growing.
-const BANK_RATE = .03, BANK_CAP = 25000;
+/* ---------------- The bank: coins left here grow 0.5% a day ---------------- */
+// Interest compounds continuously at 0.5% a day on up to BANK_CAP coins; anything above the cap waits without growing.
+const BANK_RATE = .005, BANK_CAP = 25000;
 const bank = Object.assign({ bal: 0, at: Date.now(), seen: 0 }, lsGet('hf-bank', {}));
 function settleBank() {
   const days = Math.max(0, (Date.now() - bank.at) / 864e5), k = Math.log(1 + BANK_RATE);
@@ -557,7 +557,7 @@ const INTERACT = {
     const allTime = Math.floor(lsGet('hf-records', {}).interest || 0);
     const total = allTime ? ` In all, your account has earned ${allTime.toLocaleString()} coins of interest.` : '';
     const v = await say(['The Bank. A banker sits at a long table, a trapeza, stacking silver. He also runs the Athenian Exchange, where you can buy shares in town businesses.',
-      whole ? `Your account: ${whole.toLocaleString()} coins.${grew > 0 ? ` It earned ${grew.toLocaleString()} since your last visit.` : ''}${total} It grows ${Math.round(BANK_RATE * 100)}% a day, on up to ${BANK_CAP.toLocaleString()} coins.` : `Coins you leave here grow ${Math.round(BANK_RATE * 100)}% every day, on up to ${BANK_CAP.toLocaleString()} coins. Take them out whenever you like.${total}`],
+      whole ? `Your account: ${whole.toLocaleString()} coins.${grew > 0 ? ` It earned ${grew.toLocaleString()} since your last visit.` : ''}${total} It grows ${+(BANK_RATE * 100).toFixed(2)}% a day, on up to ${BANK_CAP.toLocaleString()} coins.` : `Coins you leave here grow ${+(BANK_RATE * 100).toFixed(2)}% every day, on up to ${BANK_CAP.toLocaleString()} coins. Take them out whenever you like.${total}`],
       [{ label: 'Deposit', value: 'in' }, ...(whole ? [{ label: 'Withdraw', value: 'out' }] : []), { label: 'The Exchange', value: 'stocks' }, { label: 'Leave', value: null }]);
     if (v === 'stocks') return openExchange();
     if (v === 'in') {
