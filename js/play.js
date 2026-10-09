@@ -1,9 +1,9 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010v';
-import { createRace } from './race.js?v=20261010v';
-import { createWeather, currentWeather } from './weather.js?v=20261010v';
-import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines } from './economy.js?v=20261010v';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010v';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010x';
+import { createRace } from './race.js?v=20261010x';
+import { createWeather, currentWeather } from './weather.js?v=20261010x';
+import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010x';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010x';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -354,17 +354,18 @@ function spark(prices) {
   return `<svg class="ex-spark ${prices[prices.length - 1] >= prices[0] ? 'ex-up' : 'ex-down'}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
 }
 function renderExchange(note = '', tone = '') {
-  const m = market(), dayNow = new Date().getDay(), body = $('#ex-body');
+  const m = market(), dayNow = new Date().getDay(), body = $('#ex-body'), closed = festivalOn(new Date());
   const price = (c) => tradePrice(m.companies[c.id].at(-1).price);
   const held = COMPANIES.reduce((t, c) => t + sharesOf(c.id) * price(c), 0);
   const paidIn = COMPANIES.reduce((t, c) => t + (portfolio.cost[c.id] || 0), 0);
-  const order = [...COMPANIES].sort((a, b) => ((a.day - dayNow + 7) % 7) - ((b.day - dayNow + 7) % 7)); // today's reporter first
+  const order = [...COMPANIES].sort((a, b) => (m.companies[b.id].at(-1).report ? 1 : 0) - (m.companies[a.id].at(-1).report ? 1 : 0) || nextReport(a, m).days - nextReport(b, m).days); // today's reports first, then whoever reports soonest
   const week = m.news.slice(-7, -1).reverse().filter((d) => d.headlines.length);
   const item = (h) => `<li class="${h.good === true ? 'ex-good' : h.good === false ? 'ex-bad' : ''}">${h.text}</li>`;
   body.innerHTML = `
     <p class="ex-intro">Seven businesses, one report a day. On its day, each company reports its profit for the week. Beat what the market expected and the price usually jumps; miss and it usually falls. Owners get part of the profit each report day, on shares they have owned for at least a week. Every trade costs a 1% fee, and you can hold up to ${STOCK_CAP.toLocaleString()} coins in any one company.</p>
     <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>Your shares are worth <b>${held.toLocaleString()}</b>${paidIn ? ` <span class="${held >= paidIn ? 'ex-up' : 'ex-down'}">(${signed(held - paidIn)} on what you paid)</span>` : ''}</span></p>
     ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
+    ${closed ? `<p class="ex-note ex-closed">Closed today for the ${closed.name}, ${closed.about}. You can look around, but buying and selling wait until it reopens on ${dateText(nextOpen(new Date()))}. Any report due today moves to then.</p>` : ''}
     ${stormy() ? '<p class="ex-note">The weather dial in the Machine Room does not move these prices. The real sea is bigger than your lever.</p>' : ''}
     <section class="ex-season"><h3>Season</h3>${(() => { const s = seasonLines(); return [...s.now, ...s.soon].map((t) => `<p>${t}</p>`).join(''); })()}</section>
     <section class="ex-news"><h3>Today's news</h3><ul>${m.news.at(-1).headlines.map(item).join('') || '<li>A quiet day in Athens.</li>'}</ul>
@@ -372,18 +373,18 @@ function renderExchange(note = '', tone = '') {
     <div class="ex-list">${order.map((c) => {
       const days = m.companies[c.id], now = days.at(-1), p = price(c), change = now.price / days.at(-2).price - 1;
       const last = [...days].reverse().find((d) => d.report), r = last?.report, n = sharesOf(c.id);
-      const nextIdx = m.news.length - 1 + (((c.day - dayNow + 7) % 7) || 7), ready = eligibleOn(m, c.id, nextIdx);
-      const reportsToday = c.day === dayNow, tomorrow = c.day === (dayNow + 1) % 7;
+      const next = nextReport(c, m), nextIdx = m.news.length - 1 + next.days, ready = eligibleOn(m, c.id, nextIdx);
+      const reportsToday = !!now.report, tomorrow = next.days === 1;
       return `<article class="ex-co${reportsToday ? ' today' : ''}" data-co="${c.id}">
-        <div class="ex-top"><h3>${c.name}</h3><span class="ex-day">${reportsToday ? 'Reported today' : tomorrow ? 'Reports tomorrow' : `Reports ${DAY_NAMES[c.day]}s`}</span></div>
-        <div class="ex-price"><b>${p.toLocaleString()}</b><span class="${change >= 0 ? 'ex-up' : 'ex-down'}">${change >= 0 ? '▲' : '▼'} ${Math.abs(change * 100).toFixed(1)}% today</span>${spark(days.slice(-14).map((d) => d.price))}<span class="ex-chart-note">last 2 weeks</span></div>
+        <div class="ex-top"><h3>${c.name}</h3><span class="ex-day">${reportsToday ? 'Reported today' : next.moved ? `Report moved to ${tomorrow ? 'tomorrow' : DAY_NAMES[next.date.getDay()]} for the ${next.moved}` : tomorrow ? 'Reports tomorrow' : `Reports ${DAY_NAMES[c.day]}s`}</span></div>
+        <div class="ex-price"><b>${p.toLocaleString()}</b>${closed ? '<span class="ex-chart-note">Closed today</span>' : `<span class="${change >= 0 ? 'ex-up' : 'ex-down'}">${change >= 0 ? '▲' : '▼'} ${Math.abs(change * 100).toFixed(1)}% today</span>`}${spark(days.slice(-14).map((d) => d.price))}<span class="ex-chart-note">last 2 weeks</span></div>
         <p class="ex-how"><b>Makes money:</b> ${c.makes} <b>Watch:</b> ${c.watch}</p>
         <p class="ex-facts">${r ? `Last report: profit ${r.e.toFixed(1)} per share, ${Math.abs(Math.round(r.surprise * 100))}% ${r.surprise >= 0 ? 'above' : 'below'} expectations. Paid owners ${r.dividend} per share.` : ''} ${reportsToday ? '' : `The market expects about ${now.expected.toFixed(1)} per share this week.`}</p>
         <form class="ex-trade" data-co="${c.id}">
           <span class="ex-own">${n ? `You own <b>${n.toLocaleString()}</b> (worth ${(n * p).toLocaleString()}, <span class="${n * p >= (portfolio.cost[c.id] || 0) ? 'ex-up' : 'ex-down'}">${signed(n * p - (portfolio.cost[c.id] || 0))}</span>)${ready < n ? `. ${ready ? `${ready.toLocaleString()} of them` : 'None of them'} will get the next dividend.` : ''}` : 'You own none'}</span>
           <input type="text" inputmode="numeric" autocomplete="off" placeholder="Shares" aria-label="Number of ${c.name} shares">
-          <button type="submit" class="btn btn-primary btn-sm" value="buy">Buy</button>
-          <button type="submit" class="btn btn-secondary btn-sm" value="sell"${n ? '' : ' disabled'}>Sell</button>
+          <button type="submit" class="btn btn-primary btn-sm" value="buy"${closed ? ' disabled' : ''}>Buy</button>
+          <button type="submit" class="btn btn-secondary btn-sm" value="sell"${n && !closed ? '' : ' disabled'}>Sell</button>
           <span class="ex-msg" role="status"></span>
         </form>
       </article>`;
@@ -395,6 +396,8 @@ function renderExchange(note = '', tone = '') {
 }
 function trade(c, side, raw, msg) {
   const say = (t) => { msg.textContent = t; msg.className = 'ex-msg bad'; };
+  const fest = festivalOn(new Date());
+  if (fest) return say(`The Exchange is closed today for the ${fest.name}.`);
   const text = String(raw).trim().replace(/,/g, '');
   if (!/^\d{1,7}$/.test(text) || Number(text) < 1) return say('Enter a whole number of shares, like 5.');
   const qty = Number(text), p = tradePrice(market().companies[c.id].at(-1).price), n = sharesOf(c.id);

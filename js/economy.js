@@ -40,11 +40,29 @@ export const SEASONS = [
   { name: 'Winter', months: [11, 0, 1], co: 'tours', effect: -.01, says: 'quiet for Acropolis Tours' },
 ];
 const seasonal = (co, d) => SEASONS.filter((s) => s.co === co && s.months.includes(d.getMonth())).reduce((t, s) => t + s.effect, 0);
-// What is in season today, and what starts next month.
+// Athens had no weekends, but it did stop for festivals. The Exchange closes on these days: prices hold still and
+// trading pauses, news keeps happening, and any report due that day moves to the next open day.
+export const FESTIVALS = [
+  { name: 'Lenaia', month: 0, day: 26, days: 1, about: 'a winter festival of Dionysus, with comic plays' },
+  { name: 'Great Dionysia', month: 2, day: 28, days: 2, about: 'the great festival of Dionysus, with days of plays in the theater' },
+  { name: 'Thargelia', month: 4, day: 25, days: 1, about: 'a festival of Apollo and the first harvest' },
+  { name: 'Panathenaia', month: 7, day: 14, days: 2, about: 'Athena\'s birthday festival, with a grand procession up the Acropolis' },
+  { name: 'Thesmophoria', month: 9, day: 26, days: 1, about: 'a festival of Demeter, kept by the women of Athens' },
+];
+export const festivalOn = (d) => FESTIVALS.find((f) => f.month === d.getMonth() && d.getDate() >= f.day && d.getDate() < f.day + f.days) || null;
+export const dateText = (d) => `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+export const nextOpen = (d) => { let x = addDays(d, 1); while (festivalOn(x)) x = addDays(x, 1); return x; };
+
+// What is in season today, and what starts next month, plus any festival closing the Exchange this week.
 export function seasonLines(d = new Date()) {
   const m = d.getMonth(), next = (m + 1) % 12;
   const now = SEASONS.filter((s) => s.months.includes(m)).map((s) => `${s.name} runs through ${MONTH_NAMES[s.months.at(-1)]}: ${s.says}.`);
   const soon = SEASONS.filter((s) => s.months[0] === next).map((s) => `Coming up: ${s.name.toLowerCase()} starts ${MONTH_NAMES[next]} 1, ${s.says}.`);
+  const today = festivalOn(d);
+  for (let i = 1; i <= 7 && !today; i++) {
+    const f = festivalOn(addDays(d, i));
+    if (f) { soon.unshift(`Coming up: the Exchange closes ${dateText(addDays(d, i))} for the ${f.name}, ${f.about}. News keeps happening while it is closed, so prices can jump when it reopens.`); break; }
+  }
   return { now: now.length ? now : ['No season is affecting the market right now.'], soon };
 }
 
@@ -89,10 +107,11 @@ export function market(today = new Date()) {
   const key = dayKeyOf(today);
   if (cached?.key === key) return cached;
   const seas = (d) => Object.fromEntries(ROUTES.map((r) => [r.id, seaFor(r, d)]));
-  const state = Object.fromEntries(COMPANIES.map((c) => [c.id, { F: c.e0, sum: 0, u: 0, last: null, days: [] }]));
+  const state = Object.fromEntries(COMPANIES.map((c) => [c.id, { F: c.e0, sum: 0, u: 0, last: null, days: [], owed: false }]));
   const news = [];
   for (let d = new Date(EPOCH); d <= today; d = addDays(d, 1)) {
-    const k = dayKeyOf(d), s = seas(d), past = seas(addDays(d, -7)), headlines = [];
+    const k = dayKeyOf(d), s = seas(d), past = seas(addDays(d, -7)), headlines = [], fest = festivalOn(d);
+    if (fest) headlines.push({ text: `The Exchange is closed today for the ${fest.name}.` });
     for (const c of COMPANIES) {
       const st = state[c.id];
       // Today's signs for this company: the sea and season, plus now and then a piece of company news.
@@ -104,10 +123,17 @@ export function market(today = new Date()) {
         headlines.push({ co: c.id, text: good ? c.good : c.bad, good });
       }
       st.sum += n;
+      if (fest) { // closed: the price holds, and a report due today waits for the next open day
+        if (d.getDay() === c.day) st.owed = true;
+        const prev = st.days.at(-1);
+        st.days.push({ key: k, price: prev ? prev.price : c.M * st.F, report: null, expected: st.F * (1 + BELIEF * st.sum), closed: fest.name });
+        continue;
+      }
       // Day-to-day jitter that fades: the market sometimes just disagrees for a while.
       st.u = .7 * st.u + (seeded(`${k}:${c.id}:noise`) - .5) * .03;
       let report = null;
-      if (d.getDay() === c.day) {
+      if (d.getDay() === c.day || st.owed) {
+        st.owed = false;
         // This week's profit: the company's normal level (growing slowly), pushed up or down by the week's signs, plus some luck.
         const base = c.e0 * Math.pow(1.003, (d - EPOCH) / 6048e5), luck = (seeded(`${k}:${c.id}:luck`) - .5) * .12;
         const e = base * (1 + st.sum) * (1 + luck);
@@ -130,8 +156,18 @@ export function market(today = new Date()) {
     if (d.getDate() === 1 && d.getMonth() === 11) headlines.push({ text: 'Winter arrives. Fewer visitors make the trip to Athens.' });
     news.push({ key: k, date: new Date(d), headlines });
   }
-  cached = { key, companies: Object.fromEntries(COMPANIES.map((c) => [c.id, state[c.id].days])), news };
+  cached = { key, companies: Object.fromEntries(COMPANIES.map((c) => [c.id, state[c.id].days])), news, owed: Object.fromEntries(COMPANIES.map((c) => [c.id, state[c.id].owed])) };
   return cached;
+}
+// When a company reports next, in days from today, and whether a festival moved it.
+export function nextReport(c, m, today = new Date()) {
+  let owed = m.owed[c.id];
+  for (let i = 1; i <= 21; i++) {
+    const d = addDays(today, i), f = festivalOn(d);
+    if (f) { if (d.getDay() === c.day) owed = f.name; continue; }
+    if (owed || d.getDay() === c.day) return { days: i, date: d, moved: owed && d.getDay() !== c.day ? (typeof owed === 'string' ? owed : festivalOn(today)?.name) : null };
+  }
+  return { days: 7, date: addDays(today, 7), moved: null };
 }
 // The price a trade happens at: whole coins.
 export const tradePrice = (p) => Math.max(1, Math.round(p));
