@@ -237,7 +237,7 @@
 
 /* ---------- Egg incubator ---------- */
 .mr-eggs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
-.mr-eggs li { display: grid; justify-items: center; gap: 8px; text-align: center; }
+.mr-eggs li { display: grid; justify-items: center; align-content: start; gap: 8px; text-align: center; }
 .mr-dome { position: relative; width: 84px; height: 84px; border-radius: 50% 50% 10px 10px; background: radial-gradient(circle at 50% 80%, #2a1d10, #121418 75%); box-shadow: inset 0 0 0 3px #6c747d, inset 0 -10px 0 #3a4047; overflow: hidden; }
 .mr-dome::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(120deg, rgba(255, 255, 255, .22) 8%, transparent 30%); pointer-events: none; }
 .mr-egg { position: absolute; left: 50%; bottom: 14px; width: 34px; height: 44px; margin-left: -17px; border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%; background: #2b3038; box-shadow: inset -4px -4px 0 rgba(0, 0, 0, .25); }
@@ -343,6 +343,17 @@
   .mr-knob-wrap { grid-template-columns: 1fr; justify-items: start; }
   .mr-lever-row .mr-lever, .mr-lever-row .mr-seed { width: 100%; }
   .mr-jacks { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 14px; }
+  .mr-eggs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 10px; }
+}
+/* Phones: the elevator becomes a slim bar along the bottom (label and floor buttons, no gauge), so it never sits on top of a lever or button. */
+@media (max-width: 600px) {
+  .mr-dial { left: 0; right: 0; bottom: 0; width: auto; display: flex; align-items: center; gap: 8px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom)); border-radius: 0; }
+  .mr-dial svg { display: none; }
+  .mr-dial-label { margin: 0; flex: none; font-size: .62rem; padding: 4px 6px 3px; }
+  .mr-dial-foot { flex: 1; min-width: 0; }
+  .mr-floors { flex: 1; margin: 0; justify-content: space-between; }
+  .mr-floors button { height: 26px; font-size: .68rem; padding: 0 3px; }
+  main { padding-bottom: 48px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .mr-stairs .icon, .mr-led.warn,   .mr-lever-arm, .mr-knob-cap, .mr-needle, .mr-mini-birds .arrow { transition: none; }

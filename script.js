@@ -376,6 +376,9 @@
     const fn = CMDS[cmd.toLowerCase()];
     fn ? fn(rest.join(' ')) : say(`command not found: ${esc(cmd)}. Try <span class="cmd">help</span>.`, 'err');
   });
+  // Coming back with the Back button can show a saved copy of the page from before a change made elsewhere
+  // (a hatched egg, a lever pulled in the Machine Room, coins earned). Reload so it always shows the current state.
+  window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
   const savedTheme = store.get('hf-theme', null);
   if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.dataset.theme = savedTheme;
 

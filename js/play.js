@@ -1,8 +1,8 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010h';
-import { createRace } from './race.js?v=20261010h';
-import { createWeather, currentWeather } from './weather.js?v=20261010h';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010h';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010m';
+import { createRace } from './race.js?v=20261010m';
+import { createWeather, currentWeather } from './weather.js?v=20261010m';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010m';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -309,8 +309,8 @@ function settleBank() {
   let b = bank.bal;
   if (b > 0 && b < BANK_CAP) { const toCap = Math.log(BANK_CAP / b) / k; b = days <= toCap ? b * Math.exp(k * days) : BANK_CAP + k * BANK_CAP * (days - toCap); }
   else if (b >= BANK_CAP) b += k * BANK_CAP * days;
+  if (b > bank.bal) bumpRecord('interest', (v = 0) => v + (b - bank.bal)); // every coin of interest, for the record keeper
   bank.bal = b; bank.at = Date.now(); lsSet('hf-bank', bank);
-  if (bank.bal >= 1 && bank.since) bumpRecord('bankMs', (v = 0) => Math.max(v, Date.now() - bank.since));
 }
 const amounts = (max) => [...[100, 500, 1000, 5000].filter((n) => n < max).map((n) => ({ label: n.toLocaleString(), value: n })), { label: `All (${max.toLocaleString()})`, value: max }, { label: 'Other amount', amount: { min: 1, max } }, { label: 'Never mind', value: null }];
 
@@ -335,6 +335,58 @@ function seaReport(rt) {
 }
 const VOYAGE_MAX = 1000; // the most one voyage can carry
 const sinkRisk = (risk) => (risk ? `${Math.round(risk * 100)}% sink risk` : 'no risk');
+// History, science, simple math, and a little Greece. Answers are shown in a fixed order; the right one moves around.
+const PLATO_QUIZ = [
+  { q: 'Who was my teacher?', a: ['Socrates', 'Aristotle', 'Pythagoras'], right: 0 },
+  { q: 'Which school did I found here in Athens?', a: ['The Lyceum', 'The Academy', 'The Stoa'], right: 1 },
+  { q: 'Who did my student Aristotle tutor?', a: ['Julius Caesar', 'Alexander the Great', 'Pericles'], right: 1 },
+  { q: 'Which goddess is the Parthenon dedicated to?', a: ['Hera', 'Athena', 'Aphrodite'], right: 1 },
+  { q: 'Where were the ancient Olympic Games held?', a: ['Athens', 'Olympia', 'Delphi'], right: 1 },
+  { q: 'What does the Greek word "philosophia" mean?', a: ['Love of wisdom', 'Fear of knowledge', 'Study of numbers'], right: 0 },
+  { q: 'At the Battle of Marathon, Athens fought an army from which empire?', a: ['Persia', 'Rome', 'Egypt'], right: 0 },
+  { q: 'Which city was Athens\u2019s great rival in the Peloponnesian War?', a: ['Corinth', 'Thebes', 'Sparta'], right: 2 },
+  { q: 'Who is traditionally credited with the Iliad and the Odyssey?', a: ['Homer', 'Sophocles', 'Herodotus'], right: 0 },
+  { q: 'Who is often called the father of history?', a: ['Thucydides', 'Herodotus', 'Plutarch'], right: 1 },
+  { q: 'Which of the Seven Wonders of the Ancient World still stands?', a: ['The Colossus of Rhodes', 'The Lighthouse of Alexandria', 'The Great Pyramid of Giza'], right: 2 },
+  { q: 'Which language did the ancient Romans speak?', a: ['Latin', 'Greek', 'Etruscan'], right: 0 },
+  { q: 'In which country was the Magna Carta sealed, in 1215?', a: ['France', 'England', 'Spain'], right: 1 },
+  { q: 'Which civilization built Machu Picchu?', a: ['The Aztecs', 'The Maya', 'The Inca'], right: 2 },
+  { q: 'In what year did Columbus first reach the Americas?', a: ['1492', '1607', '1776'], right: 0 },
+  { q: 'Who was the first President of the United States?', a: ['Thomas Jefferson', 'George Washington', 'John Adams'], right: 1 },
+  { q: 'In what year did the Berlin Wall fall?', a: ['1961', '1989', '1991'], right: 1 },
+  { q: 'Democritus said everything is made of tiny pieces that cannot be cut. What do we call them now?', a: ['Cells', 'Atoms', 'Quarks'], right: 1 },
+  { q: 'What gas do plants take in from the air to make their food?', a: ['Oxygen', 'Nitrogen', 'Carbon dioxide'], right: 2 },
+  { q: 'What is the chemical symbol for gold?', a: ['Au', 'Ag', 'Gd'], right: 0 },
+  { q: 'Which planet is closest to the Sun?', a: ['Venus', 'Mercury', 'Mars'], right: 1 },
+  { q: 'How many bones are in an adult human body?', a: ['106', '306', '206'], right: 2 },
+  { q: 'What force keeps the planets in orbit around the Sun?', a: ['Gravity', 'Magnetism', 'Friction'], right: 0 },
+  { q: 'At sea level, at what temperature does water boil?', a: ['90 \u00b0C', '100 \u00b0C', '120 \u00b0C'], right: 1 },
+  { q: 'Who came up with the theory of general relativity?', a: ['Isaac Newton', 'Niels Bohr', 'Albert Einstein'], right: 2 },
+  { q: 'What is the hardest natural substance?', a: ['Diamond', 'Quartz', 'Iron'], right: 0 },
+  { q: 'Which part of a cell is known as its powerhouse?', a: ['The nucleus', 'The mitochondria', 'The cell wall'], right: 1 },
+  { q: 'What do we call a number that cannot be written as a fraction?', a: ['Rational', 'Irrational', 'Imaginary'], right: 1 },
+  { q: 'How many faces does a cube have?', a: ['Four', 'Eight', 'Six'], right: 2 },
+  { q: 'What is the square root of 144?', a: ['12', '14', '72'], right: 0 },
+  { q: 'What is 7 times 8?', a: ['54', '56', '64'], right: 1 },
+  { q: 'What is 15% of 200?', a: ['15', '45', '30'], right: 2 },
+  { q: 'The three angles of a triangle always add up to how many degrees?', a: ['180', '90', '360'], right: 0 },
+  { q: 'What is the next prime number after 7?', a: ['9', '11', '13'], right: 1 },
+  { q: 'What is 2 to the 10th power?', a: ['512', '2,048', '1,024'], right: 2 },
+  { q: 'What is pi, rounded to two decimal places?', a: ['3.14', '3.16', '3.41'], right: 0 },
+  { q: 'How many sides does a hexagon have?', a: ['Five', 'Six', 'Eight'], right: 1 },
+  { q: 'A right triangle has legs of 3 and 4. How long is the third side?', a: ['5', '6', '7'], right: 0 },
+  { q: 'What is one half plus one quarter?', a: ['Two sixths', 'One eighth', 'Three quarters'], right: 2 },
+  { q: 'What do you get when you divide a number (other than zero) by itself?', a: ['Zero', 'One', 'The same number'], right: 1 },
+];
+const quizSeen = [];
+function nextQuestion() {
+  // never repeat one of the last 15 questions
+  const fresh = PLATO_QUIZ.filter((q) => !quizSeen.includes(q));
+  const item = fresh[Math.floor(Math.random() * fresh.length)];
+  quizSeen.push(item); if (quizSeen.length > 15) quizSeen.shift();
+  return item;
+}
+
 const INTERACT = {
   async hat() {
     await say(['A hat on a stool, a very long way from Scotland. It clears its throat.', 'Hmm. Difficult. Very difficult.', 'Plenty of courage, I see. Not a bad mind, either. A real taste for proving people wrong…', 'Better be… GRYFFINDOR!']);
@@ -425,25 +477,24 @@ const INTERACT = {
       const amt = await say(`You have ${wallet.coins.toLocaleString()} coins with you. How much will you deposit?`, amounts(wallet.coins));
       if (!amt) return;
       if (!Number.isInteger(amt) || amt < 1 || amt > wallet.coins) return say('The banker counts your coins twice. That amount does not work.');
-      settleBank(); wallet.coins = wallet.coins - amt; if (bank.bal < 1 || !bank.since) bank.since = Date.now(); bank.bal += amt; bank.seen = bank.bal; lsSet('hf-bank', bank);
+      settleBank(); wallet.coins = wallet.coins - amt; bank.bal += amt; bank.seen = bank.bal; lsSet('hf-bank', bank);
       return say(`Deposited ${amt.toLocaleString()} coins. Your account: ${Math.floor(bank.bal).toLocaleString()}. Come back in a few days and it will have grown.`);
     }
     if (v === 'out') {
       const amt = await say(`Your account has ${whole.toLocaleString()} coins. How much will you take out?`, amounts(whole));
       if (!amt) return;
       if (!Number.isInteger(amt) || amt < 1 || amt > Math.floor(bank.bal)) return say('The banker checks the ledger. Your account does not have that much.');
-      settleBank(); bank.bal = Math.max(0, bank.bal - amt); if (bank.bal < 1) bank.since = null; bank.seen = bank.bal; lsSet('hf-bank', bank); wallet.coins = wallet.coins + amt;
+      settleBank(); bank.bal = Math.max(0, bank.bal - amt); bank.seen = bank.bal; lsSet('hf-bank', bank); wallet.coins = wallet.coins + amt;
       return say(`Withdrew ${amt.toLocaleString()} coins. ${Math.floor(bank.bal) ? `Still in the account: ${Math.floor(bank.bal).toLocaleString()}.` : 'Your account is empty, but it stays open.'}`);
     }
   },
   async keeper() {
     if (await requestTalk('keeper')) return;
-    const r = lsGet('hf-records', {}), lap = lsGet('hf-stadion-best', null);
-    const kept = Math.max(r.bankMs || 0, bank.bal >= 1 && bank.since ? Date.now() - bank.since : 0);
-    const span = (ms) => { const h = Math.floor(ms / 3600e3), d = Math.floor(h / 24); return d ? `${plural(d, 'day')}${h % 24 ? `, ${plural(h % 24, 'hour')}` : ''}` : h ? plural(h, 'hour') : plural(Math.max(1, Math.round(ms / 60e3)), 'minute'); };
+    settleBank(); // so interest earned up to this moment counts
+    const r = lsGet('hf-records', {}), lap = lsGet('hf-stadion-best', null), interest = Math.floor(r.interest || 0);
     const none = 'not yet';
     await say(['The record keeper chisels away at a stone tablet. "Every record in Athens goes in stone. Let me read you yours."',
-      `Fastest winning lap: ${lap != null ? `${lap.toFixed(2)} seconds` : none}\nBiggest blackjack win: ${r.bjBest ? `${r.bjBest.toLocaleString()} coins` : none}\nVoyages that made it home: ${r.home || 0}${r.sunk ? ` (${r.sunk} lost at sea)` : ''}\nLongest bank deposit: ${kept ? span(kept) : none}\nRequests completed: ${r.requests || 0}`,
+      `Fastest winning lap: ${lap != null ? `${lap.toFixed(2)} seconds` : none}\nBiggest blackjack win: ${r.bjBest ? `${r.bjBest.toLocaleString()} coins` : none}\nVoyages that made it home: ${r.home || 0}${r.sunk ? ` (${r.sunk} lost at sea)` : ''}\nTotal interest earned: ${interest ? `${interest.toLocaleString()} coins` : none}\nRequests completed: ${r.requests || 0}`,
       '"Come back when you break one. I have plenty of chisels."']);
   },
   async student() {
@@ -1101,7 +1152,7 @@ function renderShop(preview = null) {
     if (it.slot === 'companion') { const c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(spriteCanvas(petSprite(it.id), 'left'), 0, 3); }
     else paintAvatar(cv, lookWith(it), false);
     card.addEventListener('pointerenter', () => renderShop(it));
-    card.addEventListener('pointerleave', () => renderShop.preview());
+    card.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') renderShop.preview(); }); // on a phone, a tapped preview stays until the next tap
     card.addEventListener('focusin', () => renderShop(it));
   });
   groups.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => buyItem(itemById(b.dataset.buy))));
