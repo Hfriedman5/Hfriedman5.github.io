@@ -1,9 +1,9 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009e';
-import { createRace } from './race.js?v=20261009e';
-import { createWeather, currentWeather } from './weather.js?v=20261009e';
-import { TRACKS } from './tracks.js?v=20261009e';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009e';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009g';
+import { createRace } from './race.js?v=20261009g';
+import { createWeather, currentWeather } from './weather.js?v=20261009g';
+import { TRACKS } from './tracks.js?v=20261009g';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009g';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -51,11 +51,29 @@ document.addEventListener('keydown', (e) => {
 });
 document.addEventListener('keyup', (e) => { if (KEYMAP[e.key]) held.delete(KEYMAP[e.key]); });
 window.addEventListener('blur', () => held.clear());
-document.querySelectorAll('.dpad button').forEach((b) => {
-  const d = b.dataset.dir;
-  b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); held.add(d); queued = d; });
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => b.addEventListener(ev, () => held.delete(d)));
-});
+// Touch joystick: drag the knob, and the avatar walks whichever way it points most (up, down, left, or right).
+const stick = $('#stick');
+if (stick) {
+  const knob = stick.querySelector('.stick-knob');
+  let pid = null, dir = null;
+  const steer = (d) => {
+    if (dir && dir !== d) held.delete(dir);
+    if (d && !held.has(d)) { held.add(d); if (d !== dir) queued = d; }
+    dir = d;
+  };
+  const track = (e) => {
+    const r = stick.getBoundingClientRect(), reach = r.width / 2 - knob.offsetWidth / 2;
+    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    const dist = Math.hypot(dx, dy);
+    if (dist > reach) { dx *= reach / dist; dy *= reach / dist; }
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    steer(dist < 12 ? null : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  };
+  const release = () => { pid = null; steer(null); knob.style.transform = ''; stick.classList.remove('active'); };
+  stick.addEventListener('pointerdown', (e) => { e.preventDefault(); pid = e.pointerId; try { stick.setPointerCapture(pid); } catch (err) { /* synthetic events have no live pointer */ } stick.classList.add('active'); track(e); });
+  stick.addEventListener('pointermove', (e) => { if (e.pointerId === pid) track(e); });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => stick.addEventListener(ev, (e) => { if (e.pointerId === pid) release(); }));
+}
 $('#abtn').addEventListener('click', pressA);
 screen.addEventListener('click', () => screen.focus());
 

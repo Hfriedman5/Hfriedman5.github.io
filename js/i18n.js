@@ -171,7 +171,14 @@ window.HF_I18N = {
 "k168": "© 2026 Hannah Friedman. All rights reserved.",
 "k169": "Heart transplant waitlist optimization",
 "k170": "Survival analysis of adult heart transplant candidates using national registry data. Kaplan-Meier curves and Cox proportional hazards models track who receives a transplant, who dies waiting, and how patients do afterward, checked with concordance, Brier scores, and calibration plots.",
-"k171": "Survival analysis, Python"
+"k171": "Survival analysis, Python",
+"k172": "How to play",
+"k173": "<b>The knight.</b> It moves like a chess knight, in an L: two squares one way, then one square to the side. Tap it and dots mark the squares it can reach.",
+"k174": "<b>Move.</b> Tap the knight, then a dotted square. When the knight is in several places at once, each part moves on its own, so tap the part you want to move.",
+"k175": "<b>Split.</b> Switch to Split, tap a part of the knight, then tap two empty dotted squares. That part divides in half, one half on each square, so a 50% part becomes two 25% parts.",
+"k176": "<b>Merge.</b> Move one part onto a square where another part already is, and the two add together: 25% and 25% make 50%.",
+"k177": "<b>Measure.</b> Measuring makes the knight choose one square at random, using its odds. Capturing a pawn forces a measurement too. The Measure button only works in the last puzzle.",
+"k178": "<b>Winning.</b> Reach each puzzle's goal in the fewest moves given in its hint. Every move and every split counts as one. Press Reset to start a puzzle over."
 },
 "es": {
 "k002": "Educación",
@@ -323,7 +330,14 @@ window.HF_I18N = {
 "k168": "© 2026 Hannah Friedman. Todos los derechos reservados.",
 "k169": "Optimización de la lista de espera para trasplante de corazón",
 "k170": "Análisis de supervivencia de candidatos adultos a trasplante de corazón con datos de un registro nacional. Curvas de Kaplan-Meier y modelos de riesgos proporcionales de Cox siguen quién recibe un trasplante, quién muere en espera y cómo les va a los pacientes después, validados con concordancia, puntuaciones de Brier y gráficos de calibración.",
-"k171": "Análisis de supervivencia, Python"
+"k171": "Análisis de supervivencia, Python",
+"k172": "Cómo jugar",
+"k173": "<b>El caballo.</b> Se mueve como un caballo de ajedrez, en forma de L: dos casillas en una dirección y luego una hacia el lado. Tócalo y unos puntos marcan las casillas a las que puede llegar.",
+"k174": "<b>Mover.</b> Toca el caballo y luego una casilla con punto. Cuando el caballo está en varios lugares a la vez, cada parte se mueve por separado, así que toca la parte que quieres mover.",
+"k175": "<b>Dividir.</b> Cambia a Dividir, toca una parte del caballo y luego dos casillas vacías con punto. Esa parte se divide por la mitad, una mitad en cada casilla, así que una parte del 50% se convierte en dos partes del 25%.",
+"k176": "<b>Unir.</b> Mueve una parte a una casilla donde ya hay otra parte, y las dos se suman: 25% y 25% hacen 50%.",
+"k177": "<b>Medir.</b> Medir hace que el caballo elija una sola casilla al azar, según sus probabilidades. Capturar un peón también obliga a medir. El botón Medir solo funciona en el último acertijo.",
+"k178": "<b>Ganar.</b> Alcanza el objetivo de cada acertijo en el menor número de movimientos que indica su pista. Cada movimiento y cada división cuentan como uno. Pulsa Reiniciar para empezar el acertijo de nuevo."
 },
 "zh": {
 "k001": "汉娜·弗里德曼",
@@ -480,7 +494,14 @@ window.HF_I18N = {
 "k168": "© 2026 汉娜·弗里德曼。保留所有权利。",
 "k169": "心脏移植等候名单优化",
 "k170": "利用全国登记数据，对成年心脏移植候选者进行生存分析。Kaplan-Meier曲线和Cox比例风险模型追踪谁接受了移植、谁在等待中去世，以及患者移植后的情况，并用一致性指数、Brier评分和校准图加以检验。",
-"k171": "生存分析，Python"
+"k171": "生存分析，Python",
+"k172": "玩法说明",
+"k173": "<b>马。</b>它像国际象棋里的马一样走“L”形：朝一个方向走两格，再横向走一格。点一下它，小圆点会标出它能到达的格子。",
+"k174": "<b>移动。</b>点马，再点一个带圆点的格子。当马同时在几个地方时，每一部分各自移动，所以要点你想移动的那一部分。",
+"k175": "<b>分裂。</b>切换到“分裂”，点马的一部分，再点两个带圆点的空格。这一部分会一分为二，每格一半，所以50%的部分会变成两个25%的部分。",
+"k176": "<b>合并。</b>把一部分移到另一部分所在的格子上，两者就会相加：25%加25%等于50%。",
+"k177": "<b>测量。</b>测量会让马按照概率随机选定一个格子。吃掉兵也会强制进行测量。“测量”按钮只在最后一题中可用。",
+"k178": "<b>获胜。</b>用提示中给出的最少步数达成每题的目标。每次移动和每次分裂都算一步。按“重置”可以重新开始本题。"
 },
 "grc": {
 "k001": "Ἄννα Φρίδμαν",
@@ -636,7 +657,14 @@ window.HF_I18N = {
 "k168": "© 2026 Ἄννα Φρίδμαν. Πάντα τὰ δίκαια τετήρηται.",
 "k169": "Ἡ τῶν καρδίας μεταφυτείαν προσμενόντων βελτίωσις",
 "k170": "Ἀνάλυσις περὶ τοῦ ἐπιβιῶναι τῶν ἐν ἡλικίᾳ οἳ καρδίας μεταφυτείαν προσμένουσιν, ἐκ τῶν τοῦ ἔθνους ἀναγραφῶν. Αἱ τοῦ Kaplan-Meier καμπύλαι καὶ τὰ τοῦ Cox ὑποδείγματα σκοποῦσι τίς μὲν μεταφυτείαν λαμβάνει, τίς δὲ προσμένων ἀποθνῄσκει, καὶ πῶς οἱ νοσοῦντες ὕστερον πράττουσιν· ἐξετάζονται δὲ τῇ ὁμολογίᾳ, τοῖς τοῦ Brier ἀριθμοῖς καὶ τοῖς τῆς ἀκριβείας διαγράμμασιν.",
-"k171": "Ἀνάλυσις περὶ τοῦ ἐπιβιῶναι, Python"
+"k171": "Ἀνάλυσις περὶ τοῦ ἐπιβιῶναι, Python",
+"k172": "Πῶς παίζεται",
+"k173": "<b>Ὁ ἵππος.</b> Κινεῖται ὥσπερ ὁ ἐν τῷ ζατρικίῳ ἵππος, σχήματι Λ· δύο τετράγωνα πρὸς τὸ ἓν μέρος, ἔπειτα ἓν πλάγιον. Θίγε αὐτοῦ, καὶ στιγμαὶ σημαίνουσι τὰ τετράγωνα εἰς ἃ ἐξικνεῖται.",
+"k174": "<b>Κίνησις.</b> Θίγε τοῦ ἵππου, ἔπειτα τετραγώνου ἐστιγμένου. Ὅταν ὁ ἵππος ἐν πολλοῖς τόποις ἅμα ᾖ, ἕκαστον μέρος καθ᾽ αὑτὸ κινεῖται· θίγε οὖν τοῦ μέρους ὃ βούλει κινεῖν.",
+"k175": "<b>Σχίσις.</b> Μετάβαινε εἰς τὸ «Σχίσον», θίγε μέρους τινὸς τοῦ ἵππου, ἔπειτα δυοῖν κενοῖν τετραγώνοιν ἐστιγμένοιν. Τὸ μέρος δίχα τέμνεται, ἥμισυ ἐν ἑκατέρῳ, ὥστε τὸ τῶν πεντήκοντα ἐπὶ τοῖς ἑκατὸν μέρος γίγνεται δύο τῶν εἴκοσι πέντε.",
+"k176": "<b>Σύνοδος.</b> Κίνει μέρος εἰς τετράγωνον ἐν ᾧ ἤδη ἄλλο μέρος ἐστί, καὶ συντίθενται· 25% καὶ 25% ποιεῖ 50%.",
+"k177": "<b>Μέτρησις.</b> Ἡ μέτρησις ἀναγκάζει τὸν ἵππον ἓν τετράγωνον αἱρεῖσθαι κατὰ τύχην, κατὰ τὰς πιθανότητας. Καὶ ἡ τοῦ πεζοῦ αἵρεσις μέτρησιν ἀναγκάζει. Τὸ «Μέτρησον» κομβίον ἐν τῷ τελευταίῳ αἰνίγματι μόνῳ ἐνεργεῖ.",
+"k178": "<b>Νίκη.</b> Τέλει τὸν ἑκάστου αἰνίγματος σκοπὸν ἐν ταῖς ἐλαχίσταις κινήσεσιν αἷς ἡ ὑπόθεσις λέγει. Ἑκάστη κίνησις καὶ ἑκάστη σχίσις μία ἀριθμεῖται. Πάτει τὸ «Ἐξ ἀρχῆς» ἵνα πάλιν ἄρξῃ."
 },
 "he": {
 "k001": "חנה פרידמן",
@@ -792,6 +820,13 @@ window.HF_I18N = {
 "k168": "© 2026 חנה פרידמן. כל הזכויות שמורות.",
 "k169": "אופטימיזציה של רשימת ההמתנה להשתלת לב",
 "k170": "ניתוח הישרדות של מועמדים בוגרים להשתלת לב, על בסיס נתוני מרשם לאומי. עקומות קפלן-מאייר ומודלים של סיכונים פרופורציונליים של קוקס עוקבים אחר מי מקבל השתלה, מי נפטר בהמתנה ומה מצבם של המטופלים לאחר מכן, ונבדקים באמצעות מדד ההתאמה (C-index), ציוני Brier וגרפי כיול.",
-"k171": "ניתוח הישרדות, Python"
+"k171": "ניתוח הישרדות, Python",
+"k172": "איך משחקים",
+"k173": "<b>הפרש.</b> הוא זז כמו פרש בשחמט, בצורת L: שתי משבצות לכיוון אחד ואז משבצת אחת הצידה. הקישו עליו ונקודות יסמנו את המשבצות שהוא יכול להגיע אליהן.",
+"k174": "<b>הזזה.</b> הקישו על הפרש ואז על משבצת מסומנת בנקודה. כשהפרש נמצא בכמה מקומות בבת אחת, כל חלק זז בנפרד, אז הקישו על החלק שאתם רוצים להזיז.",
+"k175": "<b>פיצול.</b> עברו למצב פיצול, הקישו על חלק של הפרש ואז על שתי משבצות ריקות מסומנות. החלק הזה מתחלק לשניים, חצי בכל משבצת, כך שחלק של 50% הופך לשני חלקים של 25%.",
+"k176": "<b>איחוד.</b> הזיזו חלק אחד למשבצת שבה כבר נמצא חלק אחר, והשניים מתחברים: 25% ועוד 25% הם 50%.",
+"k177": "<b>מדידה.</b> מדידה גורמת לפרש לבחור משבצת אחת באקראי, לפי ההסתברויות שלו. גם הכאת רגלי מאלצת מדידה. כפתור המדידה פועל רק בחידה האחרונה.",
+"k178": "<b>ניצחון.</b> הגיעו למטרה של כל חידה במספר המהלכים הקטן ביותר שמופיע ברמז שלה. כל הזזה וכל פיצול נחשבים למהלך אחד. לחצו על איפוס כדי להתחיל את החידה מחדש."
 }
 };

@@ -17,9 +17,9 @@
 
   /* ---------------- Easter eggs ---------------- */
   const EGGS = [
-    { id: 'gryffindor', title: 'The house password', hint: 'Press the ` key to open the terminal. The password is a Hogwarts house.', done: 'Hannah Mode unlocked. Ten points to Gryffindor.' },
-    { id: 'console', title: 'Developer instincts', hint: 'Open your browser console. Someone left you a note.', done: 'You called hannah() from the console. Hi.' },
-    { id: 'konami', title: 'Cheat code', hint: 'Up, up, down, down, left, right, left, right, B, A. Anywhere on the site.', done: 'Thirty extra lives. Spend them wisely.' },
+    { id: 'gryffindor', title: 'The house password', hint: 'Press the ` key to open the terminal. The password is a Hogwarts house.', touch: 'Tap Terminal at the bottom of the page. The password is a Hogwarts house.', done: 'Hannah Mode unlocked. Ten points to Gryffindor.' },
+    { id: 'console', title: 'Developer instincts', hint: 'Open your browser console. Someone left you a note.', touch: 'Phones have no console, so tap Terminal at the bottom of the page and type hannah() there.', done: 'You called hannah(). Hi.' },
+    { id: 'konami', title: 'Cheat code', hint: 'Up, up, down, down, left, right, left, right, B, A. Anywhere on the site.', touch: 'Swipe up, up, down, down, left, right, left, right, then tap twice. Anywhere on the site.', done: 'Thirty extra lives. Spend them wisely.' },
     { id: 'vienna', title: 'Slow down, you crazy child', hint: 'Drop the needle on the best song.', done: 'You played "Vienna". Correct choice.' },
     { id: 'cups', title: 'Four straight', hint: 'The Islanders won four Stanley Cups in a row. Click their fact that many times.', done: '1980, 1981, 1982, 1983. We remember.' },
     { id: 'crash', title: 'Market crash', hint: 'Rerun the Monte Carlo until a path falls below $60.', done: 'A simulated crash. No real money was harmed.' },
@@ -28,6 +28,9 @@
     { id: 'mines', title: 'Minefield cleared', hint: 'Win a game of Minesweeper in the Play world\'s gaming hall.', done: 'Zero explosions. Very rational.' },
   ];
   let found = new Set(store.get('hf-eggs', []).filter((id) => EGGS.some((e) => e.id === id)));
+  // Phones have no backtick key, console, or arrow keys, so those eggs get touch versions and touch hints.
+  const touchy = matchMedia('(hover: none) and (pointer: coarse)').matches;
+  const hintOf = (e) => (touchy && e.touch) || e.hint;
 
   function renderEggs() {
     $$('.egg-count').forEach((el) => (el.textContent = found.size));
@@ -40,7 +43,7 @@
       const got = found.has(e.id);
       return `<li class="${got ? 'found' : ''}">
         <span class="badge">${icon(got ? 'check' : 'lock-simple')}</span>
-        <div><h3>${got ? esc(e.title) : esc(e.title)}<span class="sr-only">${got ? ', found' : ', not found yet'}</span></h3><p>${esc(got ? e.done : e.hint)}</p></div>
+        <div><h3>${got ? esc(e.title) : esc(e.title)}<span class="sr-only">${got ? ', found' : ', not found yet'}</span></h3><p>${esc(got ? e.done : hintOf(e))}</p></div>
       </li>`;
     }).join('');
   }
@@ -348,6 +351,7 @@
     vim() { say('You are now in vim. There is no way out. (Press Esc.)', 'dim'); },
     ping() { say('64 bytes from hannah: probably at the piano. time=long', 'ok'); },
     hannah() { say('That is me. Try <span class="cmd">whoami</span>.', 'dim'); },
+    'hannah()'() { say('Hi! Thanks for finding me. No console needed.', 'ok'); foundEgg('console'); },
     gryffindor() {
       const was = document.documentElement.classList.contains('hannah-mode');
       foundEgg('gryffindor');
@@ -515,7 +519,7 @@
     const hidden = EGGS.filter((e) => !found.has(e.id));
     if (!hidden.length) return 'You have found every secret on this site. Even I am impressed.';
     const e = rotate('egg', hidden);
-    return `A secret, then. ${e.hint}`;
+    return `A secret, then. ${hintOf(e)}`;
   }
 
   function riddleReply(raw) {
@@ -674,10 +678,25 @@
   /* ---------------- Konami + confetti ---------------- */
   const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
   let k = 0;
-  document.addEventListener('keydown', (e) => {
-    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  function konamiStep(key) {
     k = key === KONAMI[k] ? k + 1 : key === KONAMI[0] ? 1 : 0;
     if (k === KONAMI.length) { k = 0; confetti(); foundEgg('konami'); }
+  }
+  // On touchscreens the arrows are swipes and B, A are two taps.
+  let touchAt = null;
+  document.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    touchAt = e.touches.length === 1 && !e.target.closest('input, textarea, dialog, canvas, .pad, .q-board') ? [t.clientX, t.clientY] : null;
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (!touchAt) return;
+    const t = e.changedTouches[0], dx = t.clientX - touchAt[0], dy = t.clientY - touchAt[1];
+    touchAt = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) > 30) konamiStep(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft') : (dy > 0 ? 'ArrowDown' : 'ArrowUp'));
+    else konamiStep(k >= 8 ? KONAMI[k] : 'tap');
+  }, { passive: true });
+  document.addEventListener('keydown', (e) => {
+    konamiStep(e.key.length === 1 ? e.key.toLowerCase() : e.key);
     const typing = e.target.closest('input, textarea, [contenteditable]');
     if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey && (e.key === '`' || e.key === '~')) { e.preventDefault(); openTerminal(); }
   });
@@ -840,7 +859,7 @@
       }
     }
     function prompt() {
-      if (!sel) return say(branches.length > 1 ? 'Tap any part of the knight to move it, or press Measure to collapse it.' : 'Tap the knight to move it, or switch to Split to send it to two squares at once.');
+      if (!sel) return say(branches.length > 1 ? (LEVELS[level].luck ? 'Tap any part of the knight to move it, or press Measure to collapse it.' : 'Tap any part of the knight to move or split it.') : 'Tap the knight to move it, or switch to Split to send it to two squares at once.');
       const which = branches.length > 1 ? `this ${pct(sel.p)} part of the knight` : 'the knight';
       if (mode === 'split') return say(first ? 'Now pick a second empty square.' : `Split ${which}: pick two empty squares.`);
       say(`Move ${which}. Dots are legal moves; a ring means a capture.`);
