@@ -64,7 +64,7 @@ export const MAP_PLACES = [
   { id: 'market', name: 'Agora market', desc: 'Outfits and gadgets, paid in coins.', at: [23.5, 10.2], go: [23, 13, 'up'] },
   { id: 'library', name: 'Library', desc: 'Scrolls, and a diary that writes back.', at: [6, 15.4], go: [5, 20, 'up'] },
   { id: 'bank', name: 'The Bank', desc: 'Coins left with the banker grow 2% a day.', at: [31, 15.4], go: [30, 20, 'up'] },
-  { id: 'board', name: 'Request board', desc: 'One small job for the town, every day.', at: [19.5, 8.3], go: [19, 10, 'up'] },
+  { id: 'board', name: 'Request board', desc: 'One small job for the town, every day.', at: [10.5, 6.2], go: [10, 8, 'up'] },
   { id: 'stadium', name: 'The Stadium', desc: 'Race the runner, one lap.', at: [18.5, 17.5], go: [18, 14, 'down'] },
   { id: 'shore', name: 'The Aegean Sea', desc: 'Sand, sea, and a captain with ships for hire.', at: [18, 22.6], go: [18, 21, 'down'] },
 ];
@@ -78,7 +78,7 @@ export const SIGNS = [
   { x: 26, y: 8, text: "Plato's Academy.\nInside: the whole School of Athens, painted on one wall." },
   { x: 9, y: 15, text: 'Library. The door is around the front, on the beach side.\nQuiet, please. Something in here writes back.' },
   { x: 27, y: 15, text: 'The Bank. The door is around the front, on the beach side.\nThe banker sits at a table, a trapeza. Coins left with him grow 2% a day.' },
-  { x: 19, y: 9, board: true, text: 'Town request board.' },
+  { x: 10, y: 7, board: true, text: 'Town request board.' },
   { x: 25, y: 20, text: 'The Aegean Sea.\nHomer called it wine-dark. It looks blue to you.' },
 ];
 

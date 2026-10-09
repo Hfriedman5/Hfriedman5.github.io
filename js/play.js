@@ -1,8 +1,8 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009s';
-import { createRace } from './race.js?v=20261009s';
-import { createWeather, currentWeather } from './weather.js?v=20261009s';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009s';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009u';
+import { createRace } from './race.js?v=20261009u';
+import { createWeather, currentWeather } from './weather.js?v=20261009u';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009u';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -183,7 +183,7 @@ const saveWardrobe = () => lsSet('hf-wardrobe', wardrobe);
 const companion = { x: null, y: null };
 
 /* ---------------- Town request board: one small job a day ---------------- */
-// The board by the Parthenon posts one request a day, picked at random the first time anyone looks. Fetch jobs hide
+// The board between the Gaming Hall and the Parthenon posts one request a day, picked at random the first time anyone looks. Fetch jobs hide
 // something in town, delivery jobs start with one person and end with another, and the others ask you to make the rounds.
 const NAMES = { socrates: 'Socrates', plato: 'Plato', owl: 'the owl', cat: 'the cat', merchant: 'the merchant', runner: 'the runner', captain: 'the captain', bank: 'the bank', library: 'the library', parthenon: 'the Parthenon', academy: 'the Academy' };
 const REQUESTS = [
@@ -283,15 +283,25 @@ function settleBank() {
 const amounts = (max) => [...[100, 500, 1000, 5000].filter((n) => n < max).map((n) => ({ label: n.toLocaleString(), value: n })), { label: `All (${max.toLocaleString()})`, value: max }, { label: 'Never mind', value: null }];
 
 /* ---------------- Trading voyages from the beach ---------------- */
-// Pay for a voyage and share the profit when the ship comes home. Longer routes pay more, and some ships sink.
-// Stormy weather from the Machine Room makes every route riskier. Whether a ship sinks is settled when it sails.
+// Pay for a voyage and share the profit when the ship comes home. Every day each route gets its own sea and its own
+// market (the same for everyone that day), so the best bet changes: some days Egypt is a bargain, some days it's a trap.
+// Stormy weather from the Machine Room adds risk on top. Whether a ship sinks is settled when it sails.
 const ROUTES = [
-  { id: 'aegina', name: 'Aegina', hours: 2, mult: 1.1, risk: 0, cargo: 'pistachios', line: 'A short hop across the gulf. Safe as houses, and it pays like it.' },
-  { id: 'crete', name: 'Crete', hours: 4, mult: 1.5, risk: .2, cargo: 'olive oil and honey', line: 'Open sea all the way to Crete. Usually fine.' },
-  { id: 'egypt', name: 'Egypt', hours: 8, mult: 2, risk: .35, cargo: 'papyrus and grain', line: 'All the way to Alexandria. Big money, big storms.' },
+  { id: 'aegina', name: 'Aegina', hours: 2, gain: .1, risk: 0, cargo: 'pistachios' },
+  { id: 'crete', name: 'Crete', hours: 4, gain: .5, risk: .2, cargo: 'olive oil' },
+  { id: 'egypt', name: 'Egypt', hours: 8, gain: 1, risk: .35, cargo: 'grain' },
 ];
+const SEAS = [['calm seas', .5, .3], ['choppy seas', 1, .45], ['storms at sea', 1.6, .25]];   // what it does to the risk, how often
+const MARKETS = [['low', .6, .25], ['normal', 1, .5], ['high', 1.4, .25]];                     // what it does to the profit, how often
+const seeded = (key) => { let h = 2166136261; for (const ch of key) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); h ^= h >>> 15; return ((Math.imul(h, 2246822507) >>> 0) % 1e6) / 1e6; };
+const pickBy = (table, r) => table.find((row) => (r -= row[2]) < 0) || table[table.length - 1];
 const stormy = () => ['rain', 'ominous'].includes(weatherKind) ? .1 : ['fog', 'snow'].includes(weatherKind) ? .05 : 0;
-const riskOf = (rt) => Math.min(.9, rt.risk + (rt.risk ? stormy() : stormy() / 2));
+function seaReport(rt) {
+  const sea = pickBy(SEAS, seeded(`${dayKey()}:${rt.id}:sea`)), market = pickBy(MARKETS, seeded(`${dayKey()}:${rt.id}:market`));
+  const base = rt.risk ? rt.risk * sea[1] : sea[1] > 1 ? .08 : 0;
+  return { sea: sea[0], demand: market[0], gain: Math.round(rt.gain * market[1] * 100) / 100, risk: Math.min(.9, base + (rt.risk ? stormy() : stormy() / 2)) };
+}
+const sinks = (risk) => (risk ? `sinks ${Math.round(risk * 100)}%` : 'never sinks');
 const INTERACT = {
   async hat() {
     await say(['A hat on a stool, a very long way from Scotland. It clears its throat.', 'Hmm. Difficult. Very difficult.', 'Plenty of courage, I see. Not a bad mind, either. A real taste for proving people wrong…', 'Better be… GRYFFINDOR!']);
@@ -321,7 +331,7 @@ const INTERACT = {
       request.taken = true; saveRequest();
       return say(['Socrates here. I seem to have lost a sandal.', 'I tell everyone I do not need it. I would like it back.', spotHint(), `Bring it to me and I will pay you ${todaysRequest().pay} coins.`]);
     }
-    await say(['Socrates here. I have both sandals today, for once.', 'I know that I know nothing. I do know the request board by the Parthenon has work, if you want coins.']);
+    await say(['Socrates here. I have both sandals today, for once.', 'I know that I know nothing. I do know the request board between the Gaming Hall and the Parthenon has work, if you want coins.']);
   },
   async cat() {
     if (await requestTalk('cat')) return;
@@ -399,21 +409,22 @@ const INTERACT = {
       lsSet('hf-voyage', null);
       if (vy.sank) return say([`Bad news. Your ship to ${rt.name} met a storm and sank.`, `Your ${vy.stake.toLocaleString()} coins went down with it. The sea gives, and the sea takes.`]);
       wallet.coins = wallet.coins + vy.stake;
-      const n = earn(Math.round(vy.stake * (rt.mult - 1)));
+      const n = earn(Math.round(vy.stake * (vy.gain ?? rt.gain)));
       return say([`Your ship is home from ${rt.name}, full of ${rt.cargo}!`, `You get your ${vy.stake.toLocaleString()} coins back, plus ${n.toLocaleString()} in profit.`]);
     }
-    const storm = stormy() ? ['The weather looks rough today. Somebody has been turning dials in the Machine Room, so every route is riskier.'] : [];
-    const pick = await say(['Captain here. My ships sail to Aegina, Crete, and Egypt.', 'Pay for a voyage and you share the profit when the ship comes home. Longer trips pay more, and not every ship comes back.', ...storm],
-      [...ROUTES.map((r) => ({ label: r.name, value: r.id })), { label: 'Not today', value: null }]);
-    const route = ROUTES.find((r) => r.id === pick);
+    const report = ROUTES.map((r) => ({ ...r, ...seaReport(r) }));
+    const storm = stormy() ? ['Somebody has been turning the weather dials in the Machine Room, so every route is riskier than usual.'] : [];
+    const pick = await say(['Captain here. Pay for a voyage and you share the profit when the ship comes home. Not every ship comes home.', ...storm,
+      `Today's sea report:\n${report.map((r) => `${r.name}: ${r.sea}, ${r.demand} demand for ${r.cargo}.`).join('\n')}`],
+      [...report.map((r) => ({ label: `${r.name}: ${r.hours} h, +${Math.round(r.gain * 100)}%, ${sinks(r.risk)}`, value: r.id })), { label: 'Not today', value: null }]);
+    const route = report.find((r) => r.id === pick);
     if (!route) return;
     if (wallet.coins < 100) return say('A voyage takes at least 100 coins. Come back when your purse is heavier.');
-    const risk = riskOf(route), gain = Math.round((route.mult - 1) * 100);
-    const stake = await say([route.line, `Home in ${route.hours} hours. If it makes it, you get your coins back plus ${gain}%. Chance it sinks: ${Math.round(risk * 100)}%.`, `How much will you put in? You have ${wallet.coins.toLocaleString()} coins.`],
+    const stake = await say([`${route.name} it is. Home in ${route.hours} hours. If it makes it, you get your coins back plus ${Math.round(route.gain * 100)}%. ${route.risk ? `There is a ${Math.round(route.risk * 100)}% chance it sinks.` : 'It will not sink.'}`, `How much will you put in? You have ${wallet.coins.toLocaleString()} coins.`],
       [...[100, 250, 500, 1000].filter((n) => n <= wallet.coins).map((n) => ({ label: n.toLocaleString(), value: n })), { label: 'Never mind', value: null }]);
     if (!stake) return;
     wallet.coins = wallet.coins - stake;
-    lsSet('hf-voyage', { route: route.id, stake, back: Date.now() + route.hours * 3600e3, sank: Math.random() < risk });
+    lsSet('hf-voyage', { route: route.id, stake, back: Date.now() + route.hours * 3600e3, sank: Math.random() < route.risk, gain: route.gain });
     await say(`The ship sails for ${route.name} with your ${stake.toLocaleString()} coins aboard. Come back in ${route.hours} hours.`);
   },
 };
