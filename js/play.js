@@ -1,9 +1,9 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010u';
-import { createRace } from './race.js?v=20261010u';
-import { createWeather, currentWeather } from './weather.js?v=20261010u';
-import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines } from './economy.js?v=20261010u';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010u';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010v';
+import { createRace } from './race.js?v=20261010v';
+import { createWeather, currentWeather } from './weather.js?v=20261010v';
+import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines } from './economy.js?v=20261010v';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010v';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -89,8 +89,9 @@ if (bbtn) {
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => bbtn.addEventListener(ev, () => { running = false; }));
   bbtn.addEventListener('contextmenu', (e) => e.preventDefault());
 }
-screen.addEventListener('click', () => screen.focus());
-$('#dlg').addEventListener('click', (e) => { if (!e.target.closest('button')) advance(); });
+// Clicking the game takes the keyboard back for walking, except inside the dialog, where a text box may need it.
+screen.addEventListener('click', (e) => { if (!e.target.closest('#dlg')) screen.focus(); });
+$('#dlg').addEventListener('click', (e) => { if (!e.target.closest('button, input, form')) advance(); });
 
 /* ---------------- Dialogue ---------------- */
 const dlg = { pages: [], i: 0, typing: false, full: '', shown: 0, choices: null, choosing: false, resolve: null };
