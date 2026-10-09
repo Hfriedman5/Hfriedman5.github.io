@@ -1,8 +1,8 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009w';
-import { createRace } from './race.js?v=20261009w';
-import { createWeather, currentWeather } from './weather.js?v=20261009w';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009w';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009y';
+import { createRace } from './race.js?v=20261009y';
+import { createWeather, currentWeather } from './weather.js?v=20261009y';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009y';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -270,9 +270,9 @@ async function readBoard() {
   await say(['Town request board. One request a day.', r.post, `${status} Reward: ${r.pay} coins.`]);
 }
 
-/* ---------------- The bank: coins left here grow 2% a day ---------------- */
-// Interest compounds continuously at 2% a day on up to BANK_CAP coins; anything above the cap waits without growing.
-const BANK_RATE = .02, BANK_CAP = 25000;
+/* ---------------- The bank: coins left here grow 3% a day ---------------- */
+// Interest compounds continuously at 3% a day on up to BANK_CAP coins; anything above the cap waits without growing.
+const BANK_RATE = .03, BANK_CAP = 25000;
 const bank = Object.assign({ bal: 0, at: Date.now(), seen: 0 }, lsGet('hf-bank', {}));
 function settleBank() {
   const days = Math.max(0, (Date.now() - bank.at) / 864e5), k = Math.log(1 + BANK_RATE);
@@ -386,7 +386,7 @@ const INTERACT = {
     const whole = Math.floor(bank.bal), grew = whole - Math.floor(bank.seen || 0);
     bank.seen = bank.bal; lsSet('hf-bank', bank);
     const v = await say(['The Bank. A banker sits at a long table, a trapeza, stacking silver.',
-      whole ? `Your account: ${whole.toLocaleString()} coins.${grew > 0 ? ` It earned ${grew.toLocaleString()} since your last visit.` : ''} It grows 2% a day, on up to ${BANK_CAP.toLocaleString()} coins.` : `Coins you leave here grow 2% every day, on up to ${BANK_CAP.toLocaleString()} coins. Take them out whenever you like.`],
+      whole ? `Your account: ${whole.toLocaleString()} coins.${grew > 0 ? ` It earned ${grew.toLocaleString()} since your last visit.` : ''} It grows ${Math.round(BANK_RATE * 100)}% a day, on up to ${BANK_CAP.toLocaleString()} coins.` : `Coins you leave here grow ${Math.round(BANK_RATE * 100)}% every day, on up to ${BANK_CAP.toLocaleString()} coins. Take them out whenever you like.`],
       [{ label: 'Deposit', value: 'in' }, ...(whole ? [{ label: 'Withdraw', value: 'out' }] : []), { label: 'Leave', value: null }]);
     if (v === 'in') {
       if (!wallet.coins) return say('Your purse is empty. The olive trees are a good place to start.');
