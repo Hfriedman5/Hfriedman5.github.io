@@ -292,7 +292,7 @@ a.tile:hover .go { background: var(--accent); color: var(--on-accent); border-co
 .facts { grid-template-areas: "isl song greek" "piano q q" "sports q q"; }
 .fact:nth-child(1) { grid-area: isl; } .fact:nth-child(2) { grid-area: song; } .fact:nth-child(3) { grid-area: greek; }
 .fact:nth-child(4) { grid-area: piano; } .fact:nth-child(5) { grid-area: sports; }
-.fact.fact-quantum { grid-area: q; background: var(--tint-quant); grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-content: center; gap: 12px 32px; }
+.fact.fact-quantum { grid-area: q; background: var(--tint-quant); grid-template-columns: minmax(0, 1fr) auto; align-items: start; align-content: center; gap: 12px 32px; }
 .q-text { display: grid; gap: 6px; max-width: 70ch; }
 .q-link { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--tint-quant-ink) 45%, transparent); text-underline-offset: 3px; display: inline-flex; align-items: center; gap: 4px; }
 .q-link:hover { color: var(--tint-quant-ink); text-decoration-color: currentColor; }

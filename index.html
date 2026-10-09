@@ -16,7 +16,7 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/schibsted.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=20261009g">
+<link rel="stylesheet" href="style.css?v=20261009i">
 <script>try { const r = document.documentElement; if (localStorage.getItem('hf-hannah-mode') === '1') r.classList.add('hannah-mode'); const L = JSON.parse(localStorage.getItem('hf-lang')); if (L && L !== 'en' && JSON.parse(localStorage.getItem('hf-machine-key'))) { r.lang = { zh: 'zh-Hans' }[L] || L; if (L === 'he') r.dir = 'rtl'; r.classList.add('i18n-pending'); } } catch (e) {}</script>
 <script type="importmap">
 { "imports": {
@@ -444,6 +444,8 @@
           <div class="q-text">
             <h3><a class="q-link" href="https://q-chess.com/" target="_blank" rel="noopener">Quantum chess<svg class="icon" aria-hidden="true"><use href="#i-arrow-up-right"/></svg></a></h3>
             <p>My favorite chess variant. A piece can split across two squares at once and stay in superposition until a move like a capture forces a measurement. I think superposition is one of the coolest ideas in physics, so here is a knight you can try it on.</p>
+            <p class="q-goal" id="q-goal">Puzzle 1 of 5, Reunion: The knight is 50% on a1, 25% on e1, and 25% on e5. Make it whole again, 100% on d3. (Hint: it can be done in 4 moves.)</p>
+            <p class="q-status" id="q-status" aria-live="polite">Tap the knight to move it, or switch to Split to send it to two squares at once.</p>
             <details class="mc-explain q-explain">
               <summary>How to play</summary>
               <div class="mc-explain-body">
@@ -455,8 +457,6 @@
                 <p><b>Winning.</b> Reach each puzzle's goal in the fewest moves given in its hint. Every move and every split counts as one. Press Reset to start a puzzle over.</p>
               </div>
             </details>
-            <p class="q-goal" id="q-goal">Puzzle 1 of 5, Reunion: The knight is 50% on a1, 25% on e1, and 25% on e5. Make it whole again, 100% on d3. (Hint: it can be done in 4 moves.)</p>
-            <p class="q-status" id="q-status" aria-live="polite">Tap the knight to move it, or switch to Split to send it to two squares at once.</p>
           </div>
           <div class="q-game">
             <div class="q-levels" id="q-levels" role="group" aria-label="Puzzles"></div>
@@ -546,8 +546,8 @@
   You're reading the source, so you're our kind of person.
   Open the terminal (press the ` key) and type: help
 -->
-<script src="script.js?v=20261009g" defer></script>
-<script type="module" src="js/music.js?v=20261009g"></script>
-<script type="module" src="js/globe.js?v=20261009g"></script>
+<script src="script.js?v=20261009i" defer></script>
+<script type="module" src="js/music.js?v=20261009i"></script>
+<script type="module" src="js/globe.js?v=20261009i"></script>
 </body>
 </html>
