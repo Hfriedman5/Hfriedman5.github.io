@@ -444,7 +444,7 @@ export const ITEMS = [
   { id: 'hardhat', slot: 'head', name: 'Hard hat', price: 400, desc: 'Required in the Machine Room. Not provided.' },
   { id: 'flowercrown', slot: 'head', name: 'Flower crown', price: 350, desc: 'Picked from the Agora flower beds, with permission.' },
   { id: 'shades', slot: 'face', name: 'Sunglasses', price: 150, desc: 'The Mediterranean sun is no joke.' },
-  { id: 'mask', slot: 'face', name: 'Comedy mask', price: 200, desc: 'From the theater of Dionysus. Everyone can tell you are smiling.' },
+  { id: 'monocle', slot: 'face', name: 'Monocle', price: 200, desc: 'A gold-rimmed lens, for inspecting olives very closely.' },
   { id: 'lyre', slot: 'held', name: 'Lyre', price: 350, desc: 'Comes pre-tuned to "Vienna".' },
   { id: 'scroll', slot: 'held', name: 'Scroll', price: 200, desc: "Plato's Republic, slightly used." },
   { id: 'basketball', slot: 'held', name: 'Basketball', price: 300, desc: 'For a former varsity captain.' },
@@ -516,17 +516,13 @@ const OVERLAYS = {
     for (let x = b0; x <= b1; x++) put(x, 1, x === b0 || x === b1 ? D : S);
     if (dir === 'down') { put(4, 8, C); put(11, 8, C); }
   },
-  mask(put, dir) { // a cream comedy mask with a wide red smile, tied on with a ribbon
-    const M = '#f6efe2', E = '#2a2f3d', R = '#c0303f', G = '#e0b44c';
-    if (dir === 'up') { put(7, 4, R); put(8, 4, R); put(7, 5, R); return; }
-    if (dir === 'left') {
-      for (let y = 3; y <= 8; y++) for (let x = 3; x <= 7; x++) put(x, y, M);
-      put(4, 4, G); put(4, 5, E); put(3, 7, R); put(4, 8, R); put(5, 8, R); put(8, 5, R);
-      return;
-    }
-    for (let y = 3; y <= 8; y++) for (let x = 4; x <= 11; x++) if (!((y === 3 || y === 8) && (x === 4 || x === 11))) put(x, y, M);
-    put(5, 4, G); put(10, 4, G); put(5, 5, E); put(6, 5, E); put(9, 5, E); put(10, 5, E);
-    put(5, 7, R); put(10, 7, R); for (let x = 6; x <= 9; x++) put(x, 8, R);
+  monocle(put, dir) { // one gold-rimmed lens on a little chain
+    if (dir === 'up') return;
+    const G = '#d9a441', g = '#a8772a', L = '#cfe3f2';
+    const cx = dir === 'left' ? 4 : 10;
+    for (let x = cx - 1; x <= cx + 1; x++) { put(x, 4, G); put(x, 6, G); }
+    put(cx - 1, 5, G); put(cx + 1, 5, G); put(cx, 5, L);
+    put(cx + 1, 7, g); put(cx + 2, 8, g); put(cx + 2, 9, g);
   },
   shades(put, dir) {
     if (dir === 'up') return;

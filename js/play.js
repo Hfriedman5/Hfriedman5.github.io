@@ -1,8 +1,8 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010f';
-import { createRace } from './race.js?v=20261010f';
-import { createWeather, currentWeather } from './weather.js?v=20261010f';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010f';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010g';
+import { createRace } from './race.js?v=20261010g';
+import { createWeather, currentWeather } from './weather.js?v=20261010g';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010g';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -199,7 +199,7 @@ renderCoins();
 // What the avatar owns and wears. Outfits always have one item; other slots can be empty.
 const wardrobe = Object.assign({ owned: ['chiton'], equipped: { outfit: 'chiton' } }, lsGet('hf-wardrobe', {}));
 // Items that were swapped out of the shop: anyone who owned the old one gets its replacement.
-const RENAMED = { spartan: 'sailor', laurel: 'petasos', readers: 'mask' };
+const RENAMED = { spartan: 'sailor', laurel: 'petasos', readers: 'monocle', mask: 'monocle' };
 if ([...wardrobe.owned, ...Object.values(wardrobe.equipped)].some((id) => RENAMED[id])) {
   wardrobe.owned = [...new Set(wardrobe.owned.map((id) => RENAMED[id] || id))];
   for (const [slot, id] of Object.entries(wardrobe.equipped)) if (RENAMED[id]) wardrobe.equipped[slot] = RENAMED[id];
