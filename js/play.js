@@ -1,8 +1,8 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010m';
-import { createRace } from './race.js?v=20261010m';
-import { createWeather, currentWeather } from './weather.js?v=20261010m';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010m';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010n';
+import { createRace } from './race.js?v=20261010n';
+import { createWeather, currentWeather } from './weather.js?v=20261010n';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010n';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -469,8 +469,10 @@ const INTERACT = {
     settleBank();
     const whole = Math.floor(bank.bal), grew = whole - Math.floor(bank.seen || 0);
     bank.seen = bank.bal; lsSet('hf-bank', bank);
+    const allTime = Math.floor(lsGet('hf-records', {}).interest || 0);
+    const total = allTime ? ` In all, your account has earned ${allTime.toLocaleString()} coins of interest.` : '';
     const v = await say(['The Bank. A banker sits at a long table, a trapeza, stacking silver.',
-      whole ? `Your account: ${whole.toLocaleString()} coins.${grew > 0 ? ` It earned ${grew.toLocaleString()} since your last visit.` : ''} It grows ${Math.round(BANK_RATE * 100)}% a day, on up to ${BANK_CAP.toLocaleString()} coins.` : `Coins you leave here grow ${Math.round(BANK_RATE * 100)}% every day, on up to ${BANK_CAP.toLocaleString()} coins. Take them out whenever you like.`],
+      whole ? `Your account: ${whole.toLocaleString()} coins.${grew > 0 ? ` It earned ${grew.toLocaleString()} since your last visit.` : ''}${total} It grows ${Math.round(BANK_RATE * 100)}% a day, on up to ${BANK_CAP.toLocaleString()} coins.` : `Coins you leave here grow ${Math.round(BANK_RATE * 100)}% every day, on up to ${BANK_CAP.toLocaleString()} coins. Take them out whenever you like.${total}`],
       [{ label: 'Deposit', value: 'in' }, ...(whole ? [{ label: 'Withdraw', value: 'out' }] : []), { label: 'Leave', value: null }]);
     if (v === 'in') {
       if (!wallet.coins) return say('Your purse is empty. The olive trees are a good place to start.');

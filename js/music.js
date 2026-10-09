@@ -1,5 +1,5 @@
 // Record player: playlist, transport, and the img2threejs turntable (lazy-loaded).
-import { TRACKS, freshPreview } from './tracks.js?v=20261010m';
+import { TRACKS, freshPreview } from './tracks.js?v=20261010n';
 
 const $ = (s) => document.querySelector(s);
 const player = $('#player');
@@ -96,7 +96,7 @@ function init() {
 
 async function buildDeck(host, { reduceMotion, onToggle }) {
   const THREE = await import('three');
-  const M = await import('./turntable-model.js?v=20261010m');
+  const M = await import('./turntable-model.js?v=20261010n');
 
   const canvas = document.createElement('canvas');
   canvas.setAttribute('role', 'button');
