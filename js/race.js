@@ -4,6 +4,7 @@
 const LEN = 192, PXM = 6, START = 40;          // meters, pixels per meter, x of the starting sill
 const VW = 240, VH = 112, WORLD = START + LEN * PXM + 90;
 const IMPULSE = 2, DRAG = 1, VMAX = 20, TAU = .7;
+const TOUCH_IMPULSE = 2.7; // thumbs on glass can't tap as fast as fingers on keys, so each tap counts a little more
 const LANE_HIM = 80, LANE_YOU = 101;          // where each runner's feet touch the track
 
 function px(c, x, y, w, h, col) { c.fillStyle = col; c.fillRect(x, y, w, h); }
@@ -81,11 +82,11 @@ export function createRace({ dialog, avatar, runner, onFinish, getBest, setBest,
     st.phase = 'ready'; call('False start!'); hud();
     result('<p class="race-verdict">False start.</p><p>At the ancient Games, judges whipped runners who left early. Here you just line up again.</p>');
   }
-  function step(foot) {
+  function step(foot, touch = false) {
     if (st.phase === 'marks' || st.phase === 'set') return falseStart();
     if (st.phase !== 'go' || st.you.fin != null || st.you.last === foot) return; // feet have to alternate
     st.you.last = foot;
-    st.you.v = Math.min(VMAX, st.you.v + IMPULSE);
+    st.you.v = Math.min(VMAX, st.you.v + (touch ? TOUCH_IMPULSE : IMPULSE));
     if (st.react == null) st.react = (performance.now() - st.t0) / 1000;
     const f = $(`[data-foot="${foot}"]`); f.classList.add('hit'); setTimeout(() => f.classList.remove('hit'), 90);
   }
@@ -146,7 +147,10 @@ export function createRace({ dialog, avatar, runner, onFinish, getBest, setBest,
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { e.preventDefault(); if (!e.repeat) step('R'); }
     else if ((k === ' ' || k === 'Enter') && !e.target.closest('button')) { e.preventDefault(); lineUp(); }
   });
-  dialog.querySelectorAll('[data-foot]').forEach((b) => b.addEventListener('pointerdown', (e) => { e.preventDefault(); step(b.dataset.foot); }));
+  dialog.querySelectorAll('[data-foot]').forEach((b) => {
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); step(b.dataset.foot, e.pointerType === 'touch'); });
+    b.addEventListener('contextmenu', (e) => e.preventDefault()); // a long press shouldn't open a menu mid-race
+  });
   $('#race-start').addEventListener('click', lineUp);
   dialog.addEventListener('close', () => { reset(); $('#race-result').hidden = true; });
   reset();

@@ -1,7 +1,7 @@
 // The Machine Room: the translation switchboard, the weather machine, the harbor works, the aviary,
 // the egg incubator, and the factory reset lever. Every setting lives in this visitor's localStorage; the other pages read them.
-import { renderWorld, buildGrid, spriteCanvas, boatCanvas, creatureCanvas, CREATURES, NPCS } from './world.js?v=20261009j';
-import { WEATHER, createWeather } from './weather.js?v=20261009j';
+import { renderWorld, buildGrid, spriteCanvas, boatCanvas, creatureCanvas, CREATURES, NPCS } from './world.js?v=20261009m';
+import { WEATHER, createWeather } from './weather.js?v=20261009m';
 
 const $ = (s, r = document) => r.querySelector(s);
 const root = document.documentElement;

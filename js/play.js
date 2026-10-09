@@ -1,9 +1,9 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009j';
-import { createRace } from './race.js?v=20261009j';
-import { createWeather, currentWeather } from './weather.js?v=20261009j';
-import { TRACKS } from './tracks.js?v=20261009j';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009j';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009m';
+import { createRace } from './race.js?v=20261009m';
+import { createWeather, currentWeather } from './weather.js?v=20261009m';
+import { TRACKS } from './tracks.js?v=20261009m';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009m';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -153,9 +153,14 @@ function earn(amount, label = '') {
 const cooldowns = lsGet('hf-cooldowns', {});
 const ready = (key, ms) => Date.now() - (cooldowns[key] || 0) >= ms;
 // How long each way of earning coins needs to rest, so nobody can farm Athens.
-const COOLDOWN = { olives: 5 * 60e3, cat: 10 * 60e3, plato: 10 * 60e3, stadion: 10 * 60e3, sandal: 30 * 60e3 };
+const COOLDOWN = { olives: 5 * 60e3, cat: 20 * 60e3, plato: 30 * 60e3, stadion: 10 * 60e3, sandal: 120 * 60e3 };
 const leftOf = (key) => Math.max(0, COOLDOWN[key] - (Date.now() - (cooldowns[key] || 0)));
-const inTime = (ms) => (ms < 60e3 ? `${Math.max(1, Math.ceil(ms / 1000))} seconds` : `${Math.ceil(ms / 60e3)} minute${Math.ceil(ms / 60e3) === 1 ? '' : 's'}`);
+const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'}`;
+const inTime = (ms) => {
+  if (ms < 60e3) return plural(Math.max(1, Math.ceil(ms / 1000)), 'second');
+  const m = Math.ceil(ms / 60e3);
+  return m < 60 ? plural(m, 'minute') : plural(Math.floor(m / 60), 'hour') + (m % 60 ? ` ${plural(m % 60, 'minute')}` : '');
+};
 const used = (key) => { cooldowns[key] = Date.now(); lsSet('hf-cooldowns', cooldowns); };
 renderCoins();
 
@@ -258,11 +263,11 @@ const INTERACT = {
   async socrates() {
     if (sandal.carrying) {
       sandal.carrying = false; sandal.spot = (sandal.spot + 1 + Math.floor(Math.random() * (SANDAL_SPOTS.length - 1))) % SANDAL_SPOTS.length; sandal.hiddenUntil = Date.now() + COOLDOWN.sandal; saveSandal();
-      const n = earn(1000);
-      return say(['My sandal! I did not need it, of course. The unexamined foot is not worth shoeing.', `Still, thank you. Take these ${n} coins.`, 'I will probably lose it again in half an hour or so.']);
+      const n = earn(500);
+      return say(['My sandal! I did not need it, of course. The unexamined foot is not worth shoeing.', `Still, thank you. Take these ${n} coins.`, 'I will probably lose it again in a couple of hours.']);
     }
     if (!sandalVisible()) return say(['Socrates here. I have both sandals, for once.', `Check back in ${inTime(sandal.hiddenUntil - Date.now())}. I always lose one eventually.`]);
-    await say(['Socrates here. I seem to have lost a sandal.', 'I tell everyone I do not need it. I would like it back.', sandalHint(), 'Bring it to me and I will pay you 1,000 coins.']);
+    await say(['Socrates here. I seem to have lost a sandal.', 'I tell everyone I do not need it. I would like it back.', sandalHint(), 'Bring it to me and I will pay you 500 coins.']);
   },
   async cat() {
     if (!ready('cat', COOLDOWN.cat)) return say(`The cat is grooming itself and would like some privacy. Try again in ${inTime(leftOf('cat'))}.`);

@@ -534,7 +534,7 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .race-call.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 .race-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
 .race-feet { display: flex; gap: 10px; }
-.race-foot { width: 84px; height: 52px; border-radius: 10px; border: 2px solid #2a2f3d; background: #fbfaf5; color: #1f2433; font: 16px var(--font-pixel); cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; transition: transform .06s, background-color .06s; }
+.race-foot { width: 84px; height: 52px; border-radius: 10px; border: 2px solid #2a2f3d; background: #fbfaf5; color: #1f2433; font: 16px var(--font-pixel); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; transition: transform .06s, background-color .06s; }
 .race-foot.hit { transform: translateY(2px); background: #fff1e7; }
 .race-help { margin-top: 10px; color: var(--ink-3); font-size: .88rem; }
 .race-result { margin-top: 12px; padding: 14px 16px; border-radius: var(--r-md); background: var(--surface); color: var(--ink-2); }
@@ -544,6 +544,13 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .race-stats dd { margin: 0; font-family: var(--font-display); font-size: 1.05rem; color: var(--ink); font-variant-numeric: tabular-nums; }
 .race-prize { color: var(--ink); }
 @media (max-width: 600px) { .race-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .race-foot { width: 76px; height: 56px; } }
+/* Phones: Line up on its own row, then two big pads, one under each thumb. */
+@media (hover: none) and (pointer: coarse) {
+  .race-controls { flex-direction: column; align-items: stretch; }
+  .race-feet { gap: 12px; }
+  .race-foot { flex: 1; width: auto; height: 96px; font-size: 20px; }
+  #race-start { justify-content: center; }
+}
 .school-frame { position: relative; }
 .school-frame canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; }
 .school-spots { position: absolute; inset: 0; }
