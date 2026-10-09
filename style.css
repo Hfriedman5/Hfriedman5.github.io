@@ -537,6 +537,9 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .ex-summary .coin { display: inline-block; vertical-align: -2px; margin-right: 6px; }
 .ex-note { margin: 0 0 12px; font-size: .9rem; color: var(--ink-2); }
 .ex-note.ok { color: var(--tint-sports-ink); }
+.ex-season { margin: 0 0 12px; padding: 10px 14px; border-radius: var(--r-md); background: var(--tint-butter); color: var(--tint-butter-ink); font-size: .9rem; }
+.ex-season h3 { margin: 0 0 2px; font-size: .95rem; color: inherit; }
+.ex-season p { margin: 0; }
 .ex-news { margin: 0 0 16px; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--hairline); }
 .ex-news h3 { margin: 0; font-size: .95rem; }
 .ex-news h4 { margin: 10px 0 0; font-size: .82rem; color: var(--ink-3); font-weight: 600; }

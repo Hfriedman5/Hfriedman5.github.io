@@ -1,9 +1,9 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010p';
-import { createRace } from './race.js?v=20261010p';
-import { createWeather, currentWeather } from './weather.js?v=20261010p';
-import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice } from './economy.js?v=20261010p';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010p';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010q';
+import { createRace } from './race.js?v=20261010q';
+import { createWeather, currentWeather } from './weather.js?v=20261010q';
+import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines } from './economy.js?v=20261010q';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010q';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -359,6 +359,7 @@ function renderExchange(note = '', tone = '') {
     <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>Your shares are worth <b>${held.toLocaleString()}</b>${paidIn ? ` <span class="${held >= paidIn ? 'ex-up' : 'ex-down'}">(${signed(held - paidIn)} on what you paid)</span>` : ''}</span></p>
     ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
     ${stormy() ? '<p class="ex-note">The weather dial in the Machine Room does not move these prices. The real sea is bigger than your lever.</p>' : ''}
+    <section class="ex-season"><h3>Season</h3>${(() => { const s = seasonLines(); return [...s.now, ...s.soon].map((t) => `<p>${t}</p>`).join(''); })()}</section>
     <section class="ex-news"><h3>Today's news</h3><ul>${m.news.at(-1).headlines.map(item).join('') || '<li>A quiet day in Athens.</li>'}</ul>
       ${week.length ? `<details><summary>Earlier this week</summary>${week.map((d) => `<h4>${DAY_NAMES[d.date.getDay()]}</h4><ul>${d.headlines.map(item).join('')}</ul>`).join('')}</details>` : ''}</section>
     <div class="ex-list">${order.map((c) => {
@@ -367,7 +368,7 @@ function renderExchange(note = '', tone = '') {
       const reportsToday = c.day === dayNow, tomorrow = c.day === (dayNow + 1) % 7;
       return `<article class="ex-co${reportsToday ? ' today' : ''}" data-co="${c.id}">
         <div class="ex-top"><h3>${c.name}</h3><span class="ex-day">${reportsToday ? 'Reported today' : tomorrow ? 'Reports tomorrow' : `Reports ${DAY_NAMES[c.day]}s`}</span></div>
-        <div class="ex-price"><b>${p.toLocaleString()}</b><span class="${change >= 0 ? 'ex-up' : 'ex-down'}">${change >= 0 ? '▲' : '▼'} ${Math.abs(change * 100).toFixed(1)}%</span>${spark(days.slice(-14).map((d) => d.price))}<span class="ex-chart-note">last 2 weeks</span></div>
+        <div class="ex-price"><b>${p.toLocaleString()}</b><span class="${change >= 0 ? 'ex-up' : 'ex-down'}">${change >= 0 ? '▲' : '▼'} ${Math.abs(change * 100).toFixed(1)}% today</span>${spark(days.slice(-14).map((d) => d.price))}<span class="ex-chart-note">last 2 weeks</span></div>
         <p class="ex-how"><b>Makes money:</b> ${c.makes} <b>Watch:</b> ${c.watch}</p>
         <p class="ex-facts">${r ? `Last report: profit ${r.e.toFixed(1)} per share, ${Math.abs(Math.round(r.surprise * 100))}% ${r.surprise >= 0 ? 'above' : 'below'} expectations. Paid owners ${r.dividend} per share.` : ''} ${reportsToday ? '' : `The market expects about ${now.expected.toFixed(1)} per share this week.`}</p>
         <form class="ex-trade" data-co="${c.id}">

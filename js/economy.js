@@ -31,10 +31,27 @@ const demandScore = (s) => (s.demand === 'high' ? 1 : s.demand === 'low' ? -1 : 
 // What moves a company is written into its `news` function: each day it adds up good and bad signs from things
 // visitors can see (the sea report, the season, the day's headlines). The market only half believes the news while
 // it happens; the rest shows up when the company reports, so paying attention gives you an edge (but not a sure thing).
+// Seasons nudge some companies every day they last. The Exchange shows the current season (and the next one coming)
+// so nobody has to remember that the olive harvest began weeks ago.
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export const SEASONS = [
+  { name: 'The olive harvest', months: [9, 10, 11], co: 'olive', effect: .01, says: 'good for Athena Olive Press' },
+  { name: 'Summer sailing season', months: [5, 6, 7], co: 'tours', effect: .02, says: 'busy for Acropolis Tours' },
+  { name: 'Winter', months: [11, 0, 1], co: 'tours', effect: -.01, says: 'quiet for Acropolis Tours' },
+];
+const seasonal = (co, d) => SEASONS.filter((s) => s.co === co && s.months.includes(d.getMonth())).reduce((t, s) => t + s.effect, 0);
+// What is in season today, and what starts next month.
+export function seasonLines(d = new Date()) {
+  const m = d.getMonth(), next = (m + 1) % 12;
+  const now = SEASONS.filter((s) => s.months.includes(m)).map((s) => `${s.name} runs through ${MONTH_NAMES[s.months.at(-1)]}: ${s.says}.`);
+  const soon = SEASONS.filter((s) => s.months[0] === next).map((s) => `Coming up: ${s.name.toLowerCase()} starts ${MONTH_NAMES[next]} 1, ${s.says}.`);
+  return { now: now.length ? now : ['No season is affecting the market right now.'], soon };
+}
+
 export const COMPANIES = [
   { id: 'olive', name: 'Athena Olive Press', day: 1, e0: 4, M: 20, payout: .5,
     makes: 'Presses olives and ships the oil.', watch: 'Demand for olive oil on the Crete route in the captain\'s sea report, and the olive harvest (October to December).',
-    news: (d, s) => .04 * demandScore(s.crete) + ([9, 10, 11].includes(d.getMonth()) ? .01 : 0),
+    news: (d, s) => .04 * demandScore(s.crete) + seasonal('olive', d),
     good: 'A second olive press opens at Athena Olive Press.', bad: 'A cracked millstone halts the Athena Olive Press.' },
   { id: 'ship', name: 'Piraeus Shipyard', day: 2, e0: 5.5, M: 20, payout: .3,
     makes: 'Builds and repairs ships.', watch: 'Storms in the sea report. Storms are good for business: damaged and sunk ships need replacing.',
@@ -58,7 +75,7 @@ export const COMPANIES = [
     good: 'Miners strike a rich new silver vein at Laurion.', bad: 'Flooding closes a shaft at the Laurion mines.' },
   { id: 'tours', name: 'Acropolis Tours', day: 0, e0: 3.5, M: 20, payout: .2,
     makes: 'Guides visitors around the Acropolis.', watch: 'Calm seas, since visitors arrive by boat, and the season: busy in summer, quiet in winter.',
-    news: (d, s) => ROUTES.reduce((t, r) => t + (s[r.id].calm ? .02 : s[r.id].storm ? -.02 : 0), 0) + ([5, 6, 7].includes(d.getMonth()) ? .02 : [11, 0, 1].includes(d.getMonth()) ? -.01 : 0),
+    news: (d, s) => ROUTES.reduce((t, r) => t + (s[r.id].calm ? .02 : s[r.id].storm ? -.02 : 0), 0) + seasonal('tours', d),
     good: 'A famous poet will perform at the Acropolis this week.', bad: 'Rumors of pirates keep visitors away from Athens.' },
 ];
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
