@@ -425,6 +425,10 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 @keyframes toast-in { from { transform: translateY(16px) scale(.98); opacity: 0; } }
 @keyframes toast-out { to { transform: translateY(8px); opacity: 0; } }
 .confetti { position: fixed; inset: 0; pointer-events: none; z-index: var(--z-toast); }
+.konami-trail { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: var(--z-toast); display: flex; gap: 7px; padding: 8px 14px; border-radius: 999px; background: var(--primary); color: var(--on-primary); font: 700 15px/1 var(--font-display); box-shadow: var(--shadow-2); opacity: 0; transform: translate(-50%, 10px); transition: opacity .2s, transform .2s var(--ease-out); pointer-events: none; }
+.konami-trail.show { opacity: 1; transform: translate(-50%, 0); }
+.konami-trail span { opacity: .35; }
+.konami-trail span.on { opacity: 1; color: var(--accent); }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 980px) {

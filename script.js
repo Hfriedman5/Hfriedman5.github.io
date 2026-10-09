@@ -19,7 +19,7 @@
   const EGGS = [
     { id: 'gryffindor', title: 'The house password', hint: 'Press the ` key to open the terminal. The password is a Hogwarts house.', touch: 'Tap Terminal at the bottom of the page. The password is a Hogwarts house.', done: 'Hannah Mode unlocked. Ten points to Gryffindor.' },
     { id: 'console', title: 'Developer instincts', hint: 'Open your browser console. Someone left you a note.', touch: 'Phones have no console, so tap Terminal at the bottom of the page and type hannah() there.', done: 'You called hannah(). Hi.' },
-    { id: 'konami', title: 'Cheat code', hint: 'Up, up, down, down, left, right, left, right, B, A. Anywhere on the site.', touch: 'Swipe up, up, down, down, left, right, left, right, then tap twice. Anywhere on the site.', done: 'Thirty extra lives. Spend them wisely.' },
+    { id: 'konami', title: 'Cheat code', hint: 'Up, up, down, down, left, right, left, right, B, A. Anywhere on the site.', touch: 'Swipe up, up, down, down, left, right, left, right, then tap twice on an empty spot. Anywhere on the site.', done: 'Thirty extra lives. Spend them wisely.' },
     { id: 'vienna', title: 'Slow down, you crazy child', hint: 'Drop the needle on the best song.', done: 'You played "Vienna". Correct choice.' },
     { id: 'cups', title: 'Four straight', hint: 'The Islanders won four Stanley Cups in a row. Click their fact that many times.', done: '1980, 1981, 1982, 1983. We remember.' },
     { id: 'crash', title: 'Market crash', hint: 'Rerun the Monte Carlo until a path falls below $60.', done: 'A simulated crash. No real money was harmed.' },
@@ -678,23 +678,50 @@
   /* ---------------- Konami + confetti ---------------- */
   const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
   let k = 0;
+  // A wrong key starts over, except that an extra "up" at the start still leaves you two ups in.
   function konamiStep(key) {
-    k = key === KONAMI[k] ? k + 1 : key === KONAMI[0] ? 1 : 0;
-    if (k === KONAMI.length) { k = 0; confetti(); foundEgg('konami'); }
+    if (key === KONAMI[k]) k++;
+    else if (key !== KONAMI[0]) k = 0;
+    else if (k !== 2) k = 1;
+    if (k < KONAMI.length) return false;
+    k = 0; confetti(); foundEgg('konami');
+    return true;
   }
-  // On touchscreens the arrows are swipes and B, A are two taps.
-  let touchAt = null;
+  // On touchscreens the arrows are swipes and B, A are two taps. Taps before the arrows are done are ignored
+  // (people tap to stop the page coasting), and once four swipes land, a small trail shows how far along you are.
+  const trail = touchy ? document.createElement('div') : null;
+  let trailTimer = 0, lastGesture = 0, touchAt = null, touchTo = null;
+  if (trail) {
+    trail.className = 'konami-trail'; trail.setAttribute('aria-hidden', 'true');
+    trail.innerHTML = ['↑', '↑', '↓', '↓', '←', '→', '←', '→', 'B', 'A'].map((c) => `<span>${c}</span>`).join('');
+    document.body.appendChild(trail);
+  }
+  function showTrail(done) {
+    if (!trail) return;
+    [...trail.children].forEach((el, i) => el.classList.toggle('on', done || i < k));
+    trail.classList.toggle('show', done || k >= 4);
+    clearTimeout(trailTimer); trailTimer = setTimeout(() => trail.classList.remove('show'), done ? 1600 : 4000);
+  }
+  function endTouch(x, y) {
+    if (!touchAt) return;
+    const dx = x - touchAt[0], dy = y - touchAt[1];
+    touchAt = null;
+    const now = Date.now(); if (now - lastGesture > 8000) k = 0; lastGesture = now;
+    let done = false;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) > 24) done = konamiStep(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft') : (dy > 0 ? 'ArrowDown' : 'ArrowUp'));
+    else if (k >= 8) done = konamiStep(KONAMI[k]);
+    else return;
+    showTrail(done);
+  }
   document.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
-    touchAt = e.touches.length === 1 && !e.target.closest('input, textarea, dialog, canvas, .pad, .q-board') ? [t.clientX, t.clientY] : null;
+    touchAt = e.touches.length === 1 && !e.target.closest('input, textarea, dialog, .pad') ? [t.clientX, t.clientY] : null;
+    touchTo = touchAt;
   }, { passive: true });
-  document.addEventListener('touchend', (e) => {
-    if (!touchAt) return;
-    const t = e.changedTouches[0], dx = t.clientX - touchAt[0], dy = t.clientY - touchAt[1];
-    touchAt = null;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) > 30) konamiStep(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft') : (dy > 0 ? 'ArrowDown' : 'ArrowUp'));
-    else konamiStep(k >= 8 ? KONAMI[k] : 'tap');
-  }, { passive: true });
+  document.addEventListener('touchmove', (e) => { if (touchAt) touchTo = [e.touches[0].clientX, e.touches[0].clientY]; }, { passive: true });
+  document.addEventListener('touchend', (e) => { const t = e.changedTouches[0]; endTouch(t.clientX, t.clientY); }, { passive: true });
+  // If the browser takes the touch over for scrolling, count the swipe from where the finger last was.
+  document.addEventListener('touchcancel', () => { if (touchTo) endTouch(touchTo[0], touchTo[1]); }, { passive: true });
   document.addEventListener('keydown', (e) => {
     konamiStep(e.key.length === 1 ? e.key.toLowerCase() : e.key);
     const typing = e.target.closest('input, textarea, [contenteditable]');
