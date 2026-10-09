@@ -1,8 +1,8 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010g';
-import { createRace } from './race.js?v=20261010g';
-import { createWeather, currentWeather } from './weather.js?v=20261010g';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010g';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010h';
+import { createRace } from './race.js?v=20261010h';
+import { createWeather, currentWeather } from './weather.js?v=20261010h';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010h';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -223,7 +223,7 @@ const REQUESTS = [
     found: 'A ball of red yarn, slightly chewed.', thanks: ['The cat bats the yarn once, then ignores it completely. It is clearly delighted.'] },
   { id: 'feather', pay: 350, kind: 'fetch', item: 'feather', thing: 'feather', to: 'owl', post: "Athena's owl dropped a feather and wants it back for its nest.",
     found: 'A soft gray owl feather. It looks wise, somehow.', thanks: ['"Hoo. Thank you. Wisdom is mostly remembering where you left things."'] },
-  { id: 'stylus', pay: 350, kind: 'fetch', item: 'stylus', thing: 'stylus', to: 'student', post: 'A tired student by the library lost his stylus, and his problem set is due tomorrow.',
+  { id: 'stylus', pay: 350, kind: 'fetch', item: 'stylus', thing: 'stylus', to: 'student', post: 'A tired student by the library lost his stylus, and his problem set is due in 3 hours.',
     found: 'A bronze stylus, a little chewed at the end. Someone has been thinking hard.', thanks: ['"My stylus! Now I can finish problem 4. Then problem 5. Then, maybe, sleep."'] },
   { id: 'scroll', pay: 400, kind: 'deliver', from: 'plato', to: 'library', thing: 'scroll', post: "Plato's library scroll is overdue. Pick it up from Plato and return it to the library.",
     got: ['"Ah, yes. The Odyssey. I meant to finish it. Would you take it back for me?"', 'You take the scroll.'], thanks: ['You slide the scroll back onto its shelf. The librarian waives the late fee, this once.'] },
@@ -450,17 +450,17 @@ const INTERACT = {
     if (await requestTalk('student')) return;
     if (todaysRequest().id === 'stylus' && !request.done) {
       request.taken = true; saveRequest();
-      return say(['A student sits in the grass, surrounded by wax tablets. He looks like he has been here since sunrise. He has.', '"I lost my stylus. My problem set is due at the Academy tomorrow and I cannot write without it."', spotHint(), `"If you find it, I will give you ${todaysRequest().pay} coins. It is all I have. Please."`]);
+      return say(['A student sits in the grass, surrounded by wax tablets.', '"I\'ve been studying in the library all night and my problem set is due at the Academy in 3 hours. And now I have lost my stylus. I cannot write without it."', spotHint(), `"If you find it, I will give you ${todaysRequest().pay} coins. It is all I have. Please."`]);
     }
-    const lines = [
-      ['A student sits in the grass, surrounded by wax tablets. He has been studying since sunrise.', '"My problem set is due at the Academy tomorrow. Three problems left. Then sleep. Then three more problems."'],
-      ['"Problem 4 asks me to prove that Achilles ever catches the tortoise. Zeno says he never does. I am starting to feel like the tortoise."'],
-      ['"Plato\'s office hours are tomorrow morning. The line already goes out the door."'],
-      ['"I asked Pythagoras for a hint. He said \'a squared plus b squared\' and walked away."'],
-      ['"If I finish tonight, I am going to the stadium to watch the race. If I do not finish tonight, I am also going to the stadium. Somebody has to stay positive."'],
-      ['"Is it sunrise again already? Do not answer that."'],
+    const extra = [
+      '"Three problems left. Then sleep. Then the next problem set."',
+      '"Problem 4 asks me to prove that Achilles ever catches the tortoise. Zeno says he never does. I am starting to feel like the tortoise."',
+      '"Plato\'s office hours start in an hour. The line already goes out the door."',
+      '"I asked Pythagoras for a hint. He said \'a squared plus b squared\' and walked away."',
+      '"If I finish in time, I am going to the stadium to watch the race. If I do not, I am also going to the stadium. Somebody has to stay positive."',
+      '"Is it sunrise already? Do not answer that."',
     ];
-    await say(lines[Math.floor(Math.random() * lines.length)]);
+    await say(['A student sits in the grass, surrounded by wax tablets.', '"I\'ve been studying in the library all night and my problem set is due at the Academy in 3 hours."', extra[Math.floor(Math.random() * extra.length)]]);
   },
   async captain() {
     if (await requestTalk('captain')) return;
