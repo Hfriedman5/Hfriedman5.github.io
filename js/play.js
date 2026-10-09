@@ -1,8 +1,8 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009u';
-import { createRace } from './race.js?v=20261009u';
-import { createWeather, currentWeather } from './weather.js?v=20261009u';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009u';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261009w';
+import { createRace } from './race.js?v=20261009w';
+import { createWeather, currentWeather } from './weather.js?v=20261009w';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261009w';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -89,6 +89,7 @@ if (bbtn) {
   bbtn.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 screen.addEventListener('click', () => screen.focus());
+$('#dlg').addEventListener('click', (e) => { if (!e.target.closest('button')) advance(); });
 
 /* ---------------- Dialogue ---------------- */
 const dlg = { pages: [], i: 0, typing: false, full: '', shown: 0, choices: null, choosing: false, resolve: null };
@@ -183,7 +184,7 @@ const saveWardrobe = () => lsSet('hf-wardrobe', wardrobe);
 const companion = { x: null, y: null };
 
 /* ---------------- Town request board: one small job a day ---------------- */
-// The board between the Gaming Hall and the Parthenon posts one request a day, picked at random the first time anyone looks. Fetch jobs hide
+// The board by the main road, across the path from the Agora market, posts one request a day, picked at random the first time anyone looks. Fetch jobs hide
 // something in town, delivery jobs start with one person and end with another, and the others ask you to make the rounds.
 const NAMES = { socrates: 'Socrates', plato: 'Plato', owl: 'the owl', cat: 'the cat', merchant: 'the merchant', runner: 'the runner', captain: 'the captain', bank: 'the bank', library: 'the library', parthenon: 'the Parthenon', academy: 'the Academy' };
 const REQUESTS = [
@@ -301,7 +302,7 @@ function seaReport(rt) {
   const base = rt.risk ? rt.risk * sea[1] : sea[1] > 1 ? .08 : 0;
   return { sea: sea[0], demand: market[0], gain: Math.round(rt.gain * market[1] * 100) / 100, risk: Math.min(.9, base + (rt.risk ? stormy() : stormy() / 2)) };
 }
-const sinks = (risk) => (risk ? `sinks ${Math.round(risk * 100)}%` : 'never sinks');
+const sinkRisk = (risk) => (risk ? `${Math.round(risk * 100)}% sink risk` : 'no risk');
 const INTERACT = {
   async hat() {
     await say(['A hat on a stool, a very long way from Scotland. It clears its throat.', 'Hmm. Difficult. Very difficult.', 'Plenty of courage, I see. Not a bad mind, either. A real taste for proving people wrong…', 'Better be… GRYFFINDOR!']);
@@ -331,7 +332,7 @@ const INTERACT = {
       request.taken = true; saveRequest();
       return say(['Socrates here. I seem to have lost a sandal.', 'I tell everyone I do not need it. I would like it back.', spotHint(), `Bring it to me and I will pay you ${todaysRequest().pay} coins.`]);
     }
-    await say(['Socrates here. I have both sandals today, for once.', 'I know that I know nothing. I do know the request board between the Gaming Hall and the Parthenon has work, if you want coins.']);
+    await say(['Socrates here. I have both sandals today, for once.', 'I know that I know nothing. I do know the request board by the main road has work, if you want coins.']);
   },
   async cat() {
     if (await requestTalk('cat')) return;
@@ -416,7 +417,7 @@ const INTERACT = {
     const storm = stormy() ? ['Somebody has been turning the weather dials in the Machine Room, so every route is riskier than usual.'] : [];
     const pick = await say(['Captain here. Pay for a voyage and you share the profit when the ship comes home. Not every ship comes home.', ...storm,
       `Today's sea report:\n${report.map((r) => `${r.name}: ${r.sea}, ${r.demand} demand for ${r.cargo}.`).join('\n')}`],
-      [...report.map((r) => ({ label: `${r.name}: ${r.hours} h, +${Math.round(r.gain * 100)}%, ${sinks(r.risk)}`, value: r.id })), { label: 'Not today', value: null }]);
+      [...report.map((r) => ({ label: `${r.name}: ${r.hours} hours, +${Math.round(r.gain * 100)}% profit, ${sinkRisk(r.risk)}`, value: r.id })), { label: 'Not today', value: null }]);
     const route = report.find((r) => r.id === pick);
     if (!route) return;
     if (wallet.coins < 100) return say('A voyage takes at least 100 coins. Come back when your purse is heavier.');
