@@ -1,8 +1,8 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010b';
-import { createRace } from './race.js?v=20261010b';
-import { createWeather, currentWeather } from './weather.js?v=20261010b';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010b';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010f';
+import { createRace } from './race.js?v=20261010f';
+import { createWeather, currentWeather } from './weather.js?v=20261010f';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010f';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -114,12 +114,30 @@ function renderText() {
     dlg.choosing = true;
     const box = $('#dlg-choices');
     dlg.choices.forEach((c, idx) => {
+      if (c.amount) { // a box to type your own amount, between c.amount.min and c.amount.max
+        const f = document.createElement('form'); f.className = 'dlg-amount';
+        const range = `${c.amount.min.toLocaleString()} to ${c.amount.max.toLocaleString()}`;
+        f.innerHTML = `<input type="text" inputmode="numeric" autocomplete="off" placeholder="${c.label}" aria-label="${c.label}, ${range}"><button type="submit">OK</button><span class="dlg-amount-err" role="alert"></span>`;
+        const input = f.querySelector('input'), err = f.querySelector('.dlg-amount-err');
+        f.addEventListener('submit', (e) => {
+          e.preventDefault();
+          // Whole numbers only, written as plain digits, and never more than this person has.
+          const raw = input.value.trim().replace(/,/g, ''), v = /^\d{1,9}$/.test(raw) ? Number(raw) : NaN;
+          if (v >= c.amount.min && v <= c.amount.max) return closeDialog(v);
+          err.textContent = Number.isNaN(v) ? `Enter a whole number from ${range}.` : v > c.amount.max ? `You only have ${c.amount.max.toLocaleString()} to use.` : `The smallest amount is ${c.amount.min.toLocaleString()}.`;
+          f.classList.remove('bad'); void f.offsetWidth; f.classList.add('bad'); input.setAttribute('aria-invalid', 'true'); input.focus();
+        });
+        input.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDialog(null); });
+        box.appendChild(f);
+        return;
+      }
       const b = document.createElement('button'); b.type = 'button'; b.textContent = c.label;
       b.addEventListener('click', () => closeDialog(c.value));
       b.addEventListener('keydown', (e) => {
         const bs = [...box.children];
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); bs[(idx + 1) % bs.length].focus(); }
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); bs[(idx - 1 + bs.length) % bs.length].focus(); }
+        const go = (el) => (el.querySelector('input') || el).focus();
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); go(bs[(idx + 1) % bs.length]); }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(bs[(idx - 1 + bs.length) % bs.length]); }
         if (e.key === 'Escape') closeDialog(null);
       });
       box.appendChild(b);
@@ -153,8 +171,8 @@ function renderCoins() {
   const el = $('#coin-count'); if (el) el.textContent = n;
   const bj = $('#bj-coins'); if (bj) bj.textContent = n;
 }
-function earn(amount, label = '') {
-  const got = Math.min(MAX_EARN, Math.max(0, Math.floor(amount)));
+function earn(amount, label = '', cap = MAX_EARN) {
+  const got = Math.min(cap, Math.max(0, Math.floor(amount)));
   wallet.coins = wallet.coins + got;
   const hud = $('#coins');
   if (hud) {
@@ -180,13 +198,20 @@ renderCoins();
 
 // What the avatar owns and wears. Outfits always have one item; other slots can be empty.
 const wardrobe = Object.assign({ owned: ['chiton'], equipped: { outfit: 'chiton' } }, lsGet('hf-wardrobe', {}));
+// Items that were swapped out of the shop: anyone who owned the old one gets its replacement.
+const RENAMED = { spartan: 'sailor', laurel: 'petasos', readers: 'mask' };
+if ([...wardrobe.owned, ...Object.values(wardrobe.equipped)].some((id) => RENAMED[id])) {
+  wardrobe.owned = [...new Set(wardrobe.owned.map((id) => RENAMED[id] || id))];
+  for (const [slot, id] of Object.entries(wardrobe.equipped)) if (RENAMED[id]) wardrobe.equipped[slot] = RENAMED[id];
+  lsSet('hf-wardrobe', wardrobe);
+}
 const saveWardrobe = () => lsSet('hf-wardrobe', wardrobe);
 const companion = { x: null, y: null };
 
 /* ---------------- Town request board: one small job a day ---------------- */
 // The board by the main road, across the path from the Agora market, posts one request a day, picked at random the first time anyone looks. Fetch jobs hide
 // something in town, delivery jobs start with one person and end with another, and the others ask you to make the rounds.
-const NAMES = { socrates: 'Socrates', plato: 'Plato', owl: 'the owl', cat: 'the cat', merchant: 'the merchant', runner: 'the runner', captain: 'the captain', bank: 'the bank', library: 'the library', parthenon: 'the Parthenon', academy: 'the Academy' };
+const NAMES = { socrates: 'Socrates', plato: 'Plato', owl: 'the owl', cat: 'the cat', merchant: 'the merchant', runner: 'the runner', captain: 'the captain', bank: 'the bank', library: 'the library', parthenon: 'the Parthenon', academy: 'the Academy', student: 'the student', keeper: 'the record keeper' };
 const REQUESTS = [
   { id: 'sandal', pay: 500, kind: 'fetch', item: 'sandal', thing: 'sandal', to: 'socrates', post: 'Socrates has lost a sandal again. He says he does not need it. He would like it back.',
     found: 'You found a sandal. Leather, well worn, and it smells faintly of philosophy.', thanks: ['"My sandal! I did not need it, of course. The unexamined foot is not worth shoeing."'] },
@@ -198,6 +223,8 @@ const REQUESTS = [
     found: 'A ball of red yarn, slightly chewed.', thanks: ['The cat bats the yarn once, then ignores it completely. It is clearly delighted.'] },
   { id: 'feather', pay: 350, kind: 'fetch', item: 'feather', thing: 'feather', to: 'owl', post: "Athena's owl dropped a feather and wants it back for its nest.",
     found: 'A soft gray owl feather. It looks wise, somehow.', thanks: ['"Hoo. Thank you. Wisdom is mostly remembering where you left things."'] },
+  { id: 'stylus', pay: 350, kind: 'fetch', item: 'stylus', thing: 'stylus', to: 'student', post: 'A tired student by the library lost his stylus, and his problem set is due tomorrow.',
+    found: 'A bronze stylus, a little chewed at the end. Someone has been thinking hard.', thanks: ['"My stylus! Now I can finish problem 4. Then problem 5. Then, maybe, sleep."'] },
   { id: 'scroll', pay: 400, kind: 'deliver', from: 'plato', to: 'library', thing: 'scroll', post: "Plato's library scroll is overdue. Pick it up from Plato and return it to the library.",
     got: ['"Ah, yes. The Odyssey. I meant to finish it. Would you take it back for me?"', 'You take the scroll.'], thanks: ['You slide the scroll back onto its shelf. The librarian waives the late fee, this once.'] },
   { id: 'letter', pay: 300, kind: 'deliver', from: 'merchant', to: 'socrates', thing: 'letter', post: 'The merchant has a letter for Socrates. Please carry it across town.',
@@ -239,8 +266,11 @@ async function pickUpLost() {
   request.carrying = true; saveRequest();
   await say([r.found, `Bring it to ${NAMES[r.to]}.`]);
 }
+// Personal records, read back by the record keeper by the Gaming Hall.
+const bumpRecord = (key, fn) => { const r = lsGet('hf-records', {}); r[key] = fn(r[key]); lsSet('hf-records', r); };
 async function finishRequest(r) {
   request.done = true; request.carrying = false; saveRequest();
+  bumpRecord('requests', (n = 0) => n + 1);
   const n = earn(r.pay);
   await say([...r.thanks, `Request complete. You earned ${n} coins. A new request goes up on the board tomorrow.`]);
 }
@@ -280,8 +310,9 @@ function settleBank() {
   if (b > 0 && b < BANK_CAP) { const toCap = Math.log(BANK_CAP / b) / k; b = days <= toCap ? b * Math.exp(k * days) : BANK_CAP + k * BANK_CAP * (days - toCap); }
   else if (b >= BANK_CAP) b += k * BANK_CAP * days;
   bank.bal = b; bank.at = Date.now(); lsSet('hf-bank', bank);
+  if (bank.bal >= 1 && bank.since) bumpRecord('bankMs', (v = 0) => Math.max(v, Date.now() - bank.since));
 }
-const amounts = (max) => [...[100, 500, 1000, 5000].filter((n) => n < max).map((n) => ({ label: n.toLocaleString(), value: n })), { label: `All (${max.toLocaleString()})`, value: max }, { label: 'Never mind', value: null }];
+const amounts = (max) => [...[100, 500, 1000, 5000].filter((n) => n < max).map((n) => ({ label: n.toLocaleString(), value: n })), { label: `All (${max.toLocaleString()})`, value: max }, { label: 'Other amount', amount: { min: 1, max } }, { label: 'Never mind', value: null }];
 
 /* ---------------- Trading voyages from the beach ---------------- */
 // Pay for a voyage and share the profit when the ship comes home. Every day each route gets its own sea and its own
@@ -302,6 +333,7 @@ function seaReport(rt) {
   const base = rt.risk ? rt.risk * sea[1] : sea[1] > 1 ? .08 : 0;
   return { sea: sea[0], demand: market[0], gain: Math.round(rt.gain * market[1] * 100) / 100, risk: Math.min(.9, base + (rt.risk ? stormy() : stormy() / 2)) };
 }
+const VOYAGE_MAX = 1000; // the most one voyage can carry
 const sinkRisk = (risk) => (risk ? `${Math.round(risk * 100)}% sink risk` : 'no risk');
 const INTERACT = {
   async hat() {
@@ -392,15 +424,43 @@ const INTERACT = {
       if (!wallet.coins) return say('Your purse is empty. The olive trees are a good place to start.');
       const amt = await say(`You have ${wallet.coins.toLocaleString()} coins with you. How much will you deposit?`, amounts(wallet.coins));
       if (!amt) return;
-      settleBank(); wallet.coins = wallet.coins - amt; bank.bal += amt; bank.seen = bank.bal; lsSet('hf-bank', bank);
+      if (!Number.isInteger(amt) || amt < 1 || amt > wallet.coins) return say('The banker counts your coins twice. That amount does not work.');
+      settleBank(); wallet.coins = wallet.coins - amt; if (bank.bal < 1 || !bank.since) bank.since = Date.now(); bank.bal += amt; bank.seen = bank.bal; lsSet('hf-bank', bank);
       return say(`Deposited ${amt.toLocaleString()} coins. Your account: ${Math.floor(bank.bal).toLocaleString()}. Come back in a few days and it will have grown.`);
     }
     if (v === 'out') {
       const amt = await say(`Your account has ${whole.toLocaleString()} coins. How much will you take out?`, amounts(whole));
       if (!amt) return;
-      settleBank(); bank.bal = Math.max(0, bank.bal - amt); bank.seen = bank.bal; lsSet('hf-bank', bank); wallet.coins = wallet.coins + amt;
+      if (!Number.isInteger(amt) || amt < 1 || amt > Math.floor(bank.bal)) return say('The banker checks the ledger. Your account does not have that much.');
+      settleBank(); bank.bal = Math.max(0, bank.bal - amt); if (bank.bal < 1) bank.since = null; bank.seen = bank.bal; lsSet('hf-bank', bank); wallet.coins = wallet.coins + amt;
       return say(`Withdrew ${amt.toLocaleString()} coins. ${Math.floor(bank.bal) ? `Still in the account: ${Math.floor(bank.bal).toLocaleString()}.` : 'Your account is empty, but it stays open.'}`);
     }
+  },
+  async keeper() {
+    if (await requestTalk('keeper')) return;
+    const r = lsGet('hf-records', {}), lap = lsGet('hf-stadion-best', null);
+    const kept = Math.max(r.bankMs || 0, bank.bal >= 1 && bank.since ? Date.now() - bank.since : 0);
+    const span = (ms) => { const h = Math.floor(ms / 3600e3), d = Math.floor(h / 24); return d ? `${plural(d, 'day')}${h % 24 ? `, ${plural(h % 24, 'hour')}` : ''}` : h ? plural(h, 'hour') : plural(Math.max(1, Math.round(ms / 60e3)), 'minute'); };
+    const none = 'not yet';
+    await say(['The record keeper chisels away at a stone tablet. "Every record in Athens goes in stone. Let me read you yours."',
+      `Fastest winning lap: ${lap != null ? `${lap.toFixed(2)} seconds` : none}\nBiggest blackjack win: ${r.bjBest ? `${r.bjBest.toLocaleString()} coins` : none}\nVoyages that made it home: ${r.home || 0}${r.sunk ? ` (${r.sunk} lost at sea)` : ''}\nLongest bank deposit: ${kept ? span(kept) : none}\nRequests completed: ${r.requests || 0}`,
+      '"Come back when you break one. I have plenty of chisels."']);
+  },
+  async student() {
+    if (await requestTalk('student')) return;
+    if (todaysRequest().id === 'stylus' && !request.done) {
+      request.taken = true; saveRequest();
+      return say(['A student sits in the grass, surrounded by wax tablets. He looks like he has been here since sunrise. He has.', '"I lost my stylus. My problem set is due at the Academy tomorrow and I cannot write without it."', spotHint(), `"If you find it, I will give you ${todaysRequest().pay} coins. It is all I have. Please."`]);
+    }
+    const lines = [
+      ['A student sits in the grass, surrounded by wax tablets. He has been studying since sunrise.', '"My problem set is due at the Academy tomorrow. Three problems left. Then sleep. Then three more problems."'],
+      ['"Problem 4 asks me to prove that Achilles ever catches the tortoise. Zeno says he never does. I am starting to feel like the tortoise."'],
+      ['"Plato\'s office hours are tomorrow morning. The line already goes out the door."'],
+      ['"I asked Pythagoras for a hint. He said \'a squared plus b squared\' and walked away."'],
+      ['"If I finish tonight, I am going to the stadium to watch the race. If I do not finish tonight, I am also going to the stadium. Somebody has to stay positive."'],
+      ['"Is it sunrise again already? Do not answer that."'],
+    ];
+    await say(lines[Math.floor(Math.random() * lines.length)]);
   },
   async captain() {
     if (await requestTalk('captain')) return;
@@ -408,9 +468,10 @@ const INTERACT = {
     if (rt && Date.now() < vy.back) return say([`Captain here. Your ship to ${rt.name} is still at sea.`, `It should be home in ${inTime(vy.back - Date.now())}.`]);
     if (rt) {
       lsSet('hf-voyage', null);
+      bumpRecord(vy.sank ? 'sunk' : 'home', (n = 0) => n + 1);
       if (vy.sank) return say([`Bad news. Your ship to ${rt.name} met a storm and sank.`, `Your ${vy.stake.toLocaleString()} coins went down with it. The sea gives, and the sea takes.`]);
       wallet.coins = wallet.coins + vy.stake;
-      const n = earn(Math.round(vy.stake * (vy.gain ?? rt.gain)));
+      const n = earn(Math.round(vy.stake * (vy.gain ?? rt.gain)), '', Infinity);
       return say([`Your ship is home from ${rt.name}, full of ${rt.cargo}!`, `You get your ${vy.stake.toLocaleString()} coins back, plus ${n.toLocaleString()} in profit.`]);
     }
     const report = ROUTES.map((r) => ({ ...r, ...seaReport(r) }));
@@ -421,16 +482,18 @@ const INTERACT = {
     const route = report.find((r) => r.id === pick);
     if (!route) return;
     if (wallet.coins < 100) return say('A voyage takes at least 100 coins. Come back when your purse is heavier.');
-    const stake = await say([`${route.name} it is. Home in ${route.hours} hours. If it makes it, you get your coins back plus ${Math.round(route.gain * 100)}%. ${route.risk ? `There is a ${Math.round(route.risk * 100)}% chance it sinks.` : 'It will not sink.'}`, `How much will you put in? You have ${wallet.coins.toLocaleString()} coins.`],
-      [...[100, 250, 500, 1000].filter((n) => n <= wallet.coins).map((n) => ({ label: n.toLocaleString(), value: n })), { label: 'Never mind', value: null }]);
+    const most = Math.min(VOYAGE_MAX, wallet.coins);
+    const stake = await say([`${route.name} it is. Home in ${route.hours} hours. If it makes it, you get your coins back plus ${Math.round(route.gain * 100)}%. ${route.risk ? `There is a ${Math.round(route.risk * 100)}% chance it sinks.` : 'It will not sink.'}`, `How much will you put in? Pick an amount or type your own, from 100 to ${most.toLocaleString()}. You have ${wallet.coins.toLocaleString()} coins.`],
+      [...[100, 250, 500, 1000].filter((n) => n <= most).map((n) => ({ label: n.toLocaleString(), value: n })), { label: 'Other amount', amount: { min: 100, max: most } }, { label: 'Never mind', value: null }]);
     if (!stake) return;
+    if (!Number.isInteger(stake) || stake < 100 || stake > Math.min(VOYAGE_MAX, wallet.coins)) return say('The captain counts your coins twice and frowns. That amount does not work. Try again.');
     wallet.coins = wallet.coins - stake;
     lsSet('hf-voyage', { route: route.id, stake, back: Date.now() + route.hours * 3600e3, sank: Math.random() < route.risk, gain: route.gain });
     await say(`The ship sails for ${route.name} with your ${stake.toLocaleString()} coins aboard. Come back in ${route.hours} hours.`);
   },
 };
 async function boardBoat() {
-  const v = await say(['A little sailboat is tied up at the beach. Someone in the Machine Room launched it.', 'Take it out for a short sail along the coast?'], [{ label: 'Set sail', value: 'sail' }, { label: 'Not now', value: null }]);
+  const v = await say(['A little sailboat is tied up at the dock. Someone in the Machine Room launched it.', 'Take it out for a short sail along the coast?'], [{ label: 'Set sail', value: 'sail' }, { label: 'Not now', value: null }]);
   if (v === 'sail') startSail();
 }
 function downloadResume() { const a = document.createElement('a'); a.href = 'HannahFriedman_Resume.pdf'; a.download = ''; document.body.appendChild(a); a.click(); a.remove(); }
@@ -466,7 +529,7 @@ function doorAt(x, y) { return BUILDINGS.find((b) => (b.door[0] === x && b.door[
 
 /* ---------------- Harbor: the sailboat, launched from the Machine Room ---------------- */
 const harbor = { boat: !!lsGet('hf-boat', false) };
-const DOCK = { x: 18, y: 22 };                  // the water tile the boat is moored on, just off the beach
+const DOCK = { x: 19, y: 22 };                  // the water tile the boat is moored on, alongside the dock
 const SAIL_Y = DOCK.y * TILE + 12;              // waterline the boat rides on
 const SAIL_PATH = [DOCK.x * TILE + 8, 2 * TILE, (W - 2) * TILE, DOCK.x * TILE + 8]; // x waypoints: west, then east, then home
 let sail = null;
@@ -916,6 +979,7 @@ function payout(results) {
   });
   if (back) wallet.coins = wallet.coins + back;
   const net = back - bj.bet, pick = (lines) => lines[Math.floor(Math.random() * lines.length)];
+  if (net > 0) bumpRecord('bjBest', (v = 0) => Math.max(v, net));
   if (results.length > 1) {
     const verbs = { win: 'wins', push: 'pushes', lose: 'loses', bust: 'busts' };
     const summary = results.map((r, i) => `hand ${i + 1} ${verbs[r]}`).join(', ');

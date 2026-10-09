@@ -69,6 +69,8 @@ export const MAP_PLACES = [
   { id: 'shore', name: 'The Aegean Sea', desc: 'Sand, sea, and a captain with ships for hire.', at: [18, 22.6], go: [18, 21, 'down'] },
 ];
 export const STALL = { x: 22, y: 11, w: 3, h: 1 };
+// A little wooden dock out into the sea. The Machine Room's sailboat moors alongside it.
+export const PIER = [[15, 22], [16, 22], [17, 22], [15, 23], [16, 23], [17, 23]];
 // Where lost things turn up for the request board's fetch jobs (sand and grass only).
 export const SANDAL_SPOTS = [[4, 21], [31, 21], [17, 21], [2, 17], [11, 19], [33, 10]];
 
@@ -76,10 +78,10 @@ export const SIGNS = [
   { x: 12, y: 8, text: 'The Parthenon.\nTemple of Athena, goddess of wisdom and strategy.' },
   { x: 9, y: 8, text: 'Gaming Hall.\nMinesweeper and blackjack. Bring coins.' },
   { x: 26, y: 8, text: "Plato's Academy.\nInside: the whole School of Athens, painted on one wall." },
-  { x: 9, y: 15, text: 'Library. The door is around the front, on the beach side.\nQuiet, please. Something in here writes back.' },
-  { x: 27, y: 15, text: 'The Bank. The door is around the front, on the beach side.\nThe banker sits at a table, a trapeza. Coins left with him grow 3% a day.' },
+  { x: 9, y: 19, text: 'Library.\nQuiet, please. Something in here writes back.' },
+  { x: 27, y: 19, text: 'The Bank.\nThe banker sits at a table, a trapeza. Coins left with him grow 3% a day.' },
   { x: 12, y: 12, board: true, text: 'Town request board.' },
-  { x: 25, y: 20, text: 'The Aegean Sea.\nHomer called it wine-dark. It looks blue to you.' },
+  { x: 14, y: 21, text: 'The Aegean Sea.\nHomer called it wine-dark. It looks blue to you.' },
 ];
 
 export const NPCS = [
@@ -92,6 +94,8 @@ export const NPCS = [
   { id: 'recruiter', x: 26, y: 14, sprite: 'recruiter', facing: 'left' },
   { id: 'runner', x: 18, y: 17, sprite: 'runner', facing: 'down', wander: true, on: ['i'] },
   { id: 'captain', x: 22, y: 21, sprite: 'captain', facing: 'down' },
+  { id: 'keeper', x: 7, y: 9, sprite: 'keeper', facing: 'down' },
+  { id: 'student', x: 11, y: 17, sprite: 'student', facing: 'left' },
 ];
 
 export function buildGrid() {
@@ -103,6 +107,7 @@ export function buildGrid() {
   }
   g[RINK.y][RINK.x + 4] = 'i'; // gate in the boards, top middle
   for (let x = STALL.x; x < STALL.x + STALL.w; x++) g[STALL.y][x] = '#';
+  for (const [x, y] of PIER) g[y][x] = 'd';
   for (const s of SIGNS) g[s.y][s.x] = 'S';
   return g;
 }
@@ -187,9 +192,20 @@ function paintBoard(c, ox, oy, tx, ty) {
   else { for (let y = 3; y < 16; y += 5) px(c, ox, oy + y, 16, 1, P.boardLine); }
   if (hash(tx, ty, 3) > .7) px(c, ox + 6, oy + 6, 2, 2, P.wall3);
 }
+function paintPier(c, ox, oy, tx, ty) {
+  const on = (x, y) => PIER.some(([a, b]) => a === x && b === y);
+  const left = on(tx - 1, ty), right = on(tx + 1, ty), end = !on(tx, ty + 1);
+  const x0 = left ? 0 : 2, x1 = right ? 16 : 14;
+  paintWater(c, ox, oy, tx, ty, 0);
+  px(c, ox + x0, oy, x1 - x0, end ? 15 : 16, '#b8875a');
+  for (let y = 3; y < 16; y += 4) px(c, ox + x0, oy + y, x1 - x0, 1, '#8e6440');   // boards laid across the dock
+  if (!left) px(c, ox + 2, oy, 1, 16, '#8e6440');
+  if (!right) px(c, ox + 13, oy, 1, 16, '#8e6440');
+  if (end) { if (!left) px(c, ox + 2, oy + 13, 2, 3, '#6b4a2f'); if (!right) px(c, ox + 12, oy + 13, 2, 3, '#6b4a2f'); px(c, ox + 7, oy + 14, 2, 2, '#6b4a2f'); } // posts at the far end
+}
 function paintSign(c, ox, oy, tx, ty, grid) {
-  const under = grid[ty][tx - 1] === '=' || grid[ty][tx + 1] === '=' ? 'path' : 'grass';
-  under === 'path' ? px(c, ox, oy, 16, 16, P.path) : paintGrass(c, ox, oy, tx, ty);
+  const under = PIER.some(([x, y]) => x === tx && y === ty) ? 'pier' : grid[ty][tx - 1] === '=' || grid[ty][tx + 1] === '=' ? 'path' : 'grass';
+  under === 'pier' ? paintPier(c, ox, oy, tx, ty) : ROWS[ty][tx] === 's' ? paintSand(c, ox, oy, tx, ty) : under === 'path' ? px(c, ox, oy, 16, 16, P.path) : paintGrass(c, ox, oy, tx, ty);
   px(c, ox + 3, oy + 14, 11, 2, 'rgba(0,0,0,.16)');
   if (SIGNS.find((s) => s.x === tx && s.y === ty)?.board) { // the request board: two posts, a wooden board, pinned notes
     px(c, ox + 2, oy + 9, 2, 6, P.trunk); px(c, ox + 12, oy + 9, 2, 6, P.trunk);
@@ -300,6 +316,7 @@ const HAT = ['........oo......', '.......oAo......', '......oaAo......', '......
 const YARN = pad16(['................', '................', '................', '................', '...........y....', '..........yyy...', '...........y....', '.....oooo.......', '....orrRro......', '...orRrrRro.....', '...orrRrrro.....', '...oRrrRrro.....', '....orrrRo.r....', '.....oooo..r....', '................', '................']);
 const FEATHER = pad16(['................', '................', '................', '................', '...........y....', '..........yyy...', '...........y....', '.........oo.....', '........ollo....', '.......ollfo....', '......ollfo.....', '.....ollfo......', '....olffo.......', '...ooqo.........', '..q.............', '................']);
 const PURSE = pad16(['................', '................', '................', '................', '...........y....', '..........yyy...', '......t....y....', '.....ooo........', '....oyyyo.......', '...obbbbbo......', '..obbBbbbbo.....', '..obbbbbBbo.....', '..obbbbbbbo.....', '...ooooooo......', '................', '................']);
+const STYLUS = pad16(['................', '................', '................', '................', '...........y....', '..........yyy...', '...........y....', '.........oo.....', '........obbo....', '.......obbo.....', '......obbo......', '.....obbo.......', '....obbo........', '...oBbo.........', '...ooo..........', '................']);
 const COMPASS = pad16(['................', '................', '................', '................', '...........y....', '..........yyy...', '...........y....', '.....ooooo......', '....owwrwwo.....', '...owwwrwwwo....', '...owwwkwwwo....', '...owwwkwwwo....', '....owwwwwo.....', '.....ooooo......', '................', '................']);
 
 const PALETTES = {
@@ -307,6 +324,9 @@ const PALETTES = {
   feather: { o: '#2a2f3d', l: '#c9c3b6', f: '#8e8778', q: '#6e6658', y: '#f6d24a' },
   purse: { o: '#3a2a1c', b: '#8a5a34', B: '#6e4a26', y: '#f6d24a', t: '#f6d24a' },
   compass: { o: '#5a412a', w: '#f6efe2', r: '#d9423b', k: '#2a2f3d', y: '#f6d24a' },
+  stylus: { o: '#5a412a', b: '#d9a441', B: '#a8762f', y: '#f6d24a' },
+  student: { o: '#2a2f3d', h: '#3a2a1c', H: '#5a412a', s: '#f0c49c', S: '#d6a47c', e: '#2a2f3d', k: '#e9a090', m: '#a0503a', r: '#9fb3c8', R: '#6b7f96', p: '#8ba0b6', b: '#7a5a3a' },
+  keeper: { o: '#2a2f3d', h: '#7a3a1a', H: '#9a5a2a', s: '#d9a07a', S: '#bf8660', e: '#2a2f3d', k: '#e09080', m: '#9a4a36', r: '#6b8f4e', R: '#e0b44c', p: '#567a3c', b: '#7a5a3a' },
   captain: { o: '#2a2f3d', h: '#3a2a1c', H: '#5a412a', s: '#c98d64', S: '#ab7350', e: '#2a2f3d', k: '#d98a78', m: '#8a4a32', r: '#2f5a8c', R: '#f6f2e8', p: '#24466d', b: '#6b4a2f' },
   hannah: { o: '#2a2f3d', h: '#6b3f24', H: '#8f5a35', s: '#f6c9a4', S: '#e2a985', e: '#2a2f3d', k: '#f2a6a0', m: '#c0604a', r: '#f6f2e8', R: '#c8643c', p: '#ebe4d4', b: '#8a5a34' },
   recruiter: { o: '#2a2f3d', h: '#3b3b44', H: '#55555f', s: '#e9b48c', S: '#cf9a74', e: '#2a2f3d', k: '#e9a090', m: '#a0503a', r: '#2b3652', R: '#1c2438', p: '#1c2438', b: '#1b1b1b' },
@@ -351,6 +371,7 @@ export function spriteCanvas(kind, dir = 'down', step = 0) {
   else if (kind === 'feather') paintSprite(c, FEATHER, PALETTES.feather, 0, 0);
   else if (kind === 'purse') paintSprite(c, PURSE, PALETTES.purse, 0, 0);
   else if (kind === 'compass') paintSprite(c, COMPASS, PALETTES.compass, 0, 0);
+  else if (kind === 'stylus') paintSprite(c, STYLUS, PALETTES.stylus, 0, 0);
   else if (kind === 'socrates') paintSprite(c, [...pad16(SOCRATES_HEAD), ...BODY_LOWER.down, ...LEGS.down[0]], PALETTES.socrates, 0, 0);
   else if (kind === 'beaver') paintSprite(c, BEAVER, PALETTES.beaver, 0, 0, dir === 'right');
   else if (kind === 'hat') paintSprite(c, HAT, PALETTES.hat, 0, 0);
@@ -366,7 +387,8 @@ export function renderWorld(grid) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const ch = ROWS[y][x], ox = x * 16, oy = y * 16;
     const g = grid[y][x];
-    if (g === 'i') paintIce(c, ox, oy, x, y);
+    if (g === 'd') paintPier(c, ox, oy, x, y);
+    else if (g === 'i') paintIce(c, ox, oy, x, y);
     else if (g === 'b') paintBoard(c, ox, oy, x, y);
     else if (g === 'S') paintSign(c, ox, oy, x, y, grid);
     else if (ch === 'T') paintTree(c, ox, oy, x, y);
@@ -411,8 +433,8 @@ export const ITEMS = [
   { id: 'hivis', slot: 'outfit', name: 'Hi-vis vest', price: 600, desc: 'Found in the Machine Room. Nobody has asked for it back.', pal: { r: '#ff6a13', R: '#e8eef2', p: '#34495e', b: '#3a2a1c' } },
   { id: 'suit', slot: 'outfit', name: 'Trading floor suit', price: 850, desc: 'Navy pinstripes, for pricing options in the Agora.', pal: { r: '#22304a', R: '#d9e1ea', p: '#22304a', b: '#1b1b1b' }, pattern: 'pinstripe' },
   { id: 'labcoat', slot: 'outfit', name: 'Lab coat', price: 450, desc: "For running experiments in Plato's Academy.", pal: { r: '#f4f6f8', R: '#9aa7b6', p: '#2c3e63', b: '#3a3030' } },
-  { id: 'spartan', slot: 'outfit', name: 'Spartan cloak', price: 650, desc: 'Crimson and bronze. Laconic by design.', pal: { r: '#9e1b1b', R: '#c8913a', p: '#7a1414', b: '#7a5a3a' } },
-  { id: 'laurel', slot: 'head', name: 'Laurel wreath', price: 400, desc: 'The prize at the Pythian Games.' },
+  { id: 'sailor', slot: 'outfit', name: "Sailor's shirt", price: 650, desc: 'Navy and white stripes, for sailing to Egypt, or at least to Aegina.', pal: { r: '#f6f2e8', R: '#1f3a5f', p: '#1f3a5f', b: '#6b4a2f' }, pattern: 'stripes' },
+  { id: 'petasos', slot: 'head', name: 'Petasos sun hat', price: 400, desc: 'The wide-brimmed traveler\'s hat of ancient Greece. Hermes wore one.' },
   { id: 'gradcap', slot: 'head', name: 'Graduation cap', price: 700, desc: 'For the M.Eng, May 2027.' },
   { id: 'helmet', slot: 'head', name: 'Corinthian helmet', price: 900, desc: 'Bronze, plumed, and very hard to hear through.' },
   { id: 'olive', slot: 'head', name: 'Olive wreath', price: 450, desc: 'The actual prize at the ancient Olympics.' },
@@ -422,7 +444,7 @@ export const ITEMS = [
   { id: 'hardhat', slot: 'head', name: 'Hard hat', price: 400, desc: 'Required in the Machine Room. Not provided.' },
   { id: 'flowercrown', slot: 'head', name: 'Flower crown', price: 350, desc: 'Picked from the Agora flower beds, with permission.' },
   { id: 'shades', slot: 'face', name: 'Sunglasses', price: 150, desc: 'The Mediterranean sun is no joke.' },
-  { id: 'readers', slot: 'face', name: 'Reading glasses', price: 200, desc: 'For the small print on the Parthenon.' },
+  { id: 'mask', slot: 'face', name: 'Comedy mask', price: 200, desc: 'From the theater of Dionysus. Everyone can tell you are smiling.' },
   { id: 'lyre', slot: 'held', name: 'Lyre', price: 350, desc: 'Comes pre-tuned to "Vienna".' },
   { id: 'scroll', slot: 'held', name: 'Scroll', price: 200, desc: "Plato's Republic, slightly used." },
   { id: 'basketball', slot: 'held', name: 'Basketball', price: 300, desc: 'For a former varsity captain.' },
@@ -485,11 +507,26 @@ const OVERLAYS = {
     const blooms = dir === 'up' ? [[5, '#f7a3b6'], [10, '#fbfaf2']] : [[4, '#f7a3b6'], [7, '#f2c94c'], [10, '#fbfaf2'], [12, '#f7a3b6']];
     for (const [x, c] of blooms) { put(x, 0, c); put(x - 1, 1, c); put(x + 1, 1, c); put(x, 1, '#f2c94c'); }
   },
-  readers(put, dir) {
-    if (dir === 'up') return;
-    const F = '#2a2f3d', L = '#cfe3f2';
-    if (dir === 'left') { put(3, 5, F); put(4, 5, L); put(5, 5, F); for (let x = 6; x <= 9; x++) put(x, 5, F); return; }
-    put(4, 5, F); put(5, 5, L); put(6, 5, F); put(7, 5, F); put(8, 5, F); put(9, 5, F); put(10, 5, L); put(11, 5, F);
+  petasos(put, dir) { // low crown, very wide brim, a cord under the chin
+    const S = '#d9b56a', D = '#a8823e', C = '#7a5a2a';
+    for (let x = 6; x <= 9; x++) put(x, -2, S);
+    for (let x = 5; x <= 10; x++) put(x, -1, x === 5 || x === 10 ? D : S);
+    for (let x = 4; x <= 11; x++) put(x, 0, C);
+    const [b0, b1] = dir === 'left' ? [0, 13] : [1, 14];
+    for (let x = b0; x <= b1; x++) put(x, 1, x === b0 || x === b1 ? D : S);
+    if (dir === 'down') { put(4, 8, C); put(11, 8, C); }
+  },
+  mask(put, dir) { // a cream comedy mask with a wide red smile, tied on with a ribbon
+    const M = '#f6efe2', E = '#2a2f3d', R = '#c0303f', G = '#e0b44c';
+    if (dir === 'up') { put(7, 4, R); put(8, 4, R); put(7, 5, R); return; }
+    if (dir === 'left') {
+      for (let y = 3; y <= 8; y++) for (let x = 3; x <= 7; x++) put(x, y, M);
+      put(4, 4, G); put(4, 5, E); put(3, 7, R); put(4, 8, R); put(5, 8, R); put(8, 5, R);
+      return;
+    }
+    for (let y = 3; y <= 8; y++) for (let x = 4; x <= 11; x++) if (!((y === 3 || y === 8) && (x === 4 || x === 11))) put(x, y, M);
+    put(5, 4, G); put(10, 4, G); put(5, 5, E); put(6, 5, E); put(9, 5, E); put(10, 5, E);
+    put(5, 7, R); put(10, 7, R); for (let x = 6; x <= 9; x++) put(x, 8, R);
   },
   shades(put, dir) {
     if (dir === 'up') return;
@@ -616,6 +653,7 @@ function paintPattern(c, pattern, pal, dir) {
     const i = (y * 16 + x) * 4;
     const body = y - 4; // row in the 16x16 body frame
     if (pattern === 'pinstripe' && x % 2 === 0 && (is(i, shirt) || is(i, pants))) set(i, hex('#6f8fc4'));
+    if (pattern === 'stripes' && is(i, shirt) && body % 2 === 0) set(i, hex('#1f3a5f'));
     if (pattern === 'hockey' && is(i, shirt)) {
       if (body === 11) set(i, hex('#f4f6f8'));
       if (body === 10 && dir === 'down' && (x === 7 || x === 8)) set(i, hex('#f47d30'));
