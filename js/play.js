@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zd';
-import { createRace } from './race.js?v=20261010zd';
-import { createWeather, currentWeather } from './weather.js?v=20261010zd';
-import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zd';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zd';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zd';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010ze';
+import { createRace } from './race.js?v=20261010ze';
+import { createWeather, currentWeather } from './weather.js?v=20261010ze';
+import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010ze';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010ze';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010ze';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -518,7 +518,7 @@ async function renderBoard(rows) {
     } catch (e) { list = '<p class="lb-empty">The leaderboard could not be reached right now. Try again in a bit.</p>'; }
   }
   body.innerHTML = `
-    <div class="lb-tabs" role="tablist" aria-label="Board">${tab('net', 'Richest in Athens', 'board')}${tab('bj', 'Blackjack sharks', 'board')}</div>
+    <div class="lb-tabs" role="tablist" aria-label="Board">${tab('net', 'Richest in Athens', 'board')}${tab('bj', 'Blackjack profits', 'board')}</div>
     <div class="lb-period" role="tablist" aria-label="Time">${tab('month', 'This month', 'period')}${tab('all', 'All time', 'period')}</div>
     <p class="lb-what">${what}</p>
     ${list}
