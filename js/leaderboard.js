@@ -2,8 +2,8 @@
 // Players opt in with three initials and an email. The email goes to a private table only Hannah can see; the site
 // can read initials and scores, and can only change this player's own entry (every write checks their secret).
 // The key below is Supabase's public key: it is meant to be in the page, and only allows those things.
-const SUPABASE_URL = '';
-const SUPABASE_KEY = '';
+const SUPABASE_URL = 'https://fgkauzfgmzslmjsqmfrb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_wunmv_DaSNBD4rQhZjZ3UQ_7sEW0cUN';
 export const leaderboardReady = () => !!(SUPABASE_URL && SUPABASE_KEY);
 
 const headers = () => ({ apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' });
