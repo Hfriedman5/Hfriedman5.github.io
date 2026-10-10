@@ -1,9 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010y';
-import { createRace } from './race.js?v=20261010y';
-import { createWeather, currentWeather } from './weather.js?v=20261010y';
-import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010y';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010y';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010za';
+import { createRace } from './race.js?v=20261010za';
+import { createWeather, currentWeather } from './weather.js?v=20261010za';
+import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010za';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010za';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010za';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -492,6 +493,62 @@ function openMoney() {
   openModal('#money');
 }
 
+/* ---------------- The town leaderboard (online, opt-in) ---------------- */
+// Everything a player owns: purse, bank, bonds (what they lent), and shares at today's price.
+function netWorth() {
+  const m = market();
+  return wallet.coins + Math.floor(bank.bal) + bonds.reduce((t, b) => t + b.amt, 0) + COMPANIES.reduce((t, c) => t + sharesOf(c.id) * tradePrice(m.companies[c.id].at(-1).price), 0);
+}
+const sendScores = (force = false) => lbSubmit({ net: netWorth(), bjTotal: lsGet('hf-records', {}).bjProfit || 0 }, force);
+const boardView = { board: 'net', period: 'month' };
+async function openBoard() {
+  openModal('#board'); renderBoard(null);
+  await sendScores(true); renderBoard();
+}
+async function renderBoard(rows) {
+  const body = $('#board-body'), me = lbPlayer(), { board, period } = boardView;
+  const tab = (key, label, group) => `<button type="button" role="tab" aria-selected="${boardView[group] === key}" data-${group}="${key}">${label}</button>`;
+  const what = board === 'net' ? 'Everything a player owns: purse, bank, bonds, and shares.' : 'Blackjack winnings minus losses.';
+  let list = '<p class="lb-empty">Loading the board…</p>';
+  if (rows !== null) {
+    try {
+      const top = await lbTop(board, period);
+      list = top.length ? `<ol class="lb-list">${top.map((r, i) => `<li class="${r.me ? 'lb-me' : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-name">${r.initials}${r.me ? ' (you)' : ''}</span><span class="lb-val">${board === 'bj' ? signed(r.value) : r.value.toLocaleString()}</span></li>`).join('')}</ol>`
+        : `<p class="lb-empty">Nobody is on this board yet${period === 'month' ? ' this month' : ''}. It could be you.</p>`;
+    } catch (e) { list = '<p class="lb-empty">The leaderboard could not be reached right now. Try again in a bit.</p>'; }
+  }
+  body.innerHTML = `
+    <div class="lb-tabs" role="tablist" aria-label="Board">${tab('net', 'Richest in Athens', 'board')}${tab('bj', 'Blackjack sharks', 'board')}</div>
+    <div class="lb-period" role="tablist" aria-label="Time">${tab('month', 'This month', 'period')}${tab('all', 'All time', 'period')}</div>
+    <p class="lb-what">${what}</p>
+    ${list}
+    ${me?.initials ? `<p class="lb-you">You are on the board as <b>${me.initials}</b>. Your scores update whenever you play. <button type="button" class="lb-link" data-lb="edit">Change initials or email</button> · <button type="button" class="lb-link" data-lb="leave">Leave the leaderboard</button></p>` : ''}
+    <form class="lb-join" novalidate${me?.initials ? ' hidden' : ''}>
+      <h3>${me?.initials ? 'Change your details' : 'Put your initials on the board'}</h3>
+      <label>Initials <input name="initials" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC" value="${me?.initials || ''}"></label>
+      <label>Email <input name="email" type="email" autocomplete="email" placeholder="you@example.com" value="${me?.email || ''}"></label>
+      <p class="lb-privacy">Only Hannah sees your email, so she can reach out to leaderboard winners. It never appears on the board.</p>
+      <button type="submit" class="btn btn-primary btn-sm">${me?.initials ? 'Save' : 'Join the leaderboard'}</button>
+      <span class="lb-msg" role="status"></span>
+    </form>`;
+  body.querySelectorAll('[data-board]').forEach((b) => b.addEventListener('click', () => { boardView.board = b.dataset.board; renderBoard(); }));
+  body.querySelectorAll('[data-period]').forEach((b) => b.addEventListener('click', () => { boardView.period = b.dataset.period; renderBoard(); }));
+  body.querySelector('[data-lb="edit"]')?.addEventListener('click', () => { body.querySelector('.lb-join').hidden = false; body.querySelector('.lb-join input').focus(); });
+  body.querySelector('[data-lb="leave"]')?.addEventListener('click', async (e) => {
+    if (e.target.dataset.sure !== 'yes') { e.target.dataset.sure = 'yes'; e.target.textContent = 'Click again to leave for good'; return; }
+    try { await lbLeave(); renderBoard(); } catch (err) { e.target.textContent = 'Could not reach the board. Try again.'; }
+  });
+  body.querySelector('.lb-join').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target, msg = f.querySelector('.lb-msg'), initials = f.initials.value.trim(), email = f.email.value.trim();
+    const problem = initialsProblem(initials) || emailProblem(email);
+    if (problem) { msg.textContent = problem; return; }
+    msg.textContent = 'Saving…';
+    try { await lbJoin(initials, email); await sendScores(true); renderBoard(); } catch (err) { msg.textContent = 'Could not reach the board. Try again in a bit.'; }
+  });
+}
+if (leaderboardReady()) setTimeout(() => sendScores(), 3000); // keep a returning player's scores fresh
+
 /* ---------------- Trading voyages from the beach ---------------- */
 // Pay for a voyage and share the profit when the ship comes home. Every day each route gets its own sea and its own
 // market (the same for everyone that day), so the best bet changes: some days Egypt is a bargain, some days it's a trap.
@@ -614,9 +671,10 @@ const INTERACT = {
     if (v === 'resume') downloadResume();
   },
   async gaming() {
-    const v = await say(['The Gaming Hall. The Greeks played petteia in here. Today it is Minesweeper and blackjack.', `You have ${wallet.coins.toLocaleString()} coins.`], [{ label: 'Blackjack', value: 'bj' }, { label: 'Minesweeper', value: 'ms' }, { label: 'Leave', value: null }]);
+    const v = await say(['The Gaming Hall. The Greeks played petteia in here. Today it is Minesweeper and blackjack.', `You have ${wallet.coins.toLocaleString()} coins.`], [{ label: 'Blackjack', value: 'bj' }, { label: 'Minesweeper', value: 'ms' }, ...(leaderboardReady() ? [{ label: 'Leaderboard', value: 'board' }] : []), { label: 'Leave', value: null }]);
     if (v === 'ms') { openModal('#arcade'); newMines(); }
     if (v === 'bj') { openModal('#blackjack'); bjRender(); }
+    if (v === 'board') openBoard();
   },
   async academy() {
     if (await requestTalk('academy')) return;
@@ -671,7 +729,7 @@ const INTERACT = {
     const none = 'not yet';
     await say(['The record keeper chisels away at a stone tablet. "Every record in Athens goes in stone. Let me read you yours."',
       `Fastest winning lap: ${lap != null ? `${lap.toFixed(2)} seconds` : none}\nBiggest blackjack win: ${r.bjBest ? `${r.bjBest.toLocaleString()} coins` : none}\nVoyages that made it home: ${r.home || 0}${r.sunk ? ` (${r.sunk} lost at sea)` : ''}\nTotal interest earned: ${interest ? `${interest.toLocaleString()} coins` : none}\nRequests completed: ${r.requests || 0}\nProfit from the Exchange: ${r.stockGains || r.dividends ? `${signed((r.stockGains || 0) + (r.dividends || 0))} coins` : none}\nEarned from bonds: ${r.bonds ? `${r.bonds.toLocaleString()} coins` : none}`,
-      '"Come back when you break one. I have plenty of chisels."']);
+      '"Come back when you break one. I have plenty of chisels."'], leaderboardReady() ? [{ label: 'Town leaderboard', value: 'board' }, { label: 'Leave', value: null }] : null).then((v) => { if (v === 'board') openBoard(); });
   },
   async student() {
     if (await requestTalk('student')) return;
@@ -1210,6 +1268,8 @@ function payout(results) {
   if (back) wallet.coins = wallet.coins + back;
   const net = back - bj.bet, pick = (lines) => lines[Math.floor(Math.random() * lines.length)];
   if (net > 0) bumpRecord('bjBest', (v = 0) => Math.max(v, net));
+  bumpRecord('bjProfit', (v = 0) => v + net); // lifetime, for the leaderboard
+  sendScores();
   if (results.length > 1) {
     const verbs = { win: 'wins', push: 'pushes', lose: 'loses', bust: 'busts' };
     const summary = results.map((r, i) => `hand ${i + 1} ${verbs[r]}`).join(', ');
