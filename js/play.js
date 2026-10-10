@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zb';
-import { createRace } from './race.js?v=20261010zb';
-import { createWeather, currentWeather } from './weather.js?v=20261010zb';
-import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zb';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zb';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zb';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zc';
+import { createRace } from './race.js?v=20261010zc';
+import { createWeather, currentWeather } from './weather.js?v=20261010zc';
+import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zc';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zc';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zc';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -527,7 +527,7 @@ async function renderBoard(rows) {
       <h3>${me?.initials ? 'Change your details' : 'Put your initials on the board'}</h3>
       <label>Initials <input name="initials" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC" value="${me?.initials || ''}"></label>
       <label>Email <input name="email" type="email" autocomplete="email" placeholder="you@example.com" value="${me?.email || ''}"></label>
-      <p class="lb-privacy">Only Hannah sees your email, so she can reach out to leaderboard winners. It never appears on the board.</p>
+      <p class="lb-privacy">Only the site manager can see your email. It is not public anywhere.</p>
       <button type="submit" class="btn btn-primary btn-sm">${me?.initials ? 'Save' : 'Join the leaderboard'}</button>
       <span class="lb-msg" role="status"></span>
     </form>`;
