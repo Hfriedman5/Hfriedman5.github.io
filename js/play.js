@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zc';
-import { createRace } from './race.js?v=20261010zc';
-import { createWeather, currentWeather } from './weather.js?v=20261010zc';
-import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zc';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zc';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zc';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zd';
+import { createRace } from './race.js?v=20261010zd';
+import { createWeather, currentWeather } from './weather.js?v=20261010zd';
+import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zd';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zd';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zd';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -525,7 +525,7 @@ async function renderBoard(rows) {
     ${me?.initials ? `<p class="lb-you">You are on the board as <b>${me.initials}</b>. Your scores update whenever you play. <button type="button" class="lb-link" data-lb="edit">Change initials or email</button> · <button type="button" class="lb-link" data-lb="leave">Leave the leaderboard</button></p>` : ''}
     <form class="lb-join" novalidate${me?.initials ? ' hidden' : ''}>
       <h3>${me?.initials ? 'Change your details' : 'Put your initials on the board'}</h3>
-      <label>Initials <input name="initials" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC" value="${me?.initials || ''}"></label>
+      <label>Initials (three letters or numbers) <input name="initials" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC" value="${me?.initials || ''}"></label>
       <label>Email <input name="email" type="email" autocomplete="email" placeholder="you@example.com" value="${me?.email || ''}"></label>
       <p class="lb-privacy">Only the site manager can see your email. It is not public anywhere.</p>
       <button type="submit" class="btn btn-primary btn-sm">${me?.initials ? 'Save' : 'Join the leaderboard'}</button>
@@ -544,7 +544,7 @@ async function renderBoard(rows) {
     const problem = initialsProblem(initials) || emailProblem(email);
     if (problem) { msg.textContent = problem; return; }
     msg.textContent = 'Saving…';
-    try { await lbJoin(initials, email); await sendScores(true); renderBoard(); } catch (err) { msg.textContent = 'Could not reach the board. Try again in a bit.'; }
+    try { await lbJoin(initials, email); await sendScores(true); renderBoard(); } catch (err) { msg.textContent = err.message === 'taken' ? `Someone already has ${initials.toUpperCase()}. Try another set.` : 'Could not reach the board. Try again in a bit.'; }
   });
 }
 if (leaderboardReady()) setTimeout(() => sendScores(), 3000); // keep a returning player's scores fresh

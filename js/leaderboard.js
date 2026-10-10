@@ -15,7 +15,10 @@ const rpc = (name, body) => fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, { metho
 
 // A few three-letter combinations nobody needs to see on the board.
 const BLOCKED = new Set(['ASS', 'FUK', 'FUC', 'FCK', 'SEX', 'KKK', 'NAZ', 'CUM', 'TIT', 'DIK', 'DIC', 'FAG', 'PIS', 'XXX', 'SHT', 'WTF', 'NIG', 'HOE']);
-export const initialsProblem = (s) => (!/^[A-Za-z]{3}$/.test(s) ? 'Use exactly three letters, like HMF.' : BLOCKED.has(s.toUpperCase()) ? 'Please pick different initials.' : '');
+// Numbers are allowed, so read them as the letters they imitate before checking (A55 reads as ASS).
+const LOOKALIKE = { 0: 'O', 1: 'I', 3: 'E', 4: 'A', 5: 'S', 6: 'G', 7: 'T', 8: 'B', 9: 'G' };
+export const initialsProblem = (s) => (!/^[A-Za-z0-9]{3}$/.test(s) ? 'Use exactly three letters or numbers, like HMF or R2D.'
+  : BLOCKED.has(s.toUpperCase().replace(/[0-9]/g, (d) => LOOKALIKE[d] || d)) ? 'Please pick different initials.' : '');
 export const emailProblem = (s) => (s.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.trim()) ? 'That email does not look right.' : '');
 
 // This browser's player: a random id, a secret only this browser knows, and the initials they chose.
@@ -23,6 +26,7 @@ export const player = () => lsGet('hf-player', null);
 export async function join(initials, email) {
   const me = player() || { id: crypto.randomUUID(), secret: randomHex(24) };
   const r = await rpc('join_board', { p_player: me.id, p_secret: me.secret, p_initials: initials.toUpperCase(), p_email: email.trim() });
+  if (r.status === 409) throw new Error('taken'); // initials are first come, first served
   if (!r.ok) throw new Error(`join ${r.status}`);
   me.initials = initials.toUpperCase(); me.email = email.trim().toLowerCase();
   lsSet('hf-player', me);
