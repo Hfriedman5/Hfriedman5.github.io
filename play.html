@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#0b1424" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/pixelify.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=20261010x">
+<link rel="stylesheet" href="style.css?v=20261010y">
 <script>try { const r = document.documentElement; if (localStorage.getItem('hf-hannah-mode') === '1') r.classList.add('hannah-mode'); } catch (e) {}</script>
 </head>
 <body class="play-page">
@@ -76,7 +76,10 @@
 <main class="game-wrap" id="main">
   <div class="game-head container">
     <div>
-      <h1 class="game-title">Little Athens</h1>
+      <div class="game-title-row">
+        <h1 class="game-title">Little Athens</h1>
+        <button class="help-btn" type="button" data-open-help aria-haspopup="dialog" aria-controls="help" aria-label="What can I do here?">?</button>
+      </div>
       <p class="game-sub">I love history and I'm trying to learn Ancient Greek, so I set my little world in Athens. Walk with <span class="keys-only">the arrow keys or WASD (hold Shift to run), press Space to talk, press M for the map,</span><span class="touch-only">the joystick (hold B to run), tap A to talk, tap Map to see the whole town,</span> and earn coins around town to spend on blackjack or new outfits at the Agora market.</p>
     </div>
     <a class="btn btn-secondary btn-sm" href="index.html">Back to the site</a>
@@ -223,6 +226,26 @@
 </dialog>
 
 <!-- Agora market: outfits and gadgets -->
+<dialog class="modal" id="help" aria-labelledby="help-h">
+  <div class="modal-head">
+    <h2 id="help-h">What to do in Little Athens</h2>
+    <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="modal-body help-body">
+    <dl>
+      <dt>Earn coins with challenges</dt>
+      <dd>Pick olives, pet the cat, answer Plato's questions, race the runner at the Stadium, clear the Minesweeper board, and do the daily job on the request board. Hatchlings from the Machine Room can run errands for coins too.</dd>
+      <dt>Grow them at the Bank</dt>
+      <dd>A savings account that grows every day, city bonds that pay 25% after 30 days, and the Athenian Exchange, where you buy shares in town businesses. The captain on the beach takes coins on trading voyages, too.</dd>
+      <dt>Try your luck</dt>
+      <dd>Blackjack in the Gaming Hall.</dd>
+      <dt>Spend them</dt>
+      <dd>Outfits, hats, and companions at the Agora market. There is even a trophy for owning 100,000 coins.</dd>
+    </dl>
+    <p class="help-tip"><span class="keys-only">Press M</span><span class="touch-only">Tap Map</span> to jump anywhere in town. Your progress is saved in this browser.</p>
+  </div>
+</dialog>
+
 <dialog class="modal" id="money" aria-labelledby="money-h">
   <div class="modal-head">
     <h2 id="money-h">Your money</h2>
@@ -311,7 +334,7 @@
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="script.js?v=20261010x" defer></script>
-<script type="module" src="js/play.js?v=20261010x"></script>
+<script src="script.js?v=20261010y" defer></script>
+<script type="module" src="js/play.js?v=20261010y"></script>
 </body>
 </html>

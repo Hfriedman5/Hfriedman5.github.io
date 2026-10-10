@@ -1,9 +1,9 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010x';
-import { createRace } from './race.js?v=20261010x';
-import { createWeather, currentWeather } from './weather.js?v=20261010x';
-import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010x';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010x';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010y';
+import { createRace } from './race.js?v=20261010y';
+import { createWeather, currentWeather } from './weather.js?v=20261010y';
+import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010y';
+import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010y';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -82,6 +82,7 @@ if (stick) {
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => stick.addEventListener(ev, (e) => { if (e.pointerId === pid) release(); }));
 }
 $('#abtn').addEventListener('click', pressA);
+$('[data-open-help]')?.addEventListener('click', () => openModal('#help'));
 $('#abtn').addEventListener('pointerdown', () => HF().konami?.('a'));
 const bbtn = $('#bbtn');
 if (bbtn) {
@@ -187,7 +188,8 @@ function earn(amount, label = '', cap = MAX_EARN) {
 const cooldowns = lsGet('hf-cooldowns', {});
 const ready = (key, ms) => Date.now() - (cooldowns[key] || 0) >= ms;
 // How long each way of earning coins needs to rest, so nobody can farm Athens.
-const COOLDOWN = { olives: 5 * 60e3, cat: 20 * 60e3, plato: 30 * 60e3, stadion: 10 * 60e3 };
+const COOLDOWN = { olives: 5 * 60e3, cat: 20 * 60e3, plato: 30 * 60e3, stadion: 10 * 60e3, mines: 10 * 60e3 };
+const MINES_PAY = 150; // for clearing the Minesweeper board
 const leftOf = (key) => Math.max(0, COOLDOWN[key] - (Date.now() - (cooldowns[key] || 0)));
 const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'}`;
 const inTime = (ms) => {
@@ -1040,7 +1042,10 @@ function reveal(i) {
   }
   if (ms.open.size === MS.R * MS.C - MS.M) {
     ms.over = true; clearInterval(ms.timer);
-    $('#ms-note').textContent = `Cleared in ${ms.time} seconds. Not a single explosion.`;
+    let pay = '';
+    if (ready('mines', COOLDOWN.mines)) { used('mines'); pay = ` You win ${earn(MINES_PAY)} coins.`; }
+    else pay = ` The minefield pays out again in ${inTime(leftOf('mines'))}.`;
+    $('#ms-note').textContent = `Cleared in ${ms.time} seconds. Not a single explosion.${pay}`;
     HF().foundEgg('mines');
   }
 }
