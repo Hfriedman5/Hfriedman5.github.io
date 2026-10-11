@@ -1,10 +1,11 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011h';
-import { createRace } from './race.js?v=20261011h';
-import { createWeather, currentWeather } from './weather.js?v=20261011h';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011h';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011h';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011h';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011j';
+import { createRace } from './race.js?v=20261011j';
+import { createWeather, currentWeather } from './weather.js?v=20261011j';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011j';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011j';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011j';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011j';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -84,45 +85,86 @@ if (stick) {
 }
 $('#abtn').addEventListener('click', pressA);
 $('[data-open-help]')?.addEventListener('click', () => openModal('#help'));
-$('#backup-btn')?.addEventListener('click', () => { if (!$('#dlg').hidden) return; $('#backup-msg').textContent = ''; $('#backup-msg').className = 'backup-msg'; openModal('#backup'); });
+$('#backup-btn')?.addEventListener('click', openSave);
+function openSave() { if (!$('#dlg').hidden) return; renderCloud(); openModal('#backup'); }
 
-/* ---------------- Back up and restore: everything the site saves in this browser, as one small file ---------------- */
-// Every saved key starts with hf- (coins, farm, eggs, hatchlings, Machine Room levers, the leaderboard spot), so a backup is just those.
-const BACKUP_KIND = 'hannahfriedman.org backup';
-const savedKeys = () => { const keys = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k?.startsWith('hf-')) keys.push(k); } } catch (e) { /* private mode */ } return keys; };
-const backupMsg = (html, tone = '') => { const el = $('#backup-msg'); el.className = `backup-msg ${tone}`; el.innerHTML = html; if (html) el.scrollIntoView({ block: 'nearest' }); };
-$('#backup-save')?.addEventListener('click', () => {
-  const data = Object.fromEntries(savedKeys().map((k) => [k, localStorage.getItem(k)]));
-  const d = new Date(), stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const url = URL.createObjectURL(new Blob([JSON.stringify({ kind: BACKUP_KIND, version: 1, saved: d.toISOString(), data }, null, 1)], { type: 'application/json' }));
-  const a = document.createElement('a'); a.href = url; a.download = `little-athens-backup-${stamp}.json`;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
-  backupMsg(`Saved <b>little-athens-backup-${stamp}.json</b> to your downloads. To bring this game back later, use Restore from a backup and choose that file.`, 'ok');
+/* ---------------- Cloud save: sign in with an email code, then the game saves itself (cloud.js does the work) ---------------- */
+const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const signin = { step: 'email', email: '', msg: '' };
+const ago = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? 'just now' : s < 3600 ? `${plural(Math.round(s / 60), 'minute')} ago` : 'over an hour ago'; };
+function renderCloud() {
+  const box = $('#cloud-box');
+  if (!box) return;
+  const s = session(), sum = (x) => `${x.coins.toLocaleString()} coins, ${x.eggs} of 9 eggs, ${plural(x.plots, 'farm plot')}`;
+  const local = $('.save-local'); if (local) local.hidden = !!s;
+  if (cloud.status === 'conflict' && cloud.conflict) {
+    const { cloud: c, local: l } = cloud.conflict;
+    const when = new Date(c.savedAt).toLocaleString(undefined, { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    box.innerHTML = `<h3>Which save do you want to keep?</h3>
+      <p>Your cloud save and this browser have different progress.</p>
+      <ul class="save-pick"><li><b>Cloud save</b>, from ${when}: ${sum(c)}</li><li><b>This browser</b>: ${sum(l)}</li></ul>
+      <div class="backup-actions"><button class="btn btn-primary btn-sm" type="button" data-cloud="keep-cloud">Keep the cloud save</button><button class="btn btn-secondary btn-sm" type="button" data-cloud="keep-local">Keep this browser's</button></div>
+      <p class="save-note">The one you don't keep is saved as an earlier version, just in case.</p>`;
+  } else if (s) {
+    const state = { syncing: 'Saving…', saved: cloud.savedAt ? `Last saved to the cloud ${ago(cloud.savedAt)}.` : 'Saved to the cloud.', offline: 'Could not reach the cloud right now. Your game is still saved in this browser, and it will catch up.' }[cloud.status] || '';
+    box.innerHTML = `<h3>Cloud save is on</h3>
+      <p>Signed in as <b>${escHtml(s.user?.email || '')}</b>. Your game saves to the cloud by itself, so you can pick up on any device.</p>
+      <p class="save-status" role="status">${state}</p>
+      <div class="backup-actions"><button class="btn btn-secondary btn-sm" type="button" data-cloud="sync">Save now</button><button class="btn btn-ghost btn-sm" type="button" data-cloud="signout">Sign out</button></div>`;
+  } else if (signin.step === 'code') {
+    box.innerHTML = `<h3>Check your email</h3>
+      <form class="save-form" data-cloud-form="code" novalidate><label>Enter the 6-digit code we sent to <b>${escHtml(signin.email)}</b><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"></label>
+      <div class="backup-actions"><button class="btn btn-primary btn-sm" type="submit">Sign in</button><button class="btn btn-ghost btn-sm" type="button" data-cloud="resend">Send a new code</button><button class="btn btn-ghost btn-sm" type="button" data-cloud="restart">Use a different email</button></div></form>
+      <p class="save-note">It can take a minute to arrive. Check your spam folder too.</p>
+      <p class="save-msg" role="status">${signin.msg}</p>`;
+  } else {
+    box.innerHTML = `<h3>Save to the cloud</h3>
+      <p>Sign in with your email and your game saves online by itself. Then you can play on any device, and clearing this browser won't erase your progress. Signing in is also how you join the leaderboard.</p>
+      <form class="save-form" data-cloud-form="email" novalidate><label>Email<input name="email" type="email" autocomplete="email" placeholder="you@example.com" value="${escHtml(signin.email)}"></label>
+      <div class="backup-actions"><button class="btn btn-primary btn-sm" type="submit">Email me a sign-in code</button></div></form>
+      <p class="save-note">No password needed. Only the site manager can see your email. It is not public anywhere.</p>
+      <p class="save-msg" role="status">${signin.msg}</p>`;
+  }
+}
+const CODE_TROUBLE = { wait: 'Please wait a minute before asking for another code.', failed: 'That email did not work. Check it and try again.', offline: 'Could not reach the sign-in service. Try again in a bit.' };
+$('#cloud-box')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  if (f.dataset.cloudForm === 'email') {
+    const email = f.email.value.trim(), problem = emailProblem(email);
+    signin.email = email;
+    if (problem) { signin.msg = problem; return renderCloud(); }
+    f.querySelector('button[type=submit]').disabled = true;
+    const why = await sendCode(email);
+    Object.assign(signin, why ? { msg: CODE_TROUBLE[why] } : { step: 'code', msg: '' });
+    renderCloud(); $('#cloud-box input[name=code]')?.focus();
+  } else {
+    const code = f.code.value.trim();
+    if (!/^\d{6}$/.test(code)) { signin.msg = 'Type the 6 numbers from the email.'; return renderCloud(); }
+    f.querySelector('button[type=submit]').disabled = true; signin.msg = '';
+    if (await verifyCode(signin.email, code)) { Object.assign(signin, { step: 'email', msg: '' }); renderCloud(); if ($('#board').open) renderBoard(); }
+    else { signin.msg = 'That code did not work. Use the newest email, or send a new code.'; renderCloud(); }
+  }
 });
-let pendingBackup = null;
-$('#backup-load')?.addEventListener('click', () => $('#backup-file').click());
-$('#backup-file')?.addEventListener('change', async (e) => {
-  const file = e.target.files?.[0]; e.target.value = '';
-  if (!file) return;
-  let b = null;
-  try { b = file.size < 2e6 ? JSON.parse(await file.text()) : null; } catch (err) { b = null; }
-  const data = b?.kind === BACKUP_KIND && b.data && typeof b.data === 'object' ? Object.fromEntries(Object.entries(b.data).filter(([k, v]) => k.startsWith('hf-') && typeof v === 'string' && v.length < 5e5)) : null;
-  if (!data || !Object.keys(data).length) { pendingBackup = null; return backupMsg('That file is not a Little Athens backup. Choose a file saved with Back up my progress.'); }
-  pendingBackup = data;
-  const read = (k, d) => { try { return JSON.parse(data[k]) ?? d; } catch (err) { return d; } };
-  const when = new Date(b.saved), date = Number.isNaN(+when) ? 'an earlier day' : when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
-  backupMsg(`This backup is from <b>${date}</b>: ${Number(read('hf-coins', 0)).toLocaleString()} coins in the purse and ${(read('hf-eggs', []) || []).length} of 9 eggs. Restoring it replaces everything saved in this browser right now.
-    <div class="backup-actions"><button class="btn btn-primary btn-sm" type="button" id="backup-yes">Restore it</button><button class="btn btn-secondary btn-sm" type="button" id="backup-no">Cancel</button></div>`);
+$('#cloud-box')?.addEventListener('click', async (e) => {
+  const act = e.target.closest('[data-cloud]')?.dataset.cloud;
+  if (act === 'restart') { Object.assign(signin, { step: 'email', msg: '' }); renderCloud(); }
+  if (act === 'resend') { const why = await sendCode(signin.email); signin.msg = why ? CODE_TROUBLE[why] : 'A new code is on its way.'; renderCloud(); }
+  if (act === 'sync') syncNow();
+  if (act === 'signout') { await signOut(); Object.assign(signin, { step: 'email', msg: 'Signed out. Your game is still saved in this browser.' }); renderCloud(); }
+  if (act === 'keep-cloud') keepCloud();
+  if (act === 'keep-local') keepLocal();
 });
-$('#backup-msg')?.addEventListener('click', (e) => {
-  if (e.target.id === 'backup-no') { pendingBackup = null; return backupMsg(''); }
-  if (e.target.id !== 'backup-yes' || !pendingBackup) return;
-  try {
-    savedKeys().forEach((k) => localStorage.removeItem(k));
-    Object.entries(pendingBackup).forEach(([k, v]) => localStorage.setItem(k, v));
-  } catch (err) { return backupMsg('Your browser would not let the site save. If this is a private window, try a regular one.'); }
-  location.reload();
+let askedAboutConflict = false;
+onCloudChange((c) => {
+  $('#backup-btn')?.setAttribute('data-state', c.status);
+  if ($('#backup').open) renderCloud();
+  if (c.status === 'conflict' && !askedAboutConflict && !document.querySelector('dialog[open]')) { askedAboutConflict = true; openSave(); } // ask once, right away
 });
+$('#backup-btn')?.setAttribute('data-state', cloud.status);
+// Everything a player owns, written into the save just before it goes to the cloud (the leaderboard uses it).
+beforeSave(() => lsSet('hf-net', netWorth()));
+
 $('#abtn').addEventListener('pointerdown', () => HF().konami?.('a'));
 const bbtn = $('#bbtn');
 if (bbtn) {
@@ -545,20 +587,20 @@ function netWorth() {
   const m = market();
   return wallet.coins + Math.floor(bank.bal) + bonds.reduce((t, b) => t + b.amt, 0) + COMPANIES.reduce((t, c) => t + sharesOf(c.id) * tradePrice(m.companies[c.id].at(-1).price), 0) + farmValue() + shipsValue();
 }
-const sendScores = (force = false) => lbSubmit({ net: netWorth(), bjTotal: lsGet('hf-records', {}).bjProfit || 0 }, force);
 const boardView = { board: 'net', period: 'month' };
 async function openBoard() {
   openModal('#board'); renderBoard(null);
-  await sendScores(true); renderBoard();
+  if (signedIn()) { await syncNow(); await refreshInitials(); } // post the latest scores before showing the board
+  renderBoard();
 }
 async function renderBoard(rows) {
-  const body = $('#board-body'), me = lbPlayer(), { board, period } = boardView;
+  const body = $('#board-body'), mine = signedIn() ? cloud.initials : null, old = lbPlayer(), { board, period } = boardView;
   const tab = (key, label, group) => `<button type="button" role="tab" aria-selected="${boardView[group] === key}" data-${group}="${key}">${label}</button>`;
   const what = board === 'net' ? 'Everything a player owns: purse, bank, bonds, shares, farm, and ships.' : 'Blackjack winnings minus losses.';
   let list = '<p class="lb-empty">Loading the board…</p>';
   if (rows !== null) {
     try {
-      const top = await lbTop(board, period);
+      const top = await lbTop(board, period, mine);
       list = top.length ? `<ol class="lb-list">${top.map((r, i) => `<li class="${r.me ? 'lb-me' : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-name">${r.initials}${r.me ? ' (you)' : ''}</span><span class="lb-val">${board === 'bj' ? signed(r.value) : r.value.toLocaleString()}</span></li>`).join('')}</ol>`
         : `<p class="lb-empty">Nobody is on this board yet${period === 'month' ? ' this month' : ''}. It could be you.</p>`;
     } catch (e) { list = '<p class="lb-empty">The leaderboard could not be reached right now. Try again in a bit.</p>'; }
@@ -568,32 +610,35 @@ async function renderBoard(rows) {
     <div class="lb-period" role="tablist" aria-label="Time">${tab('month', 'This month', 'period')}${tab('all', 'All time', 'period')}</div>
     <p class="lb-what">${what}</p>
     ${list}
-    ${me?.initials ? `<p class="lb-you">You are on the board as <b>${me.initials}</b>. Your scores update whenever you play. <button type="button" class="lb-link" data-lb="edit">Change initials or email</button> · <button type="button" class="lb-link" data-lb="leave">Leave the leaderboard</button></p>` : ''}
-    <form class="lb-join" novalidate${me?.initials ? ' hidden' : ''}>
-      <h3>${me?.initials ? 'Change your details' : 'Put your initials on the board'}</h3>
-      <label>Initials (three letters or numbers) <input name="initials" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC" value="${me?.initials || ''}"></label>
-      <label>Email <input name="email" type="email" autocomplete="email" placeholder="you@example.com" value="${me?.email || ''}"></label>
-      <p class="lb-privacy">Only the site manager can see your email. It is not public anywhere.</p>
-      <button type="submit" class="btn btn-primary btn-sm">${me?.initials ? 'Save' : 'Join the leaderboard'}</button>
+    ${!signedIn() ? `<div class="lb-join"><h3>Put your initials on the board</h3>
+      <p class="lb-privacy">${old?.initials ? `You joined as <b>${escHtml(old.initials)}</b> before sign-ins. Sign in to keep your spot and your scores.` : 'First, sign in with a code sent to your email. Signing in also saves your game to the cloud.'}</p>
+      <button type="button" class="btn btn-primary btn-sm" data-lb="signin">Sign in</button></div>`
+    : `${mine ? `<p class="lb-you">You are on the board as <b>${mine}</b>. Your scores update as you play. <button type="button" class="lb-link" data-lb="edit">Change initials</button> · <button type="button" class="lb-link" data-lb="leave">Leave the leaderboard</button></p>` : ''}
+    <form class="lb-join" novalidate${mine ? ' hidden' : ''}>
+      <h3>${mine ? 'Change your initials' : 'Put your initials on the board'}</h3>
+      <label>Initials (three letters or numbers) <input name="initials" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC" value="${mine || ''}"></label>
+      <p class="lb-privacy">You are signed in as ${escHtml(session()?.user?.email || '')}. Only the site manager can see your email. It is not public anywhere.</p>
+      <button type="submit" class="btn btn-primary btn-sm">${mine ? 'Save' : 'Join the leaderboard'}</button>
       <span class="lb-msg" role="status"></span>
-    </form>`;
+    </form>`}`;
   body.querySelectorAll('[data-board]').forEach((b) => b.addEventListener('click', () => { boardView.board = b.dataset.board; renderBoard(); }));
   body.querySelectorAll('[data-period]').forEach((b) => b.addEventListener('click', () => { boardView.period = b.dataset.period; renderBoard(); }));
   body.querySelector('[data-lb="edit"]')?.addEventListener('click', () => { body.querySelector('.lb-join').hidden = false; body.querySelector('.lb-join input').focus(); });
   body.querySelector('[data-lb="leave"]')?.addEventListener('click', async (e) => {
     if (e.target.dataset.sure !== 'yes') { e.target.dataset.sure = 'yes'; e.target.textContent = 'Click again to leave for good'; return; }
-    try { await lbLeave(); renderBoard(); } catch (err) { e.target.textContent = 'Could not reach the board. Try again.'; }
+    try { await rpc('board_leave'); await refreshInitials(); renderBoard(); } catch (err) { e.target.textContent = 'Could not reach the board. Try again.'; }
   });
-  body.querySelector('.lb-join').addEventListener('submit', async (e) => {
+  body.querySelector('[data-lb="signin"]')?.addEventListener('click', () => { $('#board').close(); openSave(); });
+  body.querySelector('form.lb-join')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const f = e.target, msg = f.querySelector('.lb-msg'), initials = f.initials.value.trim(), email = f.email.value.trim();
-    const problem = initialsProblem(initials) || emailProblem(email);
+    const f = e.target, msg = f.querySelector('.lb-msg'), initials = f.initials.value.trim();
+    const problem = initialsProblem(initials);
     if (problem) { msg.textContent = problem; return; }
     msg.textContent = 'Saving…';
-    try { await lbJoin(initials, email); await sendScores(true); renderBoard(); } catch (err) { msg.textContent = err.message === 'taken' ? `Someone already has ${initials.toUpperCase()}. Try another set.` : 'Could not reach the board. Try again in a bit.'; }
+    try { await syncNow(); await rpc('board_join', { p_initials: initials.toUpperCase() }); await refreshInitials(); renderBoard(); }
+    catch (err) { msg.textContent = err.status === 409 ? `Someone already has ${initials.toUpperCase()}. Try another set.` : 'Could not reach the board. Try again in a bit.'; }
   });
 }
-if (leaderboardReady()) setTimeout(() => sendScores(), 3000); // keep a returning player's scores fresh
 
 /* ---------------- Trading voyages from the beach ---------------- */
 // Pay for a voyage and share the profit when the ship comes home. Every day each route gets its own sea and its own
@@ -1695,7 +1740,6 @@ function payout(results) {
   const net = back - bj.bet, pick = (lines) => lines[Math.floor(Math.random() * lines.length)];
   if (net > 0) bumpRecord('bjBest', (v = 0) => Math.max(v, net));
   bumpRecord('bjProfit', (v = 0) => v + net); // lifetime, for the leaderboard
-  sendScores();
   if (results.length > 1) {
     const verbs = { win: 'wins', push: 'pushes', lose: 'loses', bust: 'busts' };
     const summary = results.map((r, i) => `hand ${i + 1} ${verbs[r]}`).join(', ');

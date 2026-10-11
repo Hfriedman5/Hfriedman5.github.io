@@ -1,9 +1,9 @@
-// The town leaderboard, stored in a small Supabase database (the only part of Little Athens that lives online).
-// Players opt in with three initials and an email. The email goes to a private table only Hannah can see; the site
-// can read initials and scores, and can only change this player's own entry (every write checks their secret).
+// The town leaderboard, stored in Supabase. Anyone can read the board (initials and scores only).
+// Joining needs a signed-in player (see cloud.js): scores come from their checked cloud save, and emails stay private.
+// Entries made before sign-ins existed belong to a browser (an id and a secret, kept under hf-player) until claimed.
 // The key below is Supabase's public key: it is meant to be in the page, and only allows those things.
-const SUPABASE_URL = 'https://fgkauzfgmzslmjsqmfrb.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_wunmv_DaSNBD4rQhZjZ3UQ_7sEW0cUN';
+export const SUPABASE_URL = 'https://fgkauzfgmzslmjsqmfrb.supabase.co';
+export const SUPABASE_KEY = 'sb_publishable_wunmv_DaSNBD4rQhZjZ3UQ_7sEW0cUN';
 export const leaderboardReady = () => !!(SUPABASE_URL && SUPABASE_KEY);
 
 const headers = () => ({ apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' });
@@ -57,10 +57,11 @@ export async function submit({ net, bjTotal }, force = false) {
 }
 
 // The top ten for one board: 'net' (richest) or 'bj' (blackjack profit), for this month or all time.
-export async function top(board, period) {
+// `mine` is the signed-in player's initials, so their row can be marked.
+export async function top(board, period, mine = null) {
   const col = board === 'net' ? 'net_worth' : 'bj_profit';
   const month = period === 'all' ? 'all' : thisMonth();
   const r = await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=player_id,initials,${col}&month=eq.${month}&order=${col}.desc&limit=10`, { headers: headers() });
   if (!r.ok) throw new Error(`leaderboard ${r.status}`);
-  return (await r.json()).map((row) => ({ me: row.player_id === player()?.id, initials: row.initials, value: row[col] }));
+  return (await r.json()).map((row) => ({ me: mine ? row.initials === mine : row.player_id === player()?.id, initials: row.initials, value: row[col] }));
 }
