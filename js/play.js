@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011a';
-import { createRace } from './race.js?v=20261011a';
-import { createWeather, currentWeather } from './weather.js?v=20261011a';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011a';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011a';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011a';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011b';
+import { createRace } from './race.js?v=20261011b';
+import { createWeather, currentWeather } from './weather.js?v=20261011b';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011b';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011b';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011b';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -221,27 +221,27 @@ const companion = { x: null, y: null };
 // something in town, delivery jobs start with one person and end with another, and the others ask you to make the rounds.
 const NAMES = { socrates: 'Socrates', plato: 'Plato', owl: 'the owl', cat: 'the cat', merchant: 'the merchant', runner: 'the runner', captain: 'the captain', bank: 'the bank', library: 'the library', parthenon: 'the Parthenon', academy: 'the Academy', student: 'the student', keeper: 'the record keeper' };
 const REQUESTS = [
-  { id: 'sandal', pay: 500, kind: 'fetch', item: 'sandal', thing: 'sandal', to: 'socrates', post: 'Socrates has lost a sandal again. He says he does not need it. He would like it back.',
+  { id: 'sandal', pay: 1500, kind: 'fetch', item: 'sandal', thing: 'sandal', to: 'socrates', post: 'Socrates has lost a sandal again. He says he does not need it. He would like it back.',
     found: 'You found a sandal. Leather, well worn, and it smells faintly of philosophy.', thanks: ['"My sandal! I did not need it, of course. The unexamined foot is not worth shoeing."'] },
-  { id: 'purse', pay: 450, kind: 'fetch', item: 'purse', thing: 'coin purse', to: 'bank', post: 'The banker dropped his coin purse on the way to work. Please return it to the bank.',
+  { id: 'purse', pay: 1350, kind: 'fetch', item: 'purse', thing: 'coin purse', to: 'bank', post: 'The banker dropped his coin purse on the way to work. Please return it to the bank.',
     found: 'A heavy little coin purse, tied with gold string.', thanks: ['The banker counts every coin twice.', '"All here. Honesty is rarer than silver."'] },
-  { id: 'compass', pay: 400, kind: 'fetch', item: 'compass', thing: 'compass', to: 'captain', post: 'The ship captain lost a compass and would like to stop sailing in circles.',
+  { id: 'compass', pay: 1200, kind: 'fetch', item: 'compass', thing: 'compass', to: 'captain', post: 'The ship captain lost a compass and would like to stop sailing in circles.',
     found: 'A brass compass. The needle still points north, which is reassuring.', thanks: ['"My compass! Now I know which way Egypt is again."'] },
-  { id: 'yarn', pay: 350, kind: 'fetch', item: 'yarn', thing: 'ball of yarn', to: 'cat', post: "The cat's ball of yarn rolled away. The cat is pretending not to care.",
+  { id: 'yarn', pay: 1050, kind: 'fetch', item: 'yarn', thing: 'ball of yarn', to: 'cat', post: "The cat's ball of yarn rolled away. The cat is pretending not to care.",
     found: 'A ball of red yarn, slightly chewed.', thanks: ['The cat bats the yarn once, then ignores it completely. It is clearly delighted.'] },
-  { id: 'feather', pay: 350, kind: 'fetch', item: 'feather', thing: 'feather', to: 'owl', post: "Athena's owl dropped a feather and wants it back for its nest.",
+  { id: 'feather', pay: 1050, kind: 'fetch', item: 'feather', thing: 'feather', to: 'owl', post: "Athena's owl dropped a feather and wants it back for its nest.",
     found: 'A soft gray owl feather. It looks wise, somehow.', thanks: ['"Hoo. Thank you. Wisdom is mostly remembering where you left things."'] },
-  { id: 'stylus', pay: 350, kind: 'fetch', item: 'stylus', thing: 'stylus', to: 'student', post: 'A tired student by the library lost his stylus, and his problem set is due in 3 hours.',
+  { id: 'stylus', pay: 1050, kind: 'fetch', item: 'stylus', thing: 'stylus', to: 'student', post: 'A tired student by the library lost his stylus, and his problem set is due in 3 hours.',
     found: 'A bronze stylus, a little chewed at the end. Someone has been thinking hard.', thanks: ['"My stylus! Now I can finish problem 4. Then problem 5. Then, maybe, sleep."'] },
-  { id: 'scroll', pay: 400, kind: 'deliver', from: 'plato', to: 'library', thing: 'scroll', post: "Plato's library scroll is overdue. Pick it up from Plato and return it to the library.",
+  { id: 'scroll', pay: 1200, kind: 'deliver', from: 'plato', to: 'library', thing: 'scroll', post: "Plato's library scroll is overdue. Pick it up from Plato and return it to the library.",
     got: ['"Ah, yes. The Odyssey. I meant to finish it. Would you take it back for me?"', 'You take the scroll.'], thanks: ['You slide the scroll back onto its shelf. The librarian waives the late fee, this once.'] },
-  { id: 'letter', pay: 300, kind: 'deliver', from: 'merchant', to: 'socrates', thing: 'letter', post: 'The merchant has a letter for Socrates. Please carry it across town.',
+  { id: 'letter', pay: 900, kind: 'deliver', from: 'merchant', to: 'socrates', thing: 'letter', post: 'The merchant has a letter for Socrates. Please carry it across town.',
     got: ['"A letter for Socrates. He never answers them, but deliver it anyway."', 'You take the letter.'], thanks: ['Socrates reads it. "It is a question. Wonderful. I will answer it with another question."'] },
-  { id: 'olives', pay: 350, kind: 'olives', to: 'merchant', thing: 'basket of olives', post: 'The merchant needs a basket of fresh olives. Pick some from any olive tree and bring them over.',
+  { id: 'olives', pay: 1050, kind: 'olives', to: 'merchant', thing: 'basket of olives', post: 'The merchant needs a basket of fresh olives. Pick some from any olive tree and bring them over.',
     thanks: ['"Beautiful olives. These will sell before lunch."'] },
-  { id: 'news', pay: 400, kind: 'visit', stops: ['runner', 'merchant', 'owl'], post: 'Town crier wanted: tell the runner, the merchant, and the owl that the games start tomorrow.',
+  { id: 'news', pay: 1200, kind: 'visit', stops: ['runner', 'merchant', 'owl'], post: 'Town crier wanted: tell the runner, the merchant, and the owl that the games start tomorrow.',
     stop: (who) => `You tell ${NAMES[who]} that the games start tomorrow.`, thanks: ['Everyone has heard the news. The whole town is talking about the games.'] },
-  { id: 'tour', pay: 400, kind: 'visit', stops: ['parthenon', 'academy', 'library'], post: 'A visitor from Sparta wants a tour. Show them the Parthenon, the Academy, and the library.',
+  { id: 'tour', pay: 1200, kind: 'visit', stops: ['parthenon', 'academy', 'library'], post: 'A visitor from Sparta wants a tour. Show them the Parthenon, the Academy, and the library.',
     stop: (who) => `You show the Spartan visitor ${NAMES[who]}. They are trying very hard not to look impressed.`, thanks: ['The tour is over. The Spartan admits, quietly, that Athens is nice.'] },
 ];
 const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
@@ -279,8 +279,8 @@ const bumpRecord = (key, fn) => { const r = lsGet('hf-records', {}); r[key] = fn
 async function finishRequest(r) {
   request.done = true; request.carrying = false; saveRequest();
   bumpRecord('requests', (n = 0) => n + 1);
-  const n = earn(r.pay);
-  await say([...r.thanks, `Request complete. You earned ${n} coins. A new request goes up on the board tomorrow.`]);
+  const n = earn(r.pay, '', Infinity); // the day's one big job, so it may pay more than a single game does
+  await say([...r.thanks, `Request complete. You earned ${n.toLocaleString()} coins. A new request goes up on the board tomorrow.`]);
 }
 // Called before anyone's usual conversation. Returns true when the request board's job took over the moment.
 async function requestTalk(who) {
@@ -305,7 +305,7 @@ async function readBoard() {
   if (r.kind === 'deliver') status = request.carrying ? `You have the ${r.thing}. Bring it to ${NAMES[r.to]}.` : `Start with ${NAMES[r.from]}.`;
   if (r.kind === 'olives') status = request.carrying ? `You have the olives. Bring them to ${NAMES[r.to]}.` : 'Any olive tree will do.';
   if (r.kind === 'visit') status = `So far: ${request.seen.length} of ${r.stops.length}.`;
-  await say(['Town request board. One request a day.', r.post, `${status} Reward: ${r.pay} coins.`]);
+  await say(['Town request board. One request a day.', r.post, `${status} Reward: ${r.pay.toLocaleString()} coins.`]);
 }
 
 /* ---------------- The bank: coins left here grow 0.5% a day ---------------- */
@@ -657,7 +657,7 @@ const INTERACT = {
     if (await requestTalk('socrates')) return;
     if (todaysRequest().id === 'sandal' && !request.done) {
       request.taken = true; saveRequest();
-      return say(['Socrates here. I seem to have lost a sandal.', 'I tell everyone I do not need it. I would like it back.', spotHint(), `Bring it to me and I will pay you ${todaysRequest().pay} coins.`]);
+      return say(['Socrates here. I seem to have lost a sandal.', 'I tell everyone I do not need it. I would like it back.', spotHint(), `Bring it to me and I will pay you ${todaysRequest().pay.toLocaleString()} coins.`]);
     }
     await say(['Socrates here. I have both sandals today, for once.', 'I know that I know nothing. I do know the request board by the main road has work, if you want coins.']);
   },
@@ -751,7 +751,7 @@ const INTERACT = {
     if (await requestTalk('student')) return;
     if (todaysRequest().id === 'stylus' && !request.done) {
       request.taken = true; saveRequest();
-      return say(['A student sits in the grass, surrounded by wax tablets.', '"I\'ve been studying in the library all night and my problem set is due at the Academy in 3 hours. And now I have lost my stylus. I cannot write without it."', spotHint(), `"If you find it, I will give you ${todaysRequest().pay} coins. It is all I have. Please."`]);
+      return say(['A student sits in the grass, surrounded by wax tablets.', '"I\'ve been studying in the library all night and my problem set is due at the Academy in 3 hours. And now I have lost my stylus. I cannot write without it."', spotHint(), `"If you find it, I will give you ${todaysRequest().pay.toLocaleString()} coins. It is all I have. Please."`]);
     }
     const extra = [
       '"Three problems left. Then sleep. Then the next problem set."',
