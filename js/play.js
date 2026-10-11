@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zr';
-import { createRace } from './race.js?v=20261010zr';
-import { createWeather, currentWeather } from './weather.js?v=20261010zr';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zr';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zr';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zr';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zt';
+import { createRace } from './race.js?v=20261010zt';
+import { createWeather, currentWeather } from './weather.js?v=20261010zt';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zt';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zt';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zt';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1184,7 +1184,7 @@ const WATER_HOURS = 12, SEED_MAX = 99, BATCH_MAX = 10;
 const savedFarm = lsGet('hf-farm', null);
 const farm = { owned: [], plots: {}, seeds: {}, basket: {}, works: {}, ...savedFarm, v: 2 }; // works: the workshop stations you have built
 const saveFarm = () => lsSet('hf-farm', farm);
-const plotPriceAt = (n) => Math.round((100 * 1.6 ** n) / 50) * 50; // 100, 150, 250, 400, 650, 1,050, 1,700, 2,700, 4,300
+const plotPriceAt = (n) => 100 * 2 ** n; // each plot costs double the last: 100, 200, 400, ... 25,600, so all nine cost 51,100
 const plotPrice = () => plotPriceAt(farm.owned.length);
 if (savedFarm && savedFarm.v !== 2) { // the first farm had 12 small plots; keep what people bought on the 9 bigger ones, and refund any extra
   const was = farm.owned, plots = {};
@@ -1194,8 +1194,10 @@ if (savedFarm && savedFarm.v !== 2) { // the first farm had 12 small plots; keep
   Object.assign(farm, { owned: was.slice(0, PLOTS.length).map((_, i) => i), plots });
   saveFarm();
 }
+// What the plots actually cost. Prices went up on 2026-10-10; plots bought before then count at the old prices.
+if (farm.plotsPaid == null) { farm.plotsPaid = farm.owned.reduce((t, _, n) => t + Math.round((100 * 1.6 ** n) / 50) * 50, 0); saveFarm(); }
 // What the farm is worth on the leaderboard: plots and workshop at what they cost, seeds at cost, and goods at today's price.
-const farmValue = () => farm.owned.reduce((t, _, n) => t + plotPriceAt(n), 0)
+const farmValue = () => farm.plotsPaid
   + CROPS.reduce((t, c) => t + (farm.seeds[c.id] || 0) * c.cost, 0)
   + STATIONS.reduce((t, s) => t + (farm.works[s.id] ? s.cost + (farm.works[s.id].n || 0) * cropPrice(produceById(s.makes)).price : 0), 0)
   + Object.entries(farm.basket).reduce((t, [id, n]) => t + (produceById(id) ? n * cropPrice(produceById(id)).price : 0), 0);
@@ -1255,7 +1257,7 @@ async function plotTalk(i) {
       [{ label: `Buy it for ${price.toLocaleString()}`, value: 'buy' }, { label: 'Not now', value: null }]);
     if (v !== 'buy') return;
     if (wallet.coins < price) return say(`This plot costs ${price.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
-    wallet.coins = wallet.coins - price; farm.owned.push(i); saveFarm();
+    wallet.coins = wallet.coins - price; farm.owned.push(i); farm.plotsPaid += price; saveFarm();
     return plantTalk(i, ['The plot is yours. You pull up the weeds and turn the soil.']);
   }
   const pl = farm.plots[i];
@@ -1337,7 +1339,7 @@ async function farmerTalk() {
     return say(['Buy a plot, then plant seeds in it. Crops keep growing while you are away, even with the tab closed.',
       `Watered crops grow twice as fast as dry ones, and one watering lasts ${WATER_HOURS} hours. Nothing ever dies. The well waters all your crops at once.`,
       `${CROPS.map((c) => `${c.name}: ${hoursText(c.hours)} watered, ${hoursText(c.hours * 2)} dry`).join('\n')}\nThe slower the crop, the more it sells for.`,
-      'The workshop is the building south of the road. Its oven turns wheat into bread, and its presses turn grapes into wine and olives into olive oil. Those sell for about 40% more than the crops.',
+      'The workshop is the building south of the road. Its oven turns wheat into bread, and its presses turn grapes into wine and olives into olive oil. Those sell for about twice as much as the crops.',
       'My prices change every day. Grapes and wine sell high in the two weeks before the Great Dionysia in March, and olives during the olive harvest, October to December.']);
   }
   if (v === 'sell') return sellTalk();
@@ -1367,12 +1369,12 @@ async function sellTalk() {
   return say(`You sell ${listOf(sold.map((x) => cropCount(x.c, x.n)))} for ${n.toLocaleString()} coins.`);
 }
 
-/* ---------------- The workshop: one building, one panel. Each bench turns a crop into goods worth about 40% more ---------------- */
+/* ---------------- The workshop: one building, one panel. Each bench turns a crop into goods worth about twice as much ---------------- */
 const benchStart = (s, w) => w.start || w.done - s.hours * 3600e3;
 function renderWorkshop(note = '', tone = '') {
   const now = Date.now();
   $('#ws-body').innerHTML = `
-    <p class="ex-intro">Turn crops from your basket into goods that sell for about 40% more. Each bench works on one batch at a time, up to ${BATCH_MAX} at once, and keeps working while you are away. Collect what is ready, then sell it to Demetrios at the farm stall.</p>
+    <p class="ex-intro">Turn crops from your basket into goods that sell for about twice as much. Each bench works on one batch at a time, up to ${BATCH_MAX} at once, and keeps working while you are away. Collect what is ready, then sell it to Demetrios at the farm stall.</p>
     <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>${basketLine()}</span></p>
     ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
     <div class="ex-list">${STATIONS.map((s) => {

@@ -177,11 +177,11 @@ export const CROPS = [
   { id: 'grapes', name: 'Grapes', seedName: 'Grape vines', one: 'basket of grapes', many: 'baskets of grapes', cost: 60, hours: 24, price: 200 },
   { id: 'olives', name: 'Olives', seedName: 'Olive saplings', one: 'basket of olives', many: 'baskets of olives', cost: 100, hours: 72, price: 400 },
 ];
-// What the workshop makes from them. Each sells for about 40% more than the crop it came from.
+// What the workshop makes from them. Each sells for about twice what the crop it came from does.
 export const GOODS = [
-  { id: 'bread', name: 'Bread', one: 'loaf of bread', many: 'loaves of bread', price: 130 },
-  { id: 'wine', name: 'Wine', one: 'amphora of wine', many: 'amphorae of wine', price: 290 },
-  { id: 'oil', name: 'Olive oil', one: 'amphora of olive oil', many: 'amphorae of olive oil', price: 560 },
+  { id: 'bread', name: 'Bread', one: 'loaf of bread', many: 'loaves of bread', price: 180 },
+  { id: 'wine', name: 'Wine', one: 'amphora of wine', many: 'amphorae of wine', price: 400 },
+  { id: 'oil', name: 'Olive oil', one: 'amphora of olive oil', many: 'amphorae of olive oil', price: 800 },
 ];
 export const STATIONS = [
   { id: 'oven', name: 'Bread oven', cost: 400, from: 'wheat', makes: 'bread', hours: 1, verb: 'bake', doing: 'Baking', what: 'Each sheaf of wheat bakes into a loaf of bread.' },
