@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011b';
-import { createRace } from './race.js?v=20261011b';
-import { createWeather, currentWeather } from './weather.js?v=20261011b';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011b';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011b';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011b';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011c';
+import { createRace } from './race.js?v=20261011c';
+import { createWeather, currentWeather } from './weather.js?v=20261011c';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011c';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011c';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011c';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -856,7 +856,7 @@ function doorAt(x, y) { return BUILDINGS.find((b) => (b.door[0] === x && b.door[
 const harbor = { boat: !!lsGet('hf-boat', false) };
 const DOCK = { x: 19, y: 22 };                  // the water tile the boat is moored on, alongside the dock
 const SAIL_Y = DOCK.y * TILE + 12;              // waterline the boat rides on
-const SAIL_PATH = [DOCK.x * TILE + 8, 2 * TILE, (W - 2) * TILE, DOCK.x * TILE + 8]; // x waypoints: west, then east, then home
+const SAIL_PATH = [DOCK.x * TILE + 8, (W - 2) * TILE, DOCK.x * TILE + 8]; // x waypoints: east past the farm, then home (the dock blocks the way west)
 let sail = null;
 function sailPos(now) {
   const speed = 70, legs = [];
@@ -871,7 +871,8 @@ function sailPos(now) {
 const SAIL_LINES = [
   [0, 'The Agora cat appears out of nowhere and hops aboard. Nobody invited it.'],
   [.18, 'The cat sits on the map. You will be navigating from memory.'],
-  [.36, 'From out here, the Parthenon looks tiny.'],
+  [.32, 'You sail past the farm. Demetrios waves a radish at you.'],
+  [.48, 'From out here, the Parthenon looks tiny.'],
   [.62, 'The cat tries to steer. You let it, briefly. That was a mistake.'],
   [.95, 'Back at the beach. The cat leaves without saying thank you.'],
 ];
@@ -1178,9 +1179,9 @@ const saveScholars = () => lsSet('hf-scholars', scholars);
 const helping = (id, now = Date.now()) => (scholars[id]?.until || 0) > now;
 
 /* ---------------- The farm: plots, seeds, watering, and Demetrios's stall ---------------- */
-// Crops grow in real time, even with the tab closed. A watered crop grows twice as fast as a dry one, and watering lasts 12 hours,
+// Crops grow in real time, even with the tab closed. A watered crop grows twice as fast as a dry one, and watering lasts 24 hours,
 // so nothing is ever lost by forgetting. Rain from the Machine Room waters everything; snow makes everything take twice as long.
-const WATER_HOURS = 12, SEED_MAX = 99, BATCH_MAX = 10;
+const WATER_HOURS = 24, SEED_MAX = 99, BATCH_MAX = 10;
 const savedFarm = lsGet('hf-farm', null);
 const farm = { owned: [], plots: {}, seeds: {}, basket: {}, works: {}, ...savedFarm, v: 2 }; // works: the workshop stations you have built
 const saveFarm = () => lsSet('hf-farm', farm);
@@ -1230,6 +1231,11 @@ function msLeft(pl, now = Date.now()) {
 const settlePlots = (now = Date.now()) => { Object.values(farm.plots).forEach((pl) => { pl.grown = grownAt(pl, now); pl.at = now; }); saveFarm(); };
 function waterPlot(pl, now = Date.now()) { pl.grown = grownAt(pl, now); pl.at = now; pl.wetUntil = now + WATER_HOURS * 3600e3; }
 const ifWatered = (pl) => { const copy = { ...pl }; waterPlot(copy); return msLeft(copy); }; // time left if watered right now
+// Time left if it is watered again every time the soil dries, all the way to harvest (only olives outlast one watering).
+const ifKeptWatered = (pl, now = Date.now()) => msLeft({ ...pl, grown: grownAt(pl, now), at: now, wetUntil: Infinity }, now);
+const keepsGoing = (pl, shown) => weatherKind !== 'rain' && shown - ifKeptWatered(pl) > 30 * 60e3; // would watering again make a real difference?
+const keepNote = (pl, shown) => (keepsGoing(pl, shown) ? ` Water it again when the soil dries and it will be ready in about ${about(ifKeptWatered(pl))}.` : '');
+const nowOrLater = (pl, w) => `Water it now: ready in about ${about(w)}.${keepsGoing(pl, w) ? `\nKeep it watered: about ${about(ifKeptWatered(pl))}.` : ''}\nLeave it dry: about ${about(msLeft(pl))}.`;
 const needsWater = (pl, now = Date.now()) => grownAt(pl, now) < 1 && !isWet(pl, now);
 function plotKey(i) {
   if (!farm.owned.includes(i)) return 'wild';
@@ -1271,11 +1277,11 @@ async function plotTalk(i) {
   const head = `Your ${lower(crop)}: ${Math.floor(grownAt(pl) * 100)}% grown.`;
   const snow = [...(weatherKind === 'snow' ? ['Snow from the Machine Room is slowing everything down: crops take twice as long.'] : []), ...(helping('theophrastus') ? [`Theophrastus is helping: crops grow twice as fast for another ${about(scholars.theophrastus.until - Date.now())}.`] : [])];
   if (weatherKind === 'rain') return say([`${head} Ready in about ${about(msLeft(pl))}.`, 'The rain from the Machine Room is watering it for you.']);
-  if (isWet(pl)) return say([`${head} Ready in about ${about(msLeft(pl))}.`, ...snow, `It is watered. The soil stays damp for another ${about(pl.wetUntil - Date.now())}.`]);
-  const v = await say([`${head} The soil is dry.`, ...snow, `Water it now: ready in about ${about(ifWatered(pl))}.\nLeave it dry: about ${about(msLeft(pl))}.`], [{ label: 'Water it', value: 'water' }, { label: 'Leave it', value: null }]);
+  if (isWet(pl)) return say([`${head} Ready in about ${about(msLeft(pl))}.${keepNote(pl, msLeft(pl))}`, ...snow, `It is watered. The soil stays damp for another ${about(pl.wetUntil - Date.now())}.`]);
+  const v = await say([`${head} The soil is dry.`, ...snow, nowOrLater(pl, ifWatered(pl))], [{ label: 'Water it', value: 'water' }, { label: 'Leave it', value: null }]);
   if (v !== 'water') return;
   waterPlot(pl); saveFarm();
-  return say(`You water the ${lower(crop)}. Ready in about ${about(msLeft(pl))}.`);
+  return say(`You water the ${lower(crop)}. Ready in about ${about(msLeft(pl))}.${keepNote(pl, msLeft(pl))}`);
 }
 async function plantTalk(i, intro) {
   const have = CROPS.filter((c) => farm.seeds[c.id] > 0);
@@ -1287,10 +1293,10 @@ async function plantTalk(i, intro) {
   const pl = farm.plots[i] = { crop: crop.id, grown: 0, at: Date.now(), wetUntil: 0 };
   saveFarm();
   if (weatherKind === 'rain') return say(`You plant the ${crop.seedName.toLowerCase()}. The rain waters them for you. Ready in about ${about(msLeft(pl))}.`);
-  const v = await say([`You plant the ${crop.seedName.toLowerCase()}.`, `Water them now: ready in about ${about(ifWatered(pl))}.\nLeave them dry: about ${about(msLeft(pl))}.`], [{ label: 'Water them', value: 'water' }, { label: 'Not now', value: null }]);
+  const v = await say([`You plant the ${crop.seedName.toLowerCase()}.`, nowOrLater(pl, ifWatered(pl)).replace('Water it now', 'Water them now').replace('Keep it watered', 'Keep them watered').replace('Leave it dry', 'Leave them dry')], [{ label: 'Water them', value: 'water' }, { label: 'Not now', value: null }]);
   if (v !== 'water') return;
   waterPlot(pl); saveFarm();
-  return say(`Watered. Ready in about ${about(msLeft(pl))}.`);
+  return say(`Watered. Ready in about ${about(msLeft(pl))}.${keepNote(pl, msLeft(pl)).replace(' it ', ' them ').replace('and it will', 'and they will')}`);
 }
 async function wellTalk() {
   if (weatherKind === 'rain') return say('The well. No need for it today: the rain from the Machine Room is watering every field in Athens.');
@@ -1309,7 +1315,8 @@ function farmLedger(sign) {
   const now = Date.now();
   const rows = farm.owned.filter((i) => farm.plots[i]).map((i) => {
     const pl = farm.plots[i], c = cropById(pl.crop);
-    return grownAt(pl, now) >= 1 ? `${c.name}: ready to harvest` : isWet(pl, now) ? `${c.name}: ready in ${about(msLeft(pl, now))}, watered` : `${c.name}: dry, ready in ${about(msLeft(pl, now))} (${about(ifWatered(pl))} if watered)`;
+    const left = msLeft(pl, now), kept = keepsGoing(pl, left) ? ` (${about(ifKeptWatered(pl))} if you keep watering)` : '';
+    return grownAt(pl, now) >= 1 ? `${c.name}: ready to harvest` : isWet(pl, now) ? `${c.name}: watered, ready in ${about(left)}${kept}` : `${c.name}: dry, ready in ${about(left)} (${about(ifWatered(pl))} if watered)`;
   });
   const empty = farm.owned.length - rows.length;
   if (empty) rows.push(plural(empty, 'empty plot'));
