@@ -1,11 +1,11 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011k';
-import { createRace } from './race.js?v=20261011k';
-import { createWeather, currentWeather } from './weather.js?v=20261011k';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011k';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011k';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011k';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011k';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011m';
+import { createRace } from './race.js?v=20261011m';
+import { createWeather, currentWeather } from './weather.js?v=20261011m';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011m';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011m';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011m';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011m';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -662,7 +662,7 @@ const saveVoyages = (list) => lsSet('hf-voyages', list);
 // On the leaderboard: the second ship at what it cost, plus coins out on voyages.
 const shipsValue = () => (shipCount() === 2 ? SHIP_PRICE : 0) + voyages().reduce((t, v) => t + v.stake, 0);
 const sinkRisk = (risk) => (risk ? `${Math.round(risk * 100)}% sink risk` : 'no risk');
-// History, science, simple math, and a little Greece. Answers are shown in a fixed order; the right one moves around.
+// History, science, math, economics, and plenty of Greece. Answers are shown in a fixed order; the right one moves around.
 const PLATO_QUIZ = [
   { q: 'Who was my teacher?', a: ['Socrates', 'Aristotle', 'Pythagoras'], right: 0 },
   { q: 'Which school did I found here in Athens?', a: ['The Lyceum', 'The Academy', 'The Stoa'], right: 1 },
@@ -675,35 +675,75 @@ const PLATO_QUIZ = [
   { q: 'Who is traditionally credited with the Iliad and the Odyssey?', a: ['Homer', 'Sophocles', 'Herodotus'], right: 0 },
   { q: 'Who is often called the father of history?', a: ['Thucydides', 'Herodotus', 'Plutarch'], right: 1 },
   { q: 'Which of the Seven Wonders of the Ancient World still stands?', a: ['The Colossus of Rhodes', 'The Lighthouse of Alexandria', 'The Great Pyramid of Giza'], right: 2 },
-  { q: 'Which language did the ancient Romans speak?', a: ['Latin', 'Greek', 'Etruscan'], right: 0 },
   { q: 'In which country was the Magna Carta sealed, in 1215?', a: ['France', 'England', 'Spain'], right: 1 },
   { q: 'Which civilization built Machu Picchu?', a: ['The Aztecs', 'The Maya', 'The Inca'], right: 2 },
   { q: 'In what year did Columbus first reach the Americas?', a: ['1492', '1607', '1776'], right: 0 },
-  { q: 'Who was the first President of the United States?', a: ['Thomas Jefferson', 'George Washington', 'John Adams'], right: 1 },
   { q: 'In what year did the Berlin Wall fall?', a: ['1961', '1989', '1991'], right: 1 },
   { q: 'Democritus said everything is made of tiny pieces that cannot be cut. What do we call them now?', a: ['Cells', 'Atoms', 'Quarks'], right: 1 },
   { q: 'What gas do plants take in from the air to make their food?', a: ['Oxygen', 'Nitrogen', 'Carbon dioxide'], right: 2 },
   { q: 'What is the chemical symbol for gold?', a: ['Au', 'Ag', 'Gd'], right: 0 },
-  { q: 'Which planet is closest to the Sun?', a: ['Venus', 'Mercury', 'Mars'], right: 1 },
   { q: 'How many bones are in an adult human body?', a: ['106', '306', '206'], right: 2 },
   { q: 'What force keeps the planets in orbit around the Sun?', a: ['Gravity', 'Magnetism', 'Friction'], right: 0 },
-  { q: 'At sea level, at what temperature does water boil?', a: ['90 \u00b0C', '100 \u00b0C', '120 \u00b0C'], right: 1 },
   { q: 'Who came up with the theory of general relativity?', a: ['Isaac Newton', 'Niels Bohr', 'Albert Einstein'], right: 2 },
   { q: 'What is the hardest natural substance?', a: ['Diamond', 'Quartz', 'Iron'], right: 0 },
   { q: 'Which part of a cell is known as its powerhouse?', a: ['The nucleus', 'The mitochondria', 'The cell wall'], right: 1 },
   { q: 'What do we call a number that cannot be written as a fraction?', a: ['Rational', 'Irrational', 'Imaginary'], right: 1 },
-  { q: 'How many faces does a cube have?', a: ['Four', 'Eight', 'Six'], right: 2 },
-  { q: 'What is the square root of 144?', a: ['12', '14', '72'], right: 0 },
-  { q: 'What is 7 times 8?', a: ['54', '56', '64'], right: 1 },
   { q: 'What is 15% of 200?', a: ['15', '45', '30'], right: 2 },
-  { q: 'The three angles of a triangle always add up to how many degrees?', a: ['180', '90', '360'], right: 0 },
   { q: 'What is the next prime number after 7?', a: ['9', '11', '13'], right: 1 },
   { q: 'What is 2 to the 10th power?', a: ['512', '2,048', '1,024'], right: 2 },
-  { q: 'What is pi, rounded to two decimal places?', a: ['3.14', '3.16', '3.41'], right: 0 },
-  { q: 'How many sides does a hexagon have?', a: ['Five', 'Six', 'Eight'], right: 1 },
   { q: 'A right triangle has legs of 3 and 4. How long is the third side?', a: ['5', '6', '7'], right: 0 },
-  { q: 'What is one half plus one quarter?', a: ['Two sixths', 'One eighth', 'Three quarters'], right: 2 },
-  { q: 'What do you get when you divide a number (other than zero) by itself?', a: ['Zero', 'One', 'The same number'], right: 1 },
+  { q: 'In my Republic, who should rule the ideal city?', a: ['Philosopher-kings', 'Generals', 'The richest citizens'], right: 0 },
+  { q: 'In my Allegory of the Cave, what do the prisoners mistake for reality?', a: ['Their own reflections', 'Shadows on a wall', 'Echoes in the dark'], right: 1 },
+  { q: 'Socrates was sentenced to death by drinking what?', a: ['Seawater', 'Spoiled wine', 'Hemlock'], right: 2 },
+  { q: 'Which Greek mathematician wrote the Elements, the most famous geometry book ever?', a: ['Euclid', 'Archimedes', 'Pythagoras'], right: 0 },
+  { q: 'Who is said to have shouted “Eureka!” in his bath?', a: ['Thales', 'Archimedes', 'Euclid'], right: 1 },
+  { q: 'Around 240 BC, Eratosthenes estimated the size of what?', a: ['The Moon', 'The Sun', 'The Earth'], right: 2 },
+  { q: 'Which Athenian leader gave his name to Athens’s golden age in the 400s BC?', a: ['Pericles', 'Solon', 'Draco'], right: 0 },
+  { q: 'Whose reforms around 508 BC earned him the title father of Athenian democracy?', a: ['Pericles', 'Cleisthenes', 'Draco'], right: 1 },
+  { q: 'Where did 300 Spartans make their famous stand against Persia in 480 BC?', a: ['Marathon', 'Salamis', 'Thermopylae'], right: 2 },
+  { q: 'Athens beat the Persian navy at which sea battle in 480 BC?', a: ['Salamis', 'Actium', 'Lepanto'], right: 0 },
+  { q: 'What was ostracism in ancient Athens?', a: ['A tax on olive oil', 'A vote to banish a citizen for ten years', 'A rank in the navy'], right: 1 },
+  { q: 'Which Greek letter usually stands for a sum in math?', a: ['Delta', 'Omega', 'Sigma'], right: 2 },
+  { q: 'Hippocrates, whose name lives on in an oath, is famous for what?', a: ['Medicine', 'Astronomy', 'Architecture'], right: 0 },
+  { q: 'Which school did my student Aristotle found?', a: ['The Stoa', 'The Lyceum', 'The Garden'], right: 1 },
+  { q: 'The Stoic philosophers took their name from what?', a: ['A Spartan king', 'A kind of olive tree', 'A painted porch in Athens'], right: 2 },
+  { q: 'The word “economics” comes from the Greek “oikonomia”. What did it first mean?', a: ['Managing a household', 'Trading by sea', 'Counting coins'], right: 0 },
+  { q: 'In Zeno’s paradox, the fast runner Achilles can never catch whom?', a: ['A hare', 'A tortoise', 'A horse'], right: 1 },
+  { q: 'The followers of Pythagoras were shocked to learn that the square root of 2 is what?', a: ['Negative', 'Prime', 'Irrational'], right: 2 },
+  { q: 'Which city hosted the first modern Olympic Games, in 1896?', a: ['Athens', 'Paris', 'London'], right: 0 },
+  { q: 'Which wonder of the ancient world stood by the harbor of a Greek island?', a: ['The Hanging Gardens of Babylon', 'The Colossus of Rhodes', 'The Temple of Artemis'], right: 1 },
+  { q: 'Which empire was ruled from Constantinople for about a thousand years?', a: ['The Ottoman Empire', 'The Holy Roman Empire', 'The Byzantine Empire'], right: 2 },
+  { q: 'Which treaty ended World War I with Germany, in 1919?', a: ['The Treaty of Versailles', 'The Treaty of Paris', 'The Treaty of Ghent'], right: 0 },
+  { q: 'Who was the first woman to win a Nobel Prize?', a: ['Ada Lovelace', 'Marie Curie', 'Rosalind Franklin'], right: 1 },
+  { q: 'Ada Lovelace wrote what many call the first computer program, for whose machine?', a: ['Alan Turing', 'John von Neumann', 'Charles Babbage'], right: 2 },
+  { q: 'Watson and Crick described DNA’s double helix in 1953 using an X-ray image made in whose lab?', a: ['Rosalind Franklin', 'Marie Curie', 'Barbara McClintock'], right: 0 },
+  { q: 'What particle did J. J. Thomson discover in 1897?', a: ['The proton', 'The electron', 'The neutron'], right: 1 },
+  { q: 'What is the most common gas in Earth’s air?', a: ['Oxygen', 'Argon', 'Nitrogen'], right: 2 },
+  { q: 'About how long does sunlight take to reach Earth?', a: ['About 8 minutes', 'About 8 seconds', 'About 8 hours'], right: 0 },
+  { q: 'Which planet has the most known moons?', a: ['Jupiter', 'Saturn', 'Neptune'], right: 1 },
+  { q: 'What is the pH of pure water at room temperature?', a: ['0', '7', '14'], right: 1 },
+  { q: 'What is the unit of electrical resistance?', a: ['The ohm', 'The volt', 'The watt'], right: 0 },
+  { q: 'In E = mc², what does the c stand for?', a: ['The pull of gravity', 'The speed of light', 'Electric charge'], right: 1 },
+  { q: 'How many chromosomes are in a typical human cell?', a: ['23', '46', '64'], right: 1 },
+  { q: 'What kind of rock forms when lava or magma cools?', a: ['Igneous', 'Sedimentary', 'Metamorphic'], right: 0 },
+  { q: 'Absolute zero is about how many degrees Celsius?', a: ['-100', '-273', '-459'], right: 1 },
+  { q: 'What is 17 times 23?', a: ['391', '401', '411'], right: 0 },
+  { q: 'What is the sum of all the whole numbers from 1 to 100?', a: ['4,950', '5,000', '5,050'], right: 2 },
+  { q: 'How many different ways can you arrange the letters of ATHENS?', a: ['120', '720', '5,040'], right: 1 },
+  { q: 'Flip a fair coin three times. What is the chance of three heads?', a: ['1 in 3', '1 in 6', '1 in 8'], right: 2 },
+  { q: 'What comes next: 1, 1, 2, 3, 5, 8, 13, ...?', a: ['21', '26', '34'], right: 0 },
+  { q: 'The inside angles of a pentagon add up to how many degrees?', a: ['540', '720', '900'], right: 0 },
+  { q: 'About what is 1/7 as a decimal?', a: ['0.125', '0.133', '0.143'], right: 2 },
+  { q: 'How many prime numbers are there between 1 and 20?', a: ['6', '7', '8'], right: 2 },
+  { q: 'A coin worth 100 grows 10% a year. What is it worth after 2 years?', a: ['110', '120', '121'], right: 2 },
+  { q: 'What is 0.5% of 25,000?', a: ['125', '1,250', '12,500'], right: 0 },
+  { q: 'The Rule of 72 estimates how long it takes money to do what?', a: ['Double', 'Triple', 'Halve'], right: 0 },
+  { q: 'What is the base-10 logarithm of 1,000?', a: ['3', '30', '300'], right: 0 },
+  { q: 'What is the binary number 1011 in ordinary numbers?', a: ['9', '10', '11'], right: 2 },
+  { q: 'Roll two dice. What is the chance their total is 7?', a: ['1 in 6', '1 in 7', '1 in 12'], right: 0 },
+  { q: 'Who wrote The Wealth of Nations in 1776?', a: ['Karl Marx', 'Adam Smith', 'John Maynard Keynes'], right: 1 },
+  { q: 'Which idea says people feel a loss more than an equal gain?', a: ['Inflation', 'Diminishing returns', 'Loss aversion'], right: 2 },
+  { q: 'What do economists call the value of the best option you give up?', a: ['Opportunity cost', 'Sunk cost', 'Marginal cost'], right: 0 },
 ];
 const quizSeen = [];
 function nextQuestion() {
