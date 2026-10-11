@@ -15,7 +15,7 @@
 <meta name="theme-color" content="#0b1424" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/pixelify.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=20261011e">
+<link rel="stylesheet" href="style.css?v=20261011g">
 <script>try { const r = document.documentElement; if (localStorage.getItem('hf-hannah-mode') === '1') r.classList.add('hannah-mode'); } catch (e) {}</script>
 </head>
 <body class="play-page">
@@ -100,6 +100,7 @@
       </div>
       <div class="place" id="place" aria-hidden="true"></div>
       <div class="hud">
+        <button type="button" class="hud-btn" id="backup-btn" aria-label="Back up your progress"><svg class="icon" aria-hidden="true"><use href="#i-file-arrow-down"/></svg><span class="hud-label">Backup</span></button>
         <button type="button" class="hud-btn" id="map-btn" aria-keyshortcuts="M"><svg class="icon" aria-hidden="true"><use href="#i-map-trifold"/></svg>Map</button>
         <div class="coins" id="coins" aria-live="polite"><span class="coin" aria-hidden="true"></span><b id="coin-count">0</b><span class="sr-only"> coins</span></div>
       </div>
@@ -265,17 +266,24 @@
       <dt>Spend</dt>
       <dd>Outfits, hats, and companions at the Agora market. There is even a trophy for owning 100,000 coins.</dd>
     </dl>
-    <p class="help-tip"><span class="keys-only">Press M</span><span class="touch-only">Tap Map</span> to jump anywhere in town. Your progress is saved in this browser.</p>
-    <section class="help-backup" aria-labelledby="backup-h">
-      <h3 id="backup-h">Back up your progress</h3>
-      <p>Your coins, farm, eggs, and everything else live only in this browser. Clearing site data erases them. Save a backup file to keep them safe, or to move your game to another browser or device. The file includes your leaderboard spot, so keep it to yourself.</p>
-      <div class="help-backup-actions">
-        <button class="btn btn-secondary btn-sm" type="button" id="backup-save">Back up my progress</button>
-        <button class="btn btn-secondary btn-sm" type="button" id="backup-load">Restore from a backup</button>
-        <input type="file" id="backup-file" accept="application/json,.json" hidden>
-      </div>
-      <div class="help-backup-msg" id="backup-msg" role="status"></div>
-    </section>
+    <p class="help-tip"><span class="keys-only">Press M</span><span class="touch-only">Tap Map</span> to jump anywhere in town. Your progress is saved in this browser; tap Backup to keep a copy.</p>
+  </div>
+</dialog>
+
+<dialog class="modal" id="backup" aria-labelledby="backup-h">
+  <div class="modal-head">
+    <h2 id="backup-h">Back up your progress</h2>
+    <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="modal-body backup-body">
+    <p>Your coins, farm, eggs, and everything else live only in this browser, so clearing site data erases them. Save a backup file to keep them safe, or to move your game to another browser or device.</p>
+    <p>The file includes your leaderboard spot, so keep it to yourself.</p>
+    <div class="backup-actions">
+      <button class="btn btn-primary btn-sm" type="button" id="backup-save">Back up my progress</button>
+      <button class="btn btn-secondary btn-sm" type="button" id="backup-load">Restore from a backup</button>
+      <input type="file" id="backup-file" accept="application/json,.json" hidden>
+    </div>
+    <div class="backup-msg" id="backup-msg" role="status"></div>
   </div>
 </dialog>
 
@@ -374,7 +382,7 @@
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="script.js?v=20261011e" defer></script>
-<script type="module" src="js/play.js?v=20261011e"></script>
+<script src="script.js?v=20261011g" defer></script>
+<script type="module" src="js/play.js?v=20261011g"></script>
 </body>
 </html>
