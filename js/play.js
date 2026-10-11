@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011c';
-import { createRace } from './race.js?v=20261011c';
-import { createWeather, currentWeather } from './weather.js?v=20261011c';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011c';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011c';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011c';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011e';
+import { createRace } from './race.js?v=20261011e';
+import { createWeather, currentWeather } from './weather.js?v=20261011e';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011e';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011e';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011e';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -83,7 +83,45 @@ if (stick) {
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => stick.addEventListener(ev, (e) => { if (e.pointerId === pid) release(); }));
 }
 $('#abtn').addEventListener('click', pressA);
-$('[data-open-help]')?.addEventListener('click', () => openModal('#help'));
+$('[data-open-help]')?.addEventListener('click', () => { $('#backup-msg').textContent = ''; openModal('#help'); });
+
+/* ---------------- Back up and restore: everything the site saves in this browser, as one small file ---------------- */
+// Every saved key starts with hf- (coins, farm, eggs, hatchlings, Machine Room levers, the leaderboard spot), so a backup is just those.
+const BACKUP_KIND = 'hannahfriedman.org backup';
+const savedKeys = () => { const keys = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k?.startsWith('hf-')) keys.push(k); } } catch (e) { /* private mode */ } return keys; };
+const backupMsg = (html, tone = '') => { const el = $('#backup-msg'); el.className = `help-backup-msg ${tone}`; el.innerHTML = html; if (html) el.scrollIntoView({ block: 'nearest' }); };
+$('#backup-save')?.addEventListener('click', () => {
+  const data = Object.fromEntries(savedKeys().map((k) => [k, localStorage.getItem(k)]));
+  const d = new Date(), stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const url = URL.createObjectURL(new Blob([JSON.stringify({ kind: BACKUP_KIND, version: 1, saved: d.toISOString(), data }, null, 1)], { type: 'application/json' }));
+  const a = document.createElement('a'); a.href = url; a.download = `little-athens-backup-${stamp}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+  backupMsg(`Saved <b>little-athens-backup-${stamp}.json</b> to your downloads. To bring this game back later, use Restore from a backup and choose that file.`, 'ok');
+});
+let pendingBackup = null;
+$('#backup-load')?.addEventListener('click', () => $('#backup-file').click());
+$('#backup-file')?.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0]; e.target.value = '';
+  if (!file) return;
+  let b = null;
+  try { b = file.size < 2e6 ? JSON.parse(await file.text()) : null; } catch (err) { b = null; }
+  const data = b?.kind === BACKUP_KIND && b.data && typeof b.data === 'object' ? Object.fromEntries(Object.entries(b.data).filter(([k, v]) => k.startsWith('hf-') && typeof v === 'string' && v.length < 5e5)) : null;
+  if (!data || !Object.keys(data).length) { pendingBackup = null; return backupMsg('That file is not a Little Athens backup. Choose a file saved with Back up my progress.'); }
+  pendingBackup = data;
+  const read = (k, d) => { try { return JSON.parse(data[k]) ?? d; } catch (err) { return d; } };
+  const when = new Date(b.saved), date = Number.isNaN(+when) ? 'an earlier day' : when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  backupMsg(`This backup is from <b>${date}</b>: ${Number(read('hf-coins', 0)).toLocaleString()} coins in the purse and ${(read('hf-eggs', []) || []).length} of 9 eggs. Restoring it replaces everything saved in this browser right now.
+    <div class="help-backup-actions"><button class="btn btn-primary btn-sm" type="button" id="backup-yes">Restore it</button><button class="btn btn-secondary btn-sm" type="button" id="backup-no">Cancel</button></div>`);
+});
+$('#backup-msg')?.addEventListener('click', (e) => {
+  if (e.target.id === 'backup-no') { pendingBackup = null; return backupMsg(''); }
+  if (e.target.id !== 'backup-yes' || !pendingBackup) return;
+  try {
+    savedKeys().forEach((k) => localStorage.removeItem(k));
+    Object.entries(pendingBackup).forEach(([k, v]) => localStorage.setItem(k, v));
+  } catch (err) { return backupMsg('Your browser would not let the site save. If this is a private window, try a regular one.'); }
+  location.reload();
+});
 $('#abtn').addEventListener('pointerdown', () => HF().konami?.('a'));
 const bbtn = $('#bbtn');
 if (bbtn) {
