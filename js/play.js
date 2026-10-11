@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zh';
-import { createRace } from './race.js?v=20261010zh';
-import { createWeather, currentWeather } from './weather.js?v=20261010zh';
-import { CROPS, cropById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zh';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zh';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zh';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zi';
+import { createRace } from './race.js?v=20261010zi';
+import { createWeather, currentWeather } from './weather.js?v=20261010zi';
+import { CROPS, cropById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zi';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zi';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zi';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -484,6 +484,7 @@ function openMoney() {
     { id: 'bank', label: 'Bank', value: Math.floor(bank.bal), note: `Grows ${+(BANK_RATE * 100).toFixed(2)}% a day. Take it out anytime.` },
     { id: 'bonds', label: 'Bonds', value: lent, note: lent ? `Pays back ${Math.round(lent * (1 + BOND_RATE)).toLocaleString()} in all. Next on ${onDate(Math.min(...bonds.map((b) => b.due)))}.` : 'None right now.' },
     { id: 'shares', label: 'Shares', value: sharesValue, note: sharesValue ? `${signed(sharesValue - owned.reduce((t, o) => t + o.cost, 0))} compared with what you paid.` : 'None right now.' },
+    { id: 'farm', label: 'Farm', value: farmValue(), note: farm.owned.length ? `${plural(farm.owned.length, 'plot')} at what you paid, plus seeds and your harvest at today's price.` : 'No plots yet.' },
   ];
   const total = parts.reduce((t, x) => t + x.value, 0), pct = (v) => (total ? Math.round((100 * v) / total) : 0);
   $('#money-body').innerHTML = `
@@ -497,10 +498,10 @@ function openMoney() {
 }
 
 /* ---------------- The town leaderboard (online, opt-in) ---------------- */
-// Everything a player owns: purse, bank, bonds (what they lent), and shares at today's price.
+// Everything a player owns: purse, bank, bonds (what they lent), shares at today's price, and the farm.
 function netWorth() {
   const m = market();
-  return wallet.coins + Math.floor(bank.bal) + bonds.reduce((t, b) => t + b.amt, 0) + COMPANIES.reduce((t, c) => t + sharesOf(c.id) * tradePrice(m.companies[c.id].at(-1).price), 0);
+  return wallet.coins + Math.floor(bank.bal) + bonds.reduce((t, b) => t + b.amt, 0) + COMPANIES.reduce((t, c) => t + sharesOf(c.id) * tradePrice(m.companies[c.id].at(-1).price), 0) + farmValue();
 }
 const sendScores = (force = false) => lbSubmit({ net: netWorth(), bjTotal: lsGet('hf-records', {}).bjProfit || 0 }, force);
 const boardView = { board: 'net', period: 'month' };
@@ -511,7 +512,7 @@ async function openBoard() {
 async function renderBoard(rows) {
   const body = $('#board-body'), me = lbPlayer(), { board, period } = boardView;
   const tab = (key, label, group) => `<button type="button" role="tab" aria-selected="${boardView[group] === key}" data-${group}="${key}">${label}</button>`;
-  const what = board === 'net' ? 'Everything a player owns: purse, bank, bonds, and shares.' : 'Blackjack winnings minus losses.';
+  const what = board === 'net' ? 'Everything a player owns: purse, bank, bonds, shares, and farm.' : 'Blackjack winnings minus losses.';
   let list = '<p class="lb-empty">Loading the board…</p>';
   if (rows !== null) {
     try {
@@ -976,7 +977,7 @@ function render(now) {
 
   PLOTS.forEach((p, i) => {
     const sx = p.x * TILE - camX, sy = p.y * TILE - camY;
-    if (sx > -TILE && sx < canvas.width && sy > -TILE && sy < canvas.height) ctx.drawImage(plotCanvas(plotKey(i)), sx, sy);
+    if (sx > -2 * TILE && sx < canvas.width && sy > -2 * TILE && sy < canvas.height) ctx.drawImage(plotCanvas(plotKey(i)), sx, sy);
   });
   const lost = lostItem(); if (lost) ctx.drawImage(spriteCanvas(lost.sprite), lost.x * TILE - camX, lost.y * TILE - camY);
   drawHarbor(camX, camY, now);
@@ -1130,9 +1131,22 @@ $('#ms-new').addEventListener('click', newMines);
 // Crops grow in real time, even with the tab closed. Watering keeps a crop growing at full speed for 12 hours;
 // dry soil still grows it, at half speed, so nothing is ever lost. Rain from the Machine Room waters everything; snow slows it all.
 const WATER_HOURS = 12, SEED_MAX = 99;
-const farm = { owned: [], plots: {}, seeds: {}, basket: {}, ...lsGet('hf-farm', {}) };
+const savedFarm = lsGet('hf-farm', null);
+const farm = { owned: [], plots: {}, seeds: {}, basket: {}, ...savedFarm, v: 2 };
 const saveFarm = () => lsSet('hf-farm', farm);
-const plotPrice = () => Math.round((100 * 1.5 ** farm.owned.length) / 50) * 50; // 100, 150, 250, 350, 500, 750, ...
+const plotPriceAt = (n) => Math.round((100 * 1.6 ** n) / 50) * 50; // 100, 150, 250, 400, 650, 1,050, 1,700, 2,700, 4,300
+const plotPrice = () => plotPriceAt(farm.owned.length);
+if (savedFarm && savedFarm.v !== 2) { // the first farm had 12 small plots; keep what people bought on the 9 bigger ones, and refund any extra
+  const was = farm.owned, plots = {};
+  was.slice(0, PLOTS.length).forEach((old, i) => { if (farm.plots[old]) plots[i] = farm.plots[old]; });
+  const refund = was.slice(PLOTS.length).reduce((t, _, k) => t + Math.round((100 * 1.5 ** (PLOTS.length + k)) / 50) * 50, 0);
+  if (refund) wallet.coins = wallet.coins + refund;
+  Object.assign(farm, { owned: was.slice(0, PLOTS.length).map((_, i) => i), plots });
+  saveFarm();
+}
+// What the farm is worth on the leaderboard: plots at what they cost, seeds at cost, and the harvest at today's price.
+const farmValue = () => farm.owned.reduce((t, _, n) => t + plotPriceAt(n), 0)
+  + CROPS.reduce((t, c) => t + (farm.seeds[c.id] || 0) * c.cost + (farm.basket[c.id] || 0) * cropPrice(c).price, 0);
 const fullSpeed = (crop) => (weatherKind === 'snow' ? .5 : 1) / (crop.hours * 3600e3); // growth per millisecond, watered
 const isWet = (pl, now = Date.now()) => weatherKind === 'rain' || (pl.wetUntil || 0) > now;
 // How grown a crop is, from 0 to 1: full speed while the soil was wet, half speed after.

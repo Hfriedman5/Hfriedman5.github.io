@@ -72,9 +72,10 @@ export const MAP_PLACES = [
 export const STALL = { x: 22, y: 11, w: 3, h: 1 };
 // The farm, east of town: Demetrios' stall at the entrance, twelve plots for sale, and a well.
 export const FARM_STALL = { x: 36, y: 11, w: 3, h: 1 };
-export const PLOTS = [3, 5, 7, 9].flatMap((y) => [40, 42, 44].map((x) => ({ x, y })));
+export const PLOT_SIZE = 2; // each plot is 2x2 tiles, so the crops have room to look like crops
+export const PLOTS = [2, 5, 8].flatMap((y) => [39, 42, 45].map((x) => ({ x, y })));
 export const WELL = { x: 37, y: 4 };
-export const plotAt = (x, y) => PLOTS.findIndex((p) => p.x === x && p.y === y);
+export const plotAt = (x, y) => PLOTS.findIndex((p) => x >= p.x && x < p.x + PLOT_SIZE && y >= p.y && y < p.y + PLOT_SIZE);
 // A little wooden dock out into the sea. The Machine Room's sailboat moors alongside it.
 export const PIER = [[15, 22], [16, 22], [17, 22], [15, 23], [16, 23], [17, 23]];
 // Where lost things turn up for the request board's fetch jobs (sand and grass only).
@@ -117,7 +118,7 @@ export function buildGrid() {
   for (let x = STALL.x; x < STALL.x + STALL.w; x++) g[STALL.y][x] = '#';
   for (const [x, y] of PIER) g[y][x] = 'd';
   for (let x = FARM_STALL.x; x < FARM_STALL.x + FARM_STALL.w; x++) g[FARM_STALL.y][x] = '#';
-  for (const p of PLOTS) g[p.y][p.x] = 'p';
+  for (const p of PLOTS) for (let dy = 0; dy < PLOT_SIZE; dy++) for (let dx = 0; dx < PLOT_SIZE; dx++) g[p.y + dy][p.x + dx] = 'p';
   g[WELL.y][WELL.x] = 'w';
   for (const s of SIGNS) g[s.y][s.x] = 'S';
   return g;
@@ -315,45 +316,90 @@ function paintWell(c, ox, oy, tx, ty) {
   px(c, ox + 7, oy + 3, 2, 3, '#8a5a34');
 }
 
-/* ---------------- Farm plots: wild, soil, and crops at each stage ---------------- */
+/* ---------------- Farm plots: wild, soil, and crops at each stage (32x32, one plot covers 2x2 tiles) ---------------- */
 const plotCache = new Map();
-export function plotCanvas(key) { // 'wild', or 'soil' / 'soil-wet', or `${crop}:${stage}` plus '-wet' (stage: sprout, grow, ready)
+const CROP_INK = {
+  leaf: '#4f8f3a', leafHi: '#7cbf5a', leafDk: '#356b28', radish: '#d23a5a', radishHi: '#f08aa0', root: '#f4efe2',
+  wheat: '#d9a83c', wheatHi: '#f2cf6a', wheatDk: '#a87a24', stalk: '#6f9a3a', grape: '#6b3fa0', grapeHi: '#9a6ad0', grapeDk: '#4a2a6b',
+  olive: '#8fa66b', oliveHi: '#b6c78e', oliveDk: '#5f7445', fruit: '#3a2f4a', wood: '#7a5a3a', woodHi: '#9c7650', post: '#b08a5a',
+};
+function blob(c, cx, cy, rx, ry, color) { // a filled oval, pixel by pixel
+  for (let y = Math.floor(cy - ry); y <= cy + ry; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) {
+    if (((x + .5 - cx) / rx) ** 2 + ((y + .5 - cy) / ry) ** 2 <= 1) px(c, x, y, 1, 1, color);
+  }
+}
+const K = CROP_INK;
+const CROP_ART = {
+  radish(c, stage) { // leafy rosettes; the red roots push up out of the soil when ripe
+    [[9, 13], [23, 13], [9, 27], [23, 27]].forEach(([x, y]) => {
+      if (stage === 'sprout') { px(c, x - 3, y - 3, 3, 2, K.leafHi); px(c, x + 1, y - 3, 3, 2, K.leafHi); px(c, x, y - 2, 1, 2, K.leaf); return; }
+      const t = stage === 'ready' ? 2 : 0; // three leaves fanning out of the crown, each with a pale midrib
+      blob(c, x - 3.5, y - 5 - t, 2.2, 3.2, K.leafDk); blob(c, x + 4.5, y - 5 - t, 2.2, 3.2, K.leafDk); blob(c, x + .5, y - 7 - t, 2.4, 3.6, K.leaf);
+      px(c, x - 4, y - 7 - t, 1, 4, K.leafHi); px(c, x + 4, y - 7 - t, 1, 4, K.leafHi); px(c, x, y - 10 - t, 1, 6, K.leafHi);
+      px(c, x - 2, y - 2 - t, 1, 2, K.leaf); px(c, x + 2, y - 2 - t, 1, 2, K.leaf); px(c, x, y - 3 - t, 1, 3, K.leaf);
+      if (stage === 'grow') { px(c, x - 1, y - 1, 3, 1, K.radish); px(c, x, y - 2, 1, 1, K.radish); return; }
+      px(c, x - 3, y - 3, 7, 5, K.radish); px(c, x - 2, y - 4, 5, 1, K.radish); px(c, x - 2, y + 2, 5, 1, K.radish); px(c, x - 2, y - 2, 2, 2, K.radishHi); px(c, x, y + 3, 1, 2, K.root);
+    });
+  },
+  wheat(c, stage) { // two rows of stalks: short green blades, then tall green, then golden heads
+    [16, 29].forEach((base) => {
+      for (let i = 0, x = 4; x <= 27; x += 3, i++) {
+        const h = stage === 'sprout' ? 3 : 7 + (i % 3 === 1 ? 2 : i % 3 === 2 ? 1 : 0); // uneven heights, like a real field
+        px(c, x, base - h, 1, h, stage === 'ready' ? K.wheatDk : K.stalk);
+        if (stage === 'sprout') { px(c, x + 1, base - 2, 1, 2, K.leafHi); continue; }
+        px(c, x + 1, base - 4, 1, 2, K.leafHi); px(c, x - 1, base - 6, 1, 2, K.leafHi);
+        const [main, hi, dk] = stage === 'ready' ? [K.wheat, K.wheatHi, K.wheatDk] : [K.leaf, K.leafHi, K.leafDk];
+        const top = base - h - 5, lean = stage === 'ready' ? 1 : 0; // a narrow ear of grain, nodding when ripe
+        px(c, x + lean, top - 1, 1, 1, hi); px(c, x - 1 + lean, top, 2, 5, main); px(c, x - 1 + lean, top, 1, 1, hi); px(c, x + lean, top + 2, 1, 1, dk); px(c, x - 1 + lean, top + 4, 1, 1, dk);
+        if (stage === 'ready') px(c, x + 1 + lean, top - 2, 1, 2, hi); // whiskers
+      }
+    });
+  },
+  grapes(c, stage) { // two trellis rows on posts; leafy vines, then hanging purple bunches
+    [4, 18].forEach((top) => {
+      px(c, 3, top, 2, 11, K.post); px(c, 27, top, 2, 11, K.post); px(c, 3, top + 1, 26, 1, K.wood);
+      if (stage === 'sprout') { [7, 15, 23].forEach((x) => { px(c, x, top + 6, 1, 5, K.leaf); px(c, x + 1, top + 5, 2, 2, K.leafHi); }); return; }
+      for (let x = 5; x < 27; x += 4) { blob(c, x + 1.5, top + 3.5, 2.6, 2.4, K.leaf); px(c, x, top + 2, 2, 1, K.leafHi); }
+      [8, 16, 24].forEach((x) => px(c, x, top + 5, 1, 6, K.wood));
+      if (stage === 'grow') { [10, 20].forEach((x) => { px(c, x, top + 6, 2, 2, K.leafHi); px(c, x + 1, top + 8, 1, 1, K.leafHi); }); return; }
+      [9, 19].forEach((x) => {
+        px(c, x - 1, top + 5, 5, 2, K.grape); px(c, x, top + 7, 4, 2, K.grape); px(c, x + 1, top + 9, 2, 1, K.grape); px(c, x + 1, top + 10, 1, 1, K.grapeDk);
+        px(c, x - 1, top + 5, 1, 1, K.grapeHi); px(c, x + 1, top + 6, 1, 1, K.grapeHi); px(c, x + 3, top + 6, 1, 1, K.grapeDk); px(c, x + 2, top + 8, 1, 1, K.grapeDk);
+      });
+    });
+  },
+  olives(c, stage) { // one olive tree per plot: a staked sapling, a young tree, then a full silvery tree hung with olives
+    if (stage === 'sprout') {
+      px(c, 18, 8, 1, 20, K.post); px(c, 15, 16, 1, 12, K.wood); px(c, 15, 20, 4, 1, K.wood);
+      [[12, 15], [16, 13], [13, 19], [16, 18]].forEach(([x, y]) => { px(c, x, y, 3, 2, K.olive); px(c, x, y, 1, 1, K.oliveHi); });
+      return;
+    }
+    const big = stage === 'ready';
+    px(c, 14, 19, 4, 9, K.wood); px(c, 13, 26, 6, 2, K.wood); px(c, 15, 20, 1, 6, K.woodHi); px(c, 12, 18, 3, 2, K.wood); px(c, 17, 17, 3, 2, K.wood);
+    const [rx, ry, cy] = big ? [13, 9, 11] : [9, 7, 12];
+    blob(c, 16, cy + 1, rx, ry, K.oliveDk); blob(c, 16, cy, rx - 1, ry - 1, K.olive); blob(c, 13, cy - 2, rx / 2, ry / 2, K.oliveHi);
+    [[8, 4], [20, 3], [24, 9], [11, 10], [6, 9]].forEach(([x, y]) => { if (big || (x > 8 && x < 24)) px(c, x, y + (big ? 0 : 3), 2, 1, K.oliveDk); });
+    if (big) [[9, 8], [14, 5], [20, 7], [24, 12], [17, 13], [11, 13], [22, 4], [6, 12]].forEach(([x, y]) => { px(c, x, y, 2, 3, K.fruit); px(c, x, y, 1, 1, '#6a5a80'); });
+  },
+};
+export function plotCanvas(key) { // 'wild', 'soil', or `${crop}:${stage}` (stage: sprout, grow, ready), plus '-wet' for watered soil
   if (plotCache.has(key)) return plotCache.get(key);
-  const cv = document.createElement('canvas'); cv.width = cv.height = 16;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 32;
   const c = cv.getContext('2d');
-  if (key === 'wild') { // an overgrown patch marked out with corner stakes, and a little "for sale" sign
-    px(c, 1, 1, 14, 14, P.grass3);
-    [[2, 6], [4, 10], [6, 4], [9, 11], [12, 8], [3, 13], [8, 7], [13, 12]].forEach(([x, y]) => { px(c, x, y, 1, 2, P.tuft); px(c, x + 1, y - 1, 1, 3, P.tuft); });
-    [[1, 1], [14, 1], [1, 13], [14, 13]].forEach(([x, y]) => px(c, x, y, 1, 2, '#8a5a34'));
-    px(c, 10, 5, 1, 7, '#8a5a34'); px(c, 7, 3, 7, 4, '#e9e2d2'); px(c, 7, 6, 7, 1, '#a89a80'); px(c, 9, 4, 3, 2, '#c0303f');
+  if (key === 'wild') { // an overgrown patch marked out with corner stakes, and a "for sale" sign
+    px(c, 1, 1, 30, 30, P.grass3);
+    [[3, 8], [7, 20], [11, 5], [15, 26], [20, 12], [24, 22], [27, 6], [5, 28], [13, 16], [26, 28], [18, 3], [22, 17]].forEach(([x, y]) => { px(c, x, y, 1, 3, P.tuft); px(c, x + 1, y - 1, 1, 4, P.tuft); px(c, x + 2, y + 1, 1, 2, P.tuft); });
+    [[1, 1], [29, 1], [1, 27], [29, 27]].forEach(([x, y]) => { px(c, x, y, 2, 4, K.wood); px(c, x, y, 2, 1, K.woodHi); });
+    px(c, 15, 12, 2, 12, K.wood); px(c, 9, 6, 14, 8, '#e9e2d2'); px(c, 9, 13, 14, 1, '#a89a80'); px(c, 9, 6, 14, 1, '#fffaf0');
+    px(c, 12, 8, 8, 3, '#c0303f'); px(c, 11, 9, 1, 1, '#c0303f'); px(c, 20, 9, 1, 1, '#c0303f');
   } else {
     const wet = key.endsWith('-wet'), [crop, stage] = key.replace('-wet', '').split(':');
-    px(c, 1, 1, 14, 14, wet ? '#5e3c22' : '#8a5a34');
-    [4, 8, 12].forEach((y) => px(c, 2, y, 12, 1, wet ? '#45291a' : '#6e4626'));
-    px(c, 1, 1, 14, 1, wet ? '#45291a' : '#6e4626');
-    const G = '#4f8f3a', g = '#7cbf5a';
-    if (stage === 'sprout') { px(c, 7, 8, 2, 3, G); px(c, 5, 7, 2, 2, g); px(c, 9, 7, 2, 2, g); }
-    if (crop === 'radish' && stage !== 'sprout') {
-      [[3, 5], [7, 3], [11, 5]].forEach(([x, y]) => { px(c, x, y, 2, 4, G); px(c, x - 1, y + 1, 1, 2, g); px(c, x + 2, y + 1, 1, 2, g); if (stage === 'ready') px(c, x - 1, y + 5, 4, 3, '#c0303f'); });
-    }
-    if (crop === 'wheat' && stage !== 'sprout') {
-      [3, 6, 9, 12].forEach((x) => { px(c, x, 5, 1, 9, stage === 'ready' ? '#c8913a' : G); px(c, x - 1, 3, 3, 3, stage === 'ready' ? '#e0b44c' : g); });
-    }
-    if (crop === 'grapes' && stage !== 'sprout') {
-      px(c, 7, 2, 2, 12, '#7a5a3a'); px(c, 3, 4, 10, 2, '#7a5a3a');
-      [[3, 6], [10, 6], [5, 9], [9, 10]].forEach(([x, y]) => px(c, x, y, 3, 3, G));
-      if (stage === 'ready') [[3, 7], [10, 7], [6, 10]].forEach(([x, y]) => { px(c, x, y, 3, 3, '#6b3fa0'); px(c, x + 1, y + 3, 1, 1, '#4a2a6b'); });
-    }
-    if (crop === 'olives' && stage !== 'sprout') { // a young olive tree, then a full one hung with olives
-      px(c, 7, 9, 2, 5, P.trunk); px(c, 6, 13, 4, 1, P.trunk);
-      if (stage === 'grow') { px(c, 5, 4, 6, 5, P.leaf3); px(c, 4, 5, 8, 3, P.leaf3); px(c, 6, 4, 3, 2, P.leaf); px(c, 5, 6, 2, 1, P.leaf2); }
-      else {
-        px(c, 3, 2, 10, 7, P.leaf3); px(c, 2, 3, 12, 5, P.leaf3); px(c, 4, 1, 8, 1, P.leaf3);
-        px(c, 4, 2, 5, 3, P.leaf); px(c, 3, 4, 3, 2, P.leaf2); px(c, 9, 5, 3, 2, P.leaf);
-        [[4, 6], [7, 3], [10, 4], [12, 6], [6, 7]].forEach(([x, y]) => px(c, x, y, 1, 2, '#2f3a1f'));
-      }
-    }
-    if (stage === 'ready') { px(c, 13, 1, 1, 3, '#f6d24a'); px(c, 12, 2, 3, 1, '#f6d24a'); }
+    const soil = wet ? '#5e3c22' : '#8a5a34', furrow = wet ? '#45291a' : '#6e4626', ridge = wet ? '#6e4a2c' : '#a06c40';
+    px(c, 0, 0, 32, 32, K.wood); px(c, 0, 0, 32, 1, K.woodHi); px(c, 0, 0, 1, 32, K.woodHi); // a low wooden frame: a raised bed
+    px(c, 2, 2, 28, 28, soil);
+    for (let y = 5; y < 30; y += 7) { px(c, 3, y, 26, 1, furrow); px(c, 3, y - 1, 26, 1, ridge); }
+    if (CROP_ART[crop]) CROP_ART[crop](c, stage);
+    if (stage === 'ready') { px(c, 27, 1, 1, 5, '#f6d24a'); px(c, 25, 3, 5, 1, '#f6d24a'); px(c, 27, 3, 1, 1, '#fff6c8'); }
   }
   plotCache.set(key, cv);
   return cv;
