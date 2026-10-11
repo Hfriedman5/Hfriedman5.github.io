@@ -370,7 +370,7 @@ button.fact:active { transform: scale(.985); }
 .footer button:hover { text-decoration-color: var(--accent); }
 .footer .spacer { margin-inline-start: auto; }
 
-/* ---------- Overlays: egg panel, terminal, diary, game modals ---------- */
+/* ---------- Overlays: egg panel, terminal, game modals ---------- */
 dialog { border: 0; padding: 0; background: transparent; color: var(--ink); max-width: none; max-height: none; }
 dialog:not([open]) { display: none !important; }
 dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px); }
@@ -406,16 +406,6 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .term-in { display: flex; gap: 10px; align-items: center; padding: 12px 20px 18px; font-size: .9rem; }
 .term-in label { color: #ffb38a; }
 .term-in input { flex: 1; background: transparent; border: 0; color: #fff; font: inherit; outline: none; caret-color: #ff8a4c; }
-
-.diary { background: #f4ecd8; color: #2b2116; }
-.diary .modal-head { border-color: #d9c9a3; }
-.diary .modal-head h2 { font-family: var(--font-display); color: #2b2116; }
-.diary-page { min-height: 220px; max-height: 46dvh; overflow: auto; padding: 22px 26px; font-family: "Snell Roundhand", "Segoe Script", "Bradley Hand", cursive; font-size: 1.2rem; line-height: 1.7; }
-.diary-page .you { color: #1b3a7a; transition: opacity 1.6s ease, filter 1.6s ease; } .diary-page .you.sunk { opacity: .3; filter: blur(.4px); } .diary-page .tom { color: #2b2116; }
-@keyframes ink { to { opacity: 1; } }
-.diary-in { display: flex; gap: 10px; padding: 14px 20px 18px; border-top: 1px solid #d9c9a3; }
-.diary-in input { flex: 1; height: 42px; border-radius: var(--r-md); border: 1px solid #c9b78f; background: #fbf6e8; padding: 0 12px; font: inherit; color: #2b2116; }
-.diary-in .btn-primary { background: #2b2116; color: #f4ecd8; }
 
 /* ---------- Toast ---------- */
 .toasts { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: var(--z-toast); display: grid; gap: 8px; width: min(420px, calc(100vw - 32px)); pointer-events: none; }

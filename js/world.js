@@ -2,7 +2,7 @@
 // All art is authored here as code (pixel strings and rectangles); there are no image files.
 
 export const TILE = 16;
-export const W = 36, H = 24;
+export const W = 48, H = 24; // the town is columns 0-35; the farm is 36-47
 
 /* ---------------- Palette ---------------- */
 const P = {
@@ -22,30 +22,30 @@ const P = {
 /* ---------------- Map ----------------
    . grass  , tuft  * flowers  = path  ~ water  T tree  i ice  s sand  # blocked (building footprint, filled later) */
 const ROWS = [
-  'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
-  'T..,.......T...............T......,T',
-  'T.................................,T',
-  'T..................................T',
-  'T,.........................,.......T',
-  'T..................................T',
-  'T.........,........................T',
-  'T....,.............................T',
-  'T....=.....**....==.....**....=....T',
-  'T....=.....**....==.....**....=....T',
-  'T....=...........==...........=..,.T',
-  'T....=.,.........==...........=....T',
-  'T....=...........==.......,...=....T',
-  'T==================================T',
-  'T==================================T',
-  'T............=.........=...........T',
-  'T............=.........=...........T',
-  'T.,..........=.........=...........T',
-  'T............=.........=..........,T',
-  'T..,.........=.........=...........T',
-  'T.T..=========.........========..T.T',
-  'ssssssssssssssssssssssssssssssssssss',
-  '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
-  '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+  'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
+  'T..,.......T...............T......,T...,.......T',
+  'T.................................,T......,....T',
+  'T..................................T.........,.T',
+  'T,.........................,.......T...........T',
+  'T..................................T...........T',
+  'T.........,........................T.,.........T',
+  'T....,.............................T....,......T',
+  'T....=.....**....==.....**....=....T.......,...T',
+  'T....=.....**....==.....**....=....T..........,T',
+  'T....=...........==...........=..,.T...........T',
+  'T....=.,.........==...........=....T...........T',
+  'T....=...........==.......,...=....T..,........T',
+  'T=======================================.......T',
+  'T=======================================.......T',
+  'T............=.........=...........T...........T',
+  'T............=.........=...........T...........T',
+  'T.,..........=.........=...........T,..........T',
+  'T............=.........=..........,T...,.......T',
+  'T..,.........=.........=...........T......,....T',
+  'T.T..=========.........========..T.TTTTTTTTTTTTT',
+  'ssssssssssssssssssssssssssssssssssssssssssssssss',
+  '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+  '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
 ];
 
 export const BUILDINGS = [
@@ -58,17 +58,23 @@ export const BUILDINGS = [
 export const RINK = { x: 14, y: 15, w: 9, h: 5 };
 // Places on the map. `at` is where the label sits (tile coords); `go` is where travel puts you, and which way you face.
 export const MAP_PLACES = [
-  { id: 'parthenon', name: 'The Parthenon', desc: "Hannah's resume, carved in marble.", at: [18, 2.4], go: [17, 8, 'up'] },
+  { id: 'parthenon', name: 'The Parthenon', desc: "Hannah's resume, carved in marble, and her blog.", at: [18, 2.4], go: [17, 8, 'up'] },
   { id: 'gaming', name: 'Gaming Hall', desc: 'Blackjack and Minesweeper.', at: [6, 3.4], go: [5, 8, 'up'] },
   { id: 'academy', name: 'The Academy', desc: "Raphael's School of Athens, in pixels.", at: [31, 3.4], go: [30, 8, 'up'] },
   { id: 'market', name: 'Agora market', desc: 'Outfits and gadgets, paid in coins.', at: [23.5, 10.2], go: [23, 13, 'up'] },
-  { id: 'library', name: 'Library', desc: 'Scrolls, and a diary that writes back.', at: [6, 15.4], go: [5, 20, 'up'] },
+  { id: 'library', name: 'Library', desc: 'Scrolls, from Homer to Herodotus.', at: [6, 15.4], go: [5, 20, 'up'] },
   { id: 'bank', name: 'The Bank', desc: 'Coins left with the banker grow 0.5% a day.', at: [31, 15.4], go: [30, 20, 'up'] },
   { id: 'board', name: 'Request board', desc: 'One small job for the town, every day.', at: [12.5, 11.1], go: [12, 13, 'up'] },
   { id: 'stadium', name: 'The Stadium', desc: 'Race the runner, one lap.', at: [18.5, 17.5], go: [18, 14, 'down'] },
+  { id: 'farm', name: 'The farm', desc: 'Buy a plot, plant seeds, and sell what you grow.', at: [41.5, 1.4], go: [37, 13, 'up'] },
   { id: 'shore', name: 'The Aegean Sea', desc: 'Sand, sea, and a captain with ships for hire.', at: [18, 22.6], go: [18, 21, 'down'] },
 ];
 export const STALL = { x: 22, y: 11, w: 3, h: 1 };
+// The farm, east of town: Demetrios' stall at the entrance, twelve plots for sale, and a well.
+export const FARM_STALL = { x: 36, y: 11, w: 3, h: 1 };
+export const PLOTS = [3, 5, 7, 9].flatMap((y) => [40, 42, 44].map((x) => ({ x, y })));
+export const WELL = { x: 37, y: 4 };
+export const plotAt = (x, y) => PLOTS.findIndex((p) => p.x === x && p.y === y);
 // A little wooden dock out into the sea. The Machine Room's sailboat moors alongside it.
 export const PIER = [[15, 22], [16, 22], [17, 22], [15, 23], [16, 23], [17, 23]];
 // Where lost things turn up for the request board's fetch jobs (sand and grass only).
@@ -81,6 +87,7 @@ export const SIGNS = [
   { x: 9, y: 19, text: 'Library.\nQuiet, please. Something in here writes back.' },
   { x: 27, y: 19, text: 'The Bank.\nThe banker sits at a table, a trapeza. Coins left with him grow 0.5% a day.' },
   { x: 12, y: 12, board: true, text: 'Town request board.' },
+  { x: 39, y: 12, text: 'The farm.\nWalk up to a plot to buy it. Demetrios sells seeds and buys whatever you grow.' },
   { x: 14, y: 21, text: 'The Aegean Sea.\nHomer called it wine-dark. It looks blue to you.' },
 ];
 
@@ -96,6 +103,7 @@ export const NPCS = [
   { id: 'captain', x: 22, y: 21, sprite: 'captain', facing: 'down' },
   { id: 'keeper', x: 7, y: 9, sprite: 'keeper', facing: 'down' },
   { id: 'student', x: 11, y: 17, sprite: 'student', facing: 'left' },
+  { id: 'farmer', x: 37, y: 12, sprite: 'farmer', facing: 'down' },
 ];
 
 export function buildGrid() {
@@ -108,6 +116,9 @@ export function buildGrid() {
   g[RINK.y][RINK.x + 4] = 'i'; // gate in the boards, top middle
   for (let x = STALL.x; x < STALL.x + STALL.w; x++) g[STALL.y][x] = '#';
   for (const [x, y] of PIER) g[y][x] = 'd';
+  for (let x = FARM_STALL.x; x < FARM_STALL.x + FARM_STALL.w; x++) g[FARM_STALL.y][x] = '#';
+  for (const p of PLOTS) g[p.y][p.x] = 'p';
+  g[WELL.y][WELL.x] = 'w';
   for (const s of SIGNS) g[s.y][s.x] = 'S';
   return g;
 }
@@ -115,7 +126,7 @@ export function buildGrid() {
 export function isSolid(grid, x, y) {
   if (x < 0 || y < 0 || x >= W || y >= H) return true;
   const c = grid[y][x];
-  return c === 'T' || c === '~' || c === '#' || c === 'b' || c === 'S';
+  return c === 'T' || c === '~' || c === '#' || c === 'b' || c === 'S' || c === 'p' || c === 'w';
 }
 
 /* ---------------- Deterministic noise ---------------- */
@@ -282,6 +293,72 @@ function paintStall(c) {
   [['#6b3fa0', 6], ['#a31f34', 13], ['#f3d36b', 20], ['#00539b', 27], ['#4f8f3a', 34], ['#c8913a', 40]].forEach(([col, dx]) => { px(c, X + dx, Y + 6, 4, 4, col); px(c, X + dx + 1, Y + 5, 2, 1, col); });
 }
 
+// Demetrios' farm stall: a green awning over baskets of produce.
+function paintFarmStall(c) {
+  const X = FARM_STALL.x * 16, Y = FARM_STALL.y * 16, Wd = FARM_STALL.w * 16;
+  px(c, X + 2, Y + 14, Wd - 2, 3, 'rgba(0,0,0,.16)');
+  px(c, X + 2, Y + 3, 2, 12, '#7a5a3a'); px(c, X + Wd - 4, Y + 3, 2, 12, '#7a5a3a');
+  for (let i = 0; i < Wd; i += 6) px(c, X + i, Y - 4, 6, 7, (i / 6) % 2 ? '#f4efe4' : '#4f8f3a');
+  for (let i = 0; i < Wd; i += 6) px(c, X + i + 1, Y + 3, 4, 2, (i / 6) % 2 ? '#f4efe4' : '#4f8f3a');
+  px(c, X + 1, Y + 9, Wd - 2, 6, '#9a6a3a'); px(c, X + 1, Y + 9, Wd - 2, 1, '#b8844e');
+  // baskets: radishes, wheat, grapes, olives
+  [[4, '#c0303f', '#4f8f3a'], [15, '#e0b44c', '#c8913a'], [26, '#6b3fa0', '#4a2a6b'], [37, '#4f6b2f', '#2f4a1f']].forEach(([dx, a, b]) => {
+    px(c, X + dx, Y + 7, 7, 3, '#7a5a3a'); px(c, X + dx + 1, Y + 5, 5, 2, a); px(c, X + dx + 2, Y + 4, 2, 1, b); px(c, X + dx + 4, Y + 5, 1, 1, b);
+  });
+}
+function paintWell(c, ox, oy, tx, ty) {
+  paintGrass(c, ox, oy, tx, ty);
+  px(c, ox + 2, oy + 13, 12, 3, 'rgba(0,0,0,.16)');
+  px(c, ox + 2, oy + 7, 12, 7, P.wall3); px(c, ox + 3, oy + 7, 10, 6, P.wall2);
+  px(c, ox + 4, oy + 6, 8, 3, '#2f6aa0'); px(c, ox + 5, oy + 7, 3, 1, P.water2);
+  px(c, ox + 2, oy + 1, 2, 7, P.trunk); px(c, ox + 12, oy + 1, 2, 7, P.trunk); px(c, ox + 2, oy + 1, 12, 2, P.door);
+  px(c, ox + 7, oy + 3, 2, 3, '#8a5a34');
+}
+
+/* ---------------- Farm plots: wild, soil, and crops at each stage ---------------- */
+const plotCache = new Map();
+export function plotCanvas(key) { // 'wild', or 'soil' / 'soil-wet', or `${crop}:${stage}` plus '-wet' (stage: sprout, grow, ready)
+  if (plotCache.has(key)) return plotCache.get(key);
+  const cv = document.createElement('canvas'); cv.width = cv.height = 16;
+  const c = cv.getContext('2d');
+  if (key === 'wild') { // an overgrown patch marked out with corner stakes, and a little "for sale" sign
+    px(c, 1, 1, 14, 14, P.grass3);
+    [[2, 6], [4, 10], [6, 4], [9, 11], [12, 8], [3, 13], [8, 7], [13, 12]].forEach(([x, y]) => { px(c, x, y, 1, 2, P.tuft); px(c, x + 1, y - 1, 1, 3, P.tuft); });
+    [[1, 1], [14, 1], [1, 13], [14, 13]].forEach(([x, y]) => px(c, x, y, 1, 2, '#8a5a34'));
+    px(c, 10, 5, 1, 7, '#8a5a34'); px(c, 7, 3, 7, 4, '#e9e2d2'); px(c, 7, 6, 7, 1, '#a89a80'); px(c, 9, 4, 3, 2, '#c0303f');
+  } else {
+    const wet = key.endsWith('-wet'), [crop, stage] = key.replace('-wet', '').split(':');
+    px(c, 1, 1, 14, 14, wet ? '#5e3c22' : '#8a5a34');
+    [4, 8, 12].forEach((y) => px(c, 2, y, 12, 1, wet ? '#45291a' : '#6e4626'));
+    px(c, 1, 1, 14, 1, wet ? '#45291a' : '#6e4626');
+    const G = '#4f8f3a', g = '#7cbf5a';
+    if (stage === 'sprout') { px(c, 7, 8, 2, 3, G); px(c, 5, 7, 2, 2, g); px(c, 9, 7, 2, 2, g); }
+    if (crop === 'radish' && stage !== 'sprout') {
+      [[3, 5], [7, 3], [11, 5]].forEach(([x, y]) => { px(c, x, y, 2, 4, G); px(c, x - 1, y + 1, 1, 2, g); px(c, x + 2, y + 1, 1, 2, g); if (stage === 'ready') px(c, x - 1, y + 5, 4, 3, '#c0303f'); });
+    }
+    if (crop === 'wheat' && stage !== 'sprout') {
+      [3, 6, 9, 12].forEach((x) => { px(c, x, 5, 1, 9, stage === 'ready' ? '#c8913a' : G); px(c, x - 1, 3, 3, 3, stage === 'ready' ? '#e0b44c' : g); });
+    }
+    if (crop === 'grapes' && stage !== 'sprout') {
+      px(c, 7, 2, 2, 12, '#7a5a3a'); px(c, 3, 4, 10, 2, '#7a5a3a');
+      [[3, 6], [10, 6], [5, 9], [9, 10]].forEach(([x, y]) => px(c, x, y, 3, 3, G));
+      if (stage === 'ready') [[3, 7], [10, 7], [6, 10]].forEach(([x, y]) => { px(c, x, y, 3, 3, '#6b3fa0'); px(c, x + 1, y + 3, 1, 1, '#4a2a6b'); });
+    }
+    if (crop === 'olives' && stage !== 'sprout') { // a young olive tree, then a full one hung with olives
+      px(c, 7, 9, 2, 5, P.trunk); px(c, 6, 13, 4, 1, P.trunk);
+      if (stage === 'grow') { px(c, 5, 4, 6, 5, P.leaf3); px(c, 4, 5, 8, 3, P.leaf3); px(c, 6, 4, 3, 2, P.leaf); px(c, 5, 6, 2, 1, P.leaf2); }
+      else {
+        px(c, 3, 2, 10, 7, P.leaf3); px(c, 2, 3, 12, 5, P.leaf3); px(c, 4, 1, 8, 1, P.leaf3);
+        px(c, 4, 2, 5, 3, P.leaf); px(c, 3, 4, 3, 2, P.leaf2); px(c, 9, 5, 3, 2, P.leaf);
+        [[4, 6], [7, 3], [10, 4], [12, 6], [6, 7]].forEach(([x, y]) => px(c, x, y, 1, 2, '#2f3a1f'));
+      }
+    }
+    if (stage === 'ready') { px(c, 13, 1, 1, 3, '#f6d24a'); px(c, 12, 2, 3, 1, '#f6d24a'); }
+  }
+  plotCache.set(key, cv);
+  return cv;
+}
+
 /* ---------------- Sprites (16x16 pixel strings) ---------------- */
 const BODY_LOWER = {
   down: ['...orrrrrrrro...', '..orrrRrrRrrro..', '..osrrrrrrrrso..', '..ooRRRRRRRRoo..', '...oppppppppo...'],
@@ -324,6 +401,7 @@ const PALETTES = {
   feather: { o: '#2a2f3d', l: '#c9c3b6', f: '#8e8778', q: '#6e6658', y: '#f6d24a' },
   purse: { o: '#3a2a1c', b: '#8a5a34', B: '#6e4a26', y: '#f6d24a', t: '#f6d24a' },
   compass: { o: '#5a412a', w: '#f6efe2', r: '#d9423b', k: '#2a2f3d', y: '#f6d24a' },
+  farmer: { o: '#2a2f3d', h: '#d9b56a', H: '#efd08a', s: '#d9a07a', S: '#bf8660', e: '#2a2f3d', k: '#e09080', m: '#9a4a36', r: '#4f8f3a', R: '#f4efe4', p: '#3d6b2c', b: '#6b4a2f' },
   stylus: { o: '#5a412a', b: '#d9a441', B: '#a8762f', y: '#f6d24a' },
   student: { o: '#2a2f3d', h: '#3a2a1c', H: '#5a412a', s: '#f0c49c', S: '#d6a47c', e: '#2a2f3d', k: '#e9a090', m: '#a0503a', r: '#9fb3c8', R: '#6b7f96', p: '#8ba0b6', b: '#7a5a3a' },
   keeper: { o: '#2a2f3d', h: '#7a3a1a', H: '#9a5a2a', s: '#d9a07a', S: '#bf8660', e: '#2a2f3d', k: '#e09080', m: '#9a4a36', r: '#6b8f4e', R: '#e0b44c', p: '#567a3c', b: '#7a5a3a' },
@@ -388,6 +466,8 @@ export function renderWorld(grid) {
     const ch = ROWS[y][x], ox = x * 16, oy = y * 16;
     const g = grid[y][x];
     if (g === 'd') paintPier(c, ox, oy, x, y);
+    else if (g === 'w') paintWell(c, ox, oy, x, y);
+    else if (g === 'p') paintGrass(c, ox, oy, x, y); // plots are drawn live in play.js: wild grass, soil, or crops
     else if (g === 'i') paintIce(c, ox, oy, x, y);
     else if (g === 'b') paintBoard(c, ox, oy, x, y);
     else if (g === 'S') paintSign(c, ox, oy, x, y, grid);
@@ -401,6 +481,7 @@ export function renderWorld(grid) {
   }
   for (const b of BUILDINGS) b.kind === 'temple' ? paintTemple(c, b) : paintHouse(c, b);
   paintStall(c);
+  paintFarmStall(c);
   return cv;
 }
 
@@ -711,7 +792,7 @@ export const ERRANDS = {
   vienna: { job: 'Sing for tips in the Agora', back: 'It sang "Vienna" eleven times and the crowd paid up' },
   cups: { job: 'Visit its hoard in the hills', back: 'It brought back a little of its hoard and kept the rest' },
   crash: { job: 'Gather honey to sell', back: 'It sold most of the honey' },
-  diary: { job: 'Stare down pickpockets in the Agora', back: 'No pockets were picked. A grateful shopkeeper paid it' },
+  stadion: { job: 'Run a message to Marathon', back: 'It arrived three days late, but the news was good, so they paid it anyway' },
   hat: { job: 'Search the ashes of old fires', back: 'It found coins in the ashes. Phoenixes are good at that' },
   mines: { job: 'Comb the beach', back: 'It dug up coins in the sand, and only one flag' },
 };
@@ -737,9 +818,9 @@ export const CREATURES = {
   crash: { name: 'Bear cub', line: 'A bear cub from the market-crash egg. Bearish on everything except naps.',
     pal: { b: '#8a5a34', o: '#5f3d22', e: '#2a2f3d', n: '#c48d5c', d: '#2a2f3d' },
     rows: ['.oo....oo...', '.obbbbbbo...', '.bbebbebb...', '.bbbnnbbb...', '..bbnddbb...', '.bbbbbbbbb..', 'bbbbbbbbbbb.', 'bbbbbbbbbbb.', '.bb.....bb..'] },
-  diary: { name: 'Baby basilisk', line: 'A baby basilisk from the diary egg. It wears sunglasses, for everyone\'s safety.',
-    pal: { g: '#3f8f3a', s: '#151515', k: '#d63b3b', G: '#2f6a28' },
-    rows: ['....ggg.....', '...ssgg.....', '..kgggg.....', '....gg......', '...gg.......', '..gg........', '..gGgggggg..', '.......gGg..', '..gggggggg..'] },
+  stadion: { name: 'Tortoise', line: 'A tortoise from the stadion egg. According to Aesop, it has never lost a race.',
+    pal: { S: '#6b8f3a', p: '#4a6a26', k: '#a8b86a', e: '#2a2f3d', r: '#c0303f', b: '#d8c98a' },
+    rows: ['.....SSSS...', '....SpSSpS..', '.rr.SSppSSS.', 'kekkSpSSSpS.', 'kkkkSSSSSSSk', '.k..bbbbbbb.', '....k.k..k.k'] },
   hat: { name: 'Phoenix chick', line: 'A phoenix chick from the Sorting Hat\'s egg. Every so often it bursts into flames, then looks embarrassed about it.',
     pal: { F: '#f2c94c', r: '#d63b2e', e: '#2a2f3d', k: '#e0a030', w: '#f08a24', T: '#f2c94c', t: '#e0a030' },
     rows: ['...F.F......', '....FF......', '...rrrr.....', '..rerrrr....', '.krrrrrr....', '..rrrrrrrr..', '...rrwwrrrT.', '....rrrrrTT.', '.....t.tTT..'] },

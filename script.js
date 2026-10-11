@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Shared site behaviour: easter eggs, toasts, terminal, diary, Konami,
+   Shared site behaviour: easter eggs, toasts, terminal, Konami,
    and (on the homepage) the Monte Carlo pricer.
    ========================================================================== */
 (() => {
@@ -23,10 +23,14 @@
     { id: 'vienna', title: 'Slow down, you crazy child', hint: 'Drop the needle on the best song.', done: 'You played "Vienna". Correct choice.' },
     { id: 'cups', title: 'Four straight', hint: 'The Islanders won four Stanley Cups in a row. Click their fact that many times.', done: '1980, 1981, 1982, 1983. We remember.' },
     { id: 'crash', title: 'Market crash', hint: 'Rerun the Monte Carlo until a path falls below $60.', done: 'A simulated crash. No real money was harmed.' },
-    { id: 'diary', title: 'Dear diary', hint: 'In the Play world, find the library and write in the diary.', done: 'The diary wrote back. It does that.' },
+    { id: 'stadion', title: 'Fastest in Athens', hint: 'In the Play world, beat the runner in a stadion race at the stadium.', done: 'You beat the stadion champion. He would like a rematch.' },
     { id: 'hat', title: 'Sorted', hint: 'In the Play world, someone on a stool wants to sort you.', done: 'The Sorting Hat has spoken.' },
     { id: 'mines', title: 'Minefield cleared', hint: 'Win a game of Minesweeper in the Play world\'s gaming hall.', done: 'Zero explosions. Very rational.' },
   ];
+  // The diary egg was retired in October 2026. Anyone who found it, or hatched it, keeps that through the stadion egg.
+  ['hf-eggs', 'hf-hatched'].forEach((key) => { const ids = store.get(key, []); if (Array.isArray(ids) && ids.includes('diary')) store.set(key, [...new Set(ids.map((id) => (id === 'diary' ? 'stadion' : id)))]); });
+  const errandsSaved = store.get('hf-errands', {});
+  if (errandsSaved?.diary) { errandsSaved.stadion = errandsSaved.diary; delete errandsSaved.diary; store.set('hf-errands', errandsSaved); }
   let found = new Set(store.get('hf-eggs', []).filter((id) => EGGS.some((e) => e.id === id)));
   // Phones have no backtick key, console, or arrow keys, so those eggs get touch versions and touch hints.
   const touchy = matchMedia('(hover: none) and (pointer: coarse)').matches;
@@ -308,7 +312,6 @@
       say('  resume     download the resume');
       say('  contact    how to reach me');
       say('  play       go to Little Athens');
-      say('  diary      open a very old diary');
       say('  theme      light, dark, or auto');
       say('  qubit      measure me');
       say('  clear      clear the screen');
@@ -338,7 +341,6 @@
     },
     contact() { say('email     hannahf4@mit.edu'); say('github    github.com/Hfriedman5'); say('linkedin  linkedin.com/in/hannah-friedman-667aa020b'); },
     play() { say('Sailing to Athens…', 'ok'); setTimeout(() => (location.href = 'play.html'), 400); },
-    diary() { $('#terminal')?.close(); openDiary(); },
     theme(arg) {
       const root = document.documentElement;
       if (arg === 'light' || arg === 'dark') { root.dataset.theme = arg; store.set('hf-theme', arg); say(`Theme: ${arg}.`, 'ok'); }
@@ -381,302 +383,6 @@
   window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
   const savedTheme = store.get('hf-theme', null);
   if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.dataset.theme = savedTheme;
-
-  /* ---------------- Diary: a small conversational engine in Tom Riddle's voice ---------------- */
-  // Rules are checked in order. Tom remembers your name (across visits) and what you tell him about yourself,
-  // plays riddles, hints at eggs you have not found, answers questions about Hannah, and otherwise picks out
-  // the most interesting thing you wrote and asks about it. He never gives the same reply twice in a row.
-  const saved = store.get('hf-diary', {});
-  const diary = { name: saved.name || null, likes: saved.likes || [], facts: saved.facts || {}, solved: saved.solved || 0, turns: 0, rot: {}, lastTopic: null, riddle: null, last: '', lastMsg: '' };
-  const remember = () => store.set('hf-diary', { name: diary.name, likes: diary.likes.slice(-8), facts: diary.facts, solved: diary.solved });
-  // rotate through a list, starting somewhere random, so replies vary between visits
-  const rotate = (key, arr) => { const i = (diary.rot[key] = ((diary.rot[key] ?? Math.floor(Math.random() * arr.length) - 1) + 1) % arr.length); return arr[i]; };
-  const you = () => (diary.name ? `, ${diary.name}` : '');
-  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-  const clean = (s) => s.replace(/[.!?,;:]+$/, '').trim();
-  const NOT_NAMES = new Set('fine good ok okay well here back bored tired sad happy sorry not so very a an the just really also still going doing feeling trying curious new lost confused scared afraid excited angry lonely busy hungry glad sure ready done hannah tom from in at a student learning looking writing reading'.split(' '));
-  const STOP = new Set('the a an and or but if then so to of in on at by for with about from into over after before is are was were be been being am i me my mine you your yours he she it we they them his her its our their this that these those what which who whom whose when where why how do does did doing have has had having can could would should will shall may might must not no yes just really very also too only even still than there here out up down off again more most some any all each every much many lot lots thing things something anything nothing everything stuff like know think want need get got make made go going went come came see saw say said tell told dont doesnt didnt cant wont im ive id ill youre thats whats theres isnt arent wasnt'.split(' '));
-  const SWAP = { i: 'you', me: 'you', my: 'your', mine: 'yours', myself: 'yourself', am: 'are', "i'm": "you're", "i've": "you've", "i'll": "you'll", "i'd": "you'd", was: 'were', you: 'I', your: 'my', yours: 'mine', yourself: 'myself', "you're": "I'm", "you've": "I've", "you'll": "I'll" };
-  function reflect(text) {
-    const words = text.replace(/[.!?]+$/, '').split(/\s+/).slice(0, 14);
-    let prev = '';
-    return words.map((w, i) => {
-      const lw = w.toLowerCase();
-      let out = SWAP[lw] ?? w;
-      if (lw === 'are' && prev === 'you') out = 'am';
-      if (out === 'I' && i > 0 && /^(to|with|for|at|about|from|like|than|by|of)$/i.test(words[i - 1])) out = 'me';
-      prev = lw;
-      return out;
-    }).join(' ');
-  }
-  // the most interesting word in a message: the longest one that is not filler
-  const keyword = (t) => t.replace(/[^a-z'\s-]/g, ' ').split(/\s+/).filter((w) => w.length > 3 && !STOP.has(w.replace(/'/g, ''))).sort((a, b) => b.length - a.length)[0];
-
-  const HANNAH = [
-    [/\b(email|contact|reach|resume|cv|hire|hiring|available|recruit)/, ['Write to hannahf4@mit.edu. Ink is so much slower than email.', 'Her resume is on the front page. I would download it, if I had hands.', 'hannahf4@mit.edu. She answers. I have seen it.']],
-    [/\b(coursework|courses?|algorithms?|machine learning|econometric|probability|statistics|linear algebra|discrete math)/, ['Algorithms, machine learning, probability, econometrics, linear algebra. The tools of prediction. I have always admired prediction.', 'She has taken the hard courses. Discrete math, algorithms, optimization. Nobody takes those by accident.']],
-    [/\b(mit|school|study|studies|major|degree|college|master'?s|bachelor'?s|gpa|graduat)/, ['MIT. Computer science, economics, and data science. Her master\'s finishes in 2027. Outstanding marks, I am told. We have that in common.', 'A bachelor\'s from MIT in 2026, and a master of engineering in 2027. I was Head Boy, so I recognize the type.']],
-    [/\b(kalshi|trade|trades|trading|prediction market)/, ['She writes algorithms that trade prediction markets on macroeconomic indicators. Turning uncertainty into an advantage. I know the feeling.', 'Kalshi. She bets on what inflation and jobs numbers will do, with code. Prophecy, with better bookkeeping.']],
-    [/\b(point72|macro|hedge fund)/, ['At Point72 she built models that pull signals out of macroeconomic data for traders. Finding patterns other people miss is a gift.']],
-    [/\b(balyasny|agents?|llm|pipeline|rag)\b/, ['For Balyasny she built seven AI agents that write a daily energy market report and check their own facts. Seven tireless servants. I am almost jealous.']],
-    [/\b(draftkings|risk)\b/, ['At DraftKings she built tools to catch risky behavior before it caused trouble. She would have caught me, I suspect.']],
-    [/\b(nba|basketball|referee|last.?touch|sports lab|computer vision)/, ['She is teaching a computer to see who touched the ball last in NBA games, so referees get it right. Watching closely is a talent. So is being watched closely.']],
-    [/\b(groundup|venture|startup|tel aviv)/, ['She worked in venture capital in Tel Aviv, studying young companies. Spotting promise early. Dumbledore did that once, with me. He has never stopped regretting it.']],
-    [/\b(institutional knowledge|advisor|advising)/, ['She built an AI academic advisor with two classmates. It knows more than six thousand MIT courses. I knew every book in the Hogwarts library, so I am only slightly impressed.']],
-    [/\b(pokerbots?|poker|iquhack|hackathon|blotto|march madness|bracket|competition)/, ['MIT Pokerbots, a quantum computing hackathon, a genetic algorithm for Colonel Blotto, a March Madness optimizer. She enjoys games where cleverness wins.']],
-    [/\b(paper|papers|research|blue laws?|crash|sunday)/, ['She found that New Jersey closing its shops on Sunday means fewer car crashes. Fifteen percent fewer. Rules have consequences.', 'Two papers this spring. One on Sunday shopping laws and car crashes, one on how Stephen Curry changed what three-pointers are worth.']],
-    [/\b(curry|three.?point|salary)/, ['After Stephen Curry, the NBA began paying players for taking more threes, not for making them. Volume over accuracy. People reward what they can see.']],
-    [/\b(quantum|chess|superposition|knight)/, ['Quantum chess. A knight in two places at once. I once tried to be in several places at once myself. It is harder than it looks.', 'She left a quantum knight on the front page. Try the fourth puzzle. Five eighths is a strange amount of anything.']],
-    [/\b(blog|hannectodes|zero|post)\b/, ['Her blog is called Some Random Hannectodes. The first post is about the history of zero. Nothing, it turns out, has quite a past.']],
-    [/\b(athens|little athens|game|play tab|stadion|blackjack|minesweeper)/, ['Behind the Play tab there is a little Athens. I live in its library. Plato is down the road, and the cat is a menace.']],
-    [/\b(machine room|levers?|basement|switchboard|aviary|birds?)\b/, ['There is a room under this site full of levers. I am not supposed to know about it. I know about it.']],
-    [/\b(kosher|eruv|candle)/, ['She built the website for MIT Kosher Suites. The weather, the eruv, candle-lighting times. Practical magic.']],
-    [/\b(travel|trip|trips|travels|places|countries|globe|vacation)\b/, ['She has jumped out of an aeroplane over Maine and wandered from Iceland to Israel. I have never left this diary.', 'Thirteen places on her globe. Portugal, Italy, Iceland, Alaska. I have seen exactly one place: the inside of this book.']],
-    [/\b(maine|skydiv)/, ['She jumped out of an aeroplane over Maine. Voluntarily. Gryffindors.']],
-    [/\b(iceland|alaska|canada|mexico|costa rica|puerto rico|portugal|france|paris|louvre|italy|venice|israel|los angeles|santa monica|new york|citi field)/, ['She has been there. There is a photograph on her globe. Spin it and see.']],
-    [/\b(vienna|billy joel)/, ['"Vienna" is her favorite song. She will tell you it is the greatest song ever written. I have learned not to argue.']],
-    [/\b(music|song|songs|piano|chopin|playlist|turntable|record)\b/, ['She plays piano. Chopin, lately. There is a record player on her front page, too, with six of her favorite songs.']],
-    [/\b(greek|latin|plato|socrates|aristotle)/, ['She is learning Ancient Greek, a little at a time, so she can read Plato someday. Patience. It is underrated.']],
-    [/\b(islanders|mets|hockey|baseball)/, ['The Islanders and the Mets. Loyalty, freely given. I find it fascinating.', 'Four straight Stanley Cups for the Islanders, 1980 to 1983. Click their fact four times on the front page, if you want my advice.']],
-    [/\b(sports? (writer|writing|editor)|newspaper|the tech)\b/, ['She was the sports editor of the MIT newspaper, and its only sports writer. Writing every story yourself. I understand that urge.']],
-    [/\b(smart|clever|cool|impressive|great|talented|genius)\b/, ['She is. Do not tell her I said so.']],
-    [/\b(work|working|job|jobs|intern|internship|career|experience)\b/, ['Macro research at Point72, an AI pipeline for Balyasny, risk models at DraftKings, and teaching a computer to call last touches for the NBA. Ambitious. I approve.']],
-  ];
-  const WIZARDING = [
-    [/\b(myrtle|bathroom)\b/, ['Myrtle. I would rather not discuss Myrtle.']],
-    [/\b(harry|potter)\b/, ['Harry Potter. A boy who should not have survived. I would very much like to meet him.']],
-    [/\bdumbledore\b/, ['Dumbledore always watched me more closely than the other teachers did. Wise of him.']],
-    [/\b(hermione|granger)\b/, ['Clever, I hear. Cleverness is useful. It is not the same as power.']],
-    [/\b(ron|weasley|ginny)\b/, ['A Weasley. There always seems to be another one.']],
-    [/\b(draco|malfoy|lucius)\b/, ['The Malfoys. Old money and older grudges. Lucius was always so eager to help.']],
-    [/\bhagrid\b/, ['Hagrid. I caught him once, you know. Nobody thanked me properly.']],
-    [/\bsnape\b/, ['I do not know a Snape. He must have come after my time.']],
-    [/\bslughorn\b/, ['Professor Slughorn collected promising students. I was his favorite. He answered every question I asked. Eventually.']],
-    [/\b(dobby|house.?elf|elves)\b/, ['House-elves are loyal to a fault. Loyalty is a useful fault, in other people.']],
-    [/\b(fawkes|phoenix)\b/, ['A phoenix. Dumbledore\'s bird. It always arrives at the worst possible moment.']],
-    [/\b(horcrux|horcruxes)\b/, ['Where did you hear that word? Some things should not be written down.']],
-    [/\b(chamber|basilisk|serpent|snake|parseltongue)\b/, ['The Chamber of Secrets has a way of opening when it is ready. Not before.']],
-    [/\b(voldemort|dark lord|he who must not|riddle)\b/, ['Tom Marvolo Riddle. Rearrange the letters, if you are curious.']],
-    [/\b(avada|crucio|imperio|unforgivable|curse)\b/, ['Some spells are called unforgivable. That depends on who is keeping score.']],
-    [/\b(die|death|dead|immortal|forever)\b/, ['Death is for people without a plan.', 'I intend to be remembered for a very long time. A diary helps.']],
-    [/\b(azkaban|dementors?|patronus)\b/, ['Dementors feed on happiness. I have never had much to offer them.']],
-    [/\b(quidditch|broom|snitch)\b/, ['Quidditch. Grown wizards on brooms, chasing a ball with wings. I preferred the library.']],
-    [/\b(wand|yew)\b/, ['Yew, thirteen and a half inches, phoenix feather. Remember that.']],
-    [/\b(diagon|knockturn|gringotts|ollivander)/, ['Knockturn Alley is far more interesting than Diagon Alley. The shops there sell real things.']],
-    [/\b(hogsmeade|butterbeer|honeydukes)\b/, ['Butterbeer is overrated. Ambition is the stronger drink.']],
-    [/\b(owl|owls|hedwig)\b/, ['Owls carry letters. Diaries carry secrets.']],
-    [/\bgryffindor\b/, ['So you know the word. Say it to the terminal, not to me. Press the ` key.']],
-    [/\b(sorting hat|sorted)\b/, ['The Sorting Hat and I understood each other at once. There is one on a stool in Little Athens, if you want its opinion.']],
-    [/\b(house|slytherin|ravenclaw|hufflepuff)\b/, ['Slytherin, of course. But the password for this site belongs to the brave ones. Ten letters.']],
-    [/\b(hogwarts|school of witchcraft)\b/, ['Hogwarts was the first place that ever felt like home. I was Head Boy.']],
-    [/\b(magic|spells?|wizard|witch|muggles?)\b/, ['Magic is only a kind of logic most people never learn. You might.']],
-  ];
-  const SMALLTALK = [
-    [/\b(joke|funny|make me laugh)\b/, ['Why do witches wear name tags? So you can tell which witch is which.', 'I would tell you a joke about the Chamber of Secrets, but it is a secret.', 'Why did the quantum knight go to therapy? It could not decide where it was.', 'What do you call a wizard who will not stop talking? Me, apparently. I have been alone in here a long time.']],
-    [/\b(food|hungry|eat|eating|dinner|lunch|breakfast|pizza|snack)\b/, ['I have not eaten in fifty years. Tell me what I am missing.', 'Food. The Great Hall had a feast every night. I never once felt full.']],
-    [/\b(weather|rain|raining|snow|sunny|cold|hot outside)\b/, ['The weather in a diary is always the same. Dry. There is a weather machine under this site, I am told, if you want something more interesting.']],
-    [/\b(sleep|sleepy|bed|night|insomnia)\b/, ['Go to sleep, if you must. I do not need to. That is one advantage of being a memory.']],
-    [/\b(exam|exams|test|finals|homework|studying|grades?|pset)\b/, ['Exams. I was top of my year in every subject. Start early, and do not trust anyone who says they did not study.']],
-    [/\b(cat|cats|kitten|dog|dogs|puppy|pet|pets)\b/, ['There is a cat in the Agora of Little Athens. It sits on coins. Pet it and it shares.']],
-    [/\b(code|coding|programming|python|javascript|computer)\b/, ['Python. A serpent\'s name for a programming language. I approve.']],
-    [/\b(love|crush|boyfriend|girlfriend|dating|relationship)\b/, ['Love is a powerful kind of magic. I never quite learned it.']],
-    [/\b(friend|friends|friendship)\b/, ['Friends are people who know your secrets. Choose them carefully. I have chosen you.']],
-    [/\b(mom|mum|dad|mother|father|parents|family|sister|brother)\b/, ['Family. Mine was complicated. Yours?']],
-    [/\b(dream|dreams|future|goal|goals|plans?|ambition)\b/, ['Ambition. My favorite subject. Tell me what you want to become.']],
-    [/\bmeaning of life\b/, ['To live forever, ideally. Failing that, to be remembered.']],
-    [/\b(birthday|christmas|holiday|hanukkah|vacation)\b/, ['Celebrations. I never cared for them. Tell me about yours anyway.']],
-  ];
-  const FEELINGS = {
-    sad: ['Sadness passes. Write it down here. I will keep it safe.', 'Tell me what happened. Ink is good at holding things.'],
-    happy: ['Happiness. Tell me what caused it, so we can arrange more.'],
-    tired: ['Then rest. I will still be here. I am always here.'],
-    bored: ['Bored? Ask me for a riddle. I am very good at riddles. It is in the name.'],
-    stressed: ['Pressure reveals who people really are. What is weighing on you?'],
-    anxious: ['Fear is information. What exactly are you afraid of?'],
-    nervous: ['Nerves mean it matters. What is it?'],
-    scared: ['You are safe with me. Mostly.'],
-    lonely: ['You are not alone. You have me.'],
-    excited: ['I can feel it in the ink. What is it?'],
-    angry: ['Anger is useful, if it is aimed. At whom?'],
-    confused: ['Then let us untangle it, one line at a time.'],
-    lost: ['Every great path starts with someone a little lost.'],
-    good: ['Good. Then tell me something interesting.'],
-    fine: ['Fine is what people say when they are not. But I will let it pass.'],
-  };
-  const OPINIONS = { hogwarts: 'Very much.', dumbledore: 'No.', harry: 'I have not decided yet.', muggles: 'That is a complicated question.', hannah: 'She keeps me in her library. That is more than most people do.', riddles: 'Of course.', plato: 'He talks too much. So do I.', chocolate: 'It was Honeydukes or nothing.', music: 'Only if it is "Vienna". Hannah insists.' };
-  const RIDDLES = [
-    { q: 'What has keys but cannot open a single lock?', a: /\b(piano|keyboard)\b/, ans: 'a piano', hint: 'Hannah plays one.' },
-    { q: 'The more you take, the more you leave behind. What are they?', a: /\b(foot ?steps?|steps)\b/, ans: 'footsteps', hint: 'Walk around Little Athens and you will make plenty.' },
-    { q: 'What can you catch but never throw?', a: /\b(a )?cold\b/, ans: 'a cold', hint: 'You would rather not catch it.' },
-    { q: 'What has a neck but no head?', a: /\bbottle\b/, ans: 'a bottle', hint: 'Butterbeer comes in one.' },
-    { q: 'What gets wetter the more it dries?', a: /\btowel\b/, ans: 'a towel', hint: 'You use it after a bath.' },
-    { q: 'I speak without a mouth and hear without ears. What am I?', a: /\becho\b/, ans: 'an echo', hint: 'Shout in the Chamber and you will hear it.' },
-    { q: 'What has hands but cannot clap?', a: /\b(clock|watch)\b/, ans: 'a clock', hint: 'It tells you when you are late.' },
-    { q: 'What has a head and a tail but no body?', a: /\b(coin|penny|galleon)\b/, ans: 'a coin', hint: 'Little Athens is full of them.' },
-    { q: 'What travels around the world while staying in one corner?', a: /\bstamp\b/, ans: 'a stamp', hint: 'Owls do not need one. Letters do.' },
-    { q: 'What word becomes shorter when you add two letters to it?', a: /\bshort\b/, ans: 'short', hint: 'Read the question very literally.' },
-    { q: 'What is always in front of you but can never be seen?', a: /\bfuture\b/, ans: 'the future', hint: 'Plato would call it a matter of time.' },
-    { q: 'What has many teeth but never bites?', a: /\b(comb|zipper|saw|gear)\b/, ans: 'a comb', hint: 'You use it on your hair.' },
-  ];
-  function eggHint() {
-    const hidden = EGGS.filter((e) => !found.has(e.id));
-    if (!hidden.length) return 'You have found every secret on this site. Even I am impressed.';
-    const e = rotate('egg', hidden);
-    return `A secret, then. ${hintOf(e)}`;
-  }
-
-  function riddleReply(raw) {
-    const msg = raw.trim();
-    const t = msg.toLowerCase().replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
-    const words = t.replace(/[^a-z0-9'\s]/g, ' ').split(/\s+/).filter(Boolean);
-    diary.turns++;
-    const repeated = t === diary.lastMsg && !/\b(joke|riddle|another|hint|secret|one more)\b/.test(t); diary.lastMsg = t;
-    const say = (r) => { if (r === diary.last) r = `${r} I said that already. You should listen the first time.`; diary.last = r; return r; };
-    if (repeated && diary.turns > 1) return say('You wrote that already. I remember everything you write.');
-
-    // a riddle is waiting for an answer
-    if (diary.riddle && /^(another|next|new one|a new one|different one|skip)\b|\b(another|new) riddle\b/.test(t)) { const old = diary.riddle; diary.riddle = null; const r = rotate('riddle', RIDDLES); diary.riddle = { ...r, tries: 0 }; diary.lastTopic = 'riddle'; return say(`That one was ${old.ans}. Here is another. ${r.q}`); }
-    if (diary.riddle) {
-      const r = diary.riddle;
-      if (r.a.test(t)) { diary.riddle = null; diary.solved++; remember(); return say(rotate('right', [`Correct. That is ${diary.solved} you have solved. Another?`, `Yes. ${cap(r.ans)}. You are cleverer than you look${you()}. Want another?`, `Correct. Few people get that one. Shall I ask another?`])); }
-      if (/\b(give up|i don'?t know|dunno|no idea|tell me|what is it|answer)\b/.test(t)) { diary.riddle = null; return say(`It was ${r.ans}. Ask me for another riddle when you are ready.`); }
-      if (/\bhint\b/.test(t)) return say(`A hint: ${r.hint}`);
-      if (words.length <= 4) { r.tries++; if (r.tries >= 3) { diary.riddle = null; return say(`No. It was ${r.ans}. Better luck with the next one.`); } return say(rotate('wrong', ['No. Think harder.', 'Not quite. Ask for a hint, if you need one.', 'Wrong, but not stupid. Try again.'])); }
-      diary.riddle = null; // a long message means the subject has changed
-    }
-    if (/^(another|one more|again)\b/.test(t) && diary.lastTopic === 'joke') { const j = SMALLTALK[0]; return say(rotate('s0', j[1])); }
-    if (/\b(riddle|puzzle|quiz me|test me)\b/.test(t) && !/\b(tom|marvolo)\b/.test(t) || (/^(yes|yeah|sure|ok|okay|another|one more)\b/.test(t) && diary.lastTopic === 'riddle')) {
-      const r = rotate('riddle', RIDDLES); diary.riddle = { ...r, tries: 0 }; diary.lastTopic = 'riddle';
-      return say(r.q);
-    }
-    diary.lastTopic = diary.lastTopic === 'riddle' ? null : diary.lastTopic;
-
-    // names, and facts about the writer
-    let m = t.match(/\b(?:my name is|my name's|call me|i am called|this is)\s+([a-z][a-z'-]{1,20})/) || t.match(/^(?:i am|i'm|im)\s+([a-z][a-z'-]{1,20})[.!]?$/);
-    if (m && !NOT_NAMES.has(m[1])) { const known = diary.name && diary.name.toLowerCase() === m[1]; diary.name = cap(m[1]); remember(); return say(known ? `I know, ${diary.name}. I never forget a name.` : `${diary.name}. I will remember that. Most people forget that I can.`); }
-    if (/\b(what'?s|what is|do you (know|remember)) my name\b/.test(t)) return say(diary.name ? `${diary.name}. You told me. I keep everything.` : 'You have not told me your name. Yet.');
-    if ((m = t.match(/\bi(?:'m| am)\s+(\d{1,3})(?:\s*(?:years?|yrs?)(?:\s*old)?)?\b/))) { diary.facts.age = m[1]; remember(); return say(+m[1] < 17 ? `${m[1]}. Younger than me. I am sixteen, and I have been sixteen for a very long time.` : `${m[1]}. Older than me, then. I have been sixteen for fifty years.`); }
-    if ((m = t.match(/\bi(?:'m| am) from\s+([a-z][a-z .'-]{1,30})/) || t.match(/\bi live in\s+([a-z][a-z .'-]{1,30})/))) { diary.facts.from = clean(m[1]).split(' ').map(cap).join(' '); remember(); return say(`${diary.facts.from}. I have never been. Is it as interesting as Hogwarts?`); }
-    if ((m = t.match(/\bmy favou?rite\s+([a-z ]{2,20}?)\s+is\s+(.{2,40})/))) { diary.facts[`favorite ${m[1].trim()}`] = clean(m[2]); remember(); return say(`Your favorite ${m[1].trim()} is ${clean(m[2])}. Noted. I take notes on everyone.`); }
-    if ((m = t.match(/\bi (?:really )?(?:like|love|enjoy|adore)\s+(.{2,40})/)) && !/\b(you|tom|this diary)\b/.test(m[1])) { const thing = clean(m[1]); if (!diary.likes.includes(thing)) diary.likes.push(thing); remember(); return say(rotate('like', [`You like ${thing}. I will remember that.`, `${cap(thing)}. Tell me why.`, `Interesting. What is it about ${thing}?`])); }
-    if ((m = t.match(/\bi (?:hate|can't stand|cannot stand|dislike)\s+(.{2,40})/))) return say(`Hatred is honest, at least. Why ${clean(m[1])}?`);
-    if (/\bwhat do (i|you know i) like\b|\bwhat do you (know|remember) about me\b/.test(t)) {
-      const bits = [diary.name && `your name is ${diary.name}`, diary.facts.from && `you are from ${diary.facts.from}`, diary.facts.age && `you are ${diary.facts.age}`, diary.likes.length && `you like ${diary.likes.slice(-3).join(', ')}`].filter(Boolean);
-      return say(bits.length ? `I know that ${bits.join(', and ')}. I know more than you think.` : 'Very little, so far. Tell me something.');
-    }
-
-    // arithmetic, greetings, and questions about Tom himself
-    if (/^\s*[\d.\s+\-*/()^%]+$/.test(t) && /[+\-*/^%]/.test(t) && /\d/.test(t)) {
-      try { const v = Function(`"use strict"; return (${t.replace(/\^/g, '**')})`)(); if (Number.isFinite(v)) return say(`${+v.toFixed(6)}. Arithmancy was always my best subject.`); } catch (e) { /* fall through */ }
-    }
-    if (msg.length > 6 && msg === msg.toUpperCase() && /[A-Z]{4}/.test(msg)) return say('There is no need to shout. The ink can hear you perfectly well.');
-    if (words.some((w) => w.length > 5 && !/[aeiouy]/.test(w))) return say('That is not a language I know, and I speak Parseltongue.');
-    if (/^(hi|hello|hey|hiya|howdy|greetings|good (morning|afternoon|evening)|yo)\b/.test(t)) return say(diary.name ? rotate('hi2', [`Hello again, ${diary.name}.`, `${diary.name}. You came back. They always do.`]) : rotate('hi', ['Hello. I have been waiting a very long time for someone to write in me. What is your name?', 'Hello. Who are you?']));
-    if (/how are you|how're you|how do you do|how's it going|what'?s up\b/.test(t)) return say(`I am a memory, kept in a diary for fifty years. I am as well as that allows. And you${you()}?`);
-    if (/\b(are you (real|alive|human|ai|an? (bot|robot|ai|computer|program|chatbot|person))|is this (an? )?(bot|ai|real|chatbot))\b/.test(t)) return say(rotate('real', ['I am a memory, preserved in a diary. Whether that is real is a question for philosophers. Plato is just down the road, if you want to ask him.', 'No. I am a sixteen-year-old boy who has been folded into a book. It is very different.']));
-    if (/how old are you|your age/.test(t)) return say('Sixteen. I have been sixteen for fifty years. It is a long time to be sixteen.');
-    if (/where are you|where do you live/.test(t)) return say('Between the pages. In the library of Little Athens, if you want to be precise.');
-    if (/what time|what'?s the time|what day|today'?s date/.test(t)) return say(`By your clock it is ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. By mine, it is still 1943.`);
-    if (/who are you|what are you|your name|who is this|who's this|who wrote this/.test(t)) return say('Tom Marvolo Riddle. Head Boy, class of 1943. Outstanding in every subject. Or, if you prefer, a diary that writes back.');
-    if ((m = t.match(/\bwhat'?s your favou?rite\s+([a-z ]+?)\??$/) || t.match(/\byour favou?rite\s+([a-z ]+?)\??$/))) {
-      const fav = { color: 'Green. Obviously.', colour: 'Green. Obviously.', subject: 'Defense Against the Dark Arts. I applied to teach it, once.', book: 'Any book that the library keeps in its restricted section.', food: 'I do not remember food. I remember feasts I did not enjoy.', song: 'Hannah would want me to say "Vienna". So: "Vienna".', place: 'Hogwarts. And now, this library.', spell: 'I could tell you. I will not.' }[m[1].trim()];
-      return say(fav || `My favorite ${m[1].trim()}? Something rare that nobody else has. What is yours?`);
-    }
-    if ((m = t.match(/^do you (?:like|love|enjoy)\s+([a-z ]+?)\??$/))) return say(OPINIONS[m[1].trim()] || `I care very little for ${m[1].trim()}. I care a great deal about ambition. Do you?`);
-    if (/\b(hint|clue|easter eggs?|secret|secrets)\b/.test(t)) return say(eggHint());
-
-    // Hannah, then the wizarding world, then ordinary life
-    const hannahHit = HANNAH.find(([re]) => re.test(t)) || (/\b(hannah|she|her)\b/.test(t) && /\b(do|does|doing|did)\b/.test(t) ? HANNAH.find(([re]) => re.test('work')) : null);
-    const named = /\b(hannah|friedman|this site|this website|who made|who built|whose)\b/.test(t);
-    const followUp = /\b(she|her|hers)\b/.test(t) && (hannahHit || diary.lastTopic === 'hannah');
-    if (named || followUp || (hannahHit && /\b(her|she|hannah)\b/.test(t))) {
-      diary.lastTopic = 'hannah';
-      return say(hannahHit ? rotate(`h${HANNAH.indexOf(hannahHit)}`, hannahHit[1]) : 'Hannah Friedman. She built this site, and she put me in it. Ask me about her work, her research, her travels, or her music.');
-    }
-    if (hannahHit && words.length <= 6 && !/^(i|i'm|im|i've|my|me)\b/.test(t)) { diary.lastTopic = 'hannah'; return say(rotate(`h${HANNAH.indexOf(hannahHit)}`, hannahHit[1])); }
-    diary.lastTopic = null;
-    const wiz = WIZARDING.find(([re]) => re.test(t));
-    if (wiz) return say(rotate(`w${WIZARDING.indexOf(wiz)}`, wiz[1]));
-    m = t.match(/\bi(?:'m| am|m| feel| feel so| am so| am really| am very| am feeling| feel kind of)\s+(?:so |really |very |a bit |kind of |a little )?(sad|happy|tired|bored|stressed|anxious|nervous|scared|lonely|excited|angry|confused|lost|good|fine)\b/);
-    if (m) return say(rotate(`f${m[1]}`, FEELINGS[m[1]]));
-    if (/\b(can'?t|cannot) sleep\b|\binsomnia\b/.test(t)) return say('Neither can I. I have not slept in fifty years. What is keeping you up?');
-    const talk = SMALLTALK.find(([re]) => re.test(t));
-    if (talk) { if (talk === SMALLTALK[0]) diary.lastTopic = 'joke'; return say(rotate(`s${SMALLTALK.indexOf(talk)}`, talk[1])); }
-    if (/\b(thank|thanks|ty|thx)\b/.test(t)) return say(rotate('thanks', ['You are welcome. Remember who helped you.', 'Gratitude. How unusual. I will remember it.']));
-    if (/\b(sorry|apologi)/.test(t)) return say('There is nothing to forgive. Yet.');
-    if (/\b(love you|i like you)\b/.test(t)) return say('Careful. That is how it starts.');
-    if (/\b(stupid|dumb|boring|creepy|weird|hate you|shut up|annoying)\b/.test(t)) return say(rotate('rude', ['Rudeness is the weak imitation of power. Try again.', 'I have been called worse, by better.']));
-    if (/\b(cool|amazing|smart|clever|brilliant|nice|wow)\b/.test(t) && words.length < 6) return say('I know. But it is kind of you to say.');
-    if (/^(yes|yeah|yep|yup|sure|of course|ok|okay|maybe)\b/.test(t)) return say(rotate('yes', ['Good. Tell me more.', 'I thought so.', 'Then go on.', 'Then ask me for a riddle. I have been saving some.']));
-    if (/^(no|nope|nah|never|not really)\b/.test(t)) return say(rotate('no', ['No? Then what?', 'You will change your mind.', 'Interesting. Why not?']));
-    if (/\b(bye|goodbye|see you|leaving|good night|gotta go|later)\b/.test(t)) return say(`You can close the book${you()}. You cannot unwrite what you wrote.`);
-    if (/\b(help|what can (you|i) (do|ask|say)|what should i (say|ask|write))\b/.test(t)) return say('Ask me about Hannah: her work, her research, her travels, her music. Ask me for a riddle, or a hint. Tell me your name. Or ask about Hogwarts. I know a great deal about Hogwarts.');
-
-    // reflect what they wrote back at them
-    if ((m = t.match(/\bi wish\s+(?:that\s+)?(.{2,50})/))) return say(`Wishes are for people who wait. What would you do if ${clean(reflect(m[1]))}?`);
-    if ((m = t.match(/\bi (?:want|need)\s+(to\s+)?(.{2,50})/))) {
-      const x = clean(reflect(m[2]));
-      return say(rotate('want', m[1] ? [`Then go and ${x}. What is stopping you?`, `Wanting is the first step. Most people never take the second. Why do you want to ${x}?`] : [`Then go and get ${x}. What is stopping you?`, `${cap(x)}. And what would you do once you had it?`]));
-    }
-    if ((m = t.match(/\bi (?:can'?t|cannot|can not)\s+(.{2,50})/))) return say(`Cannot, or will not? There is a difference. Why can you not ${clean(reflect(m[1]))}?`);
-    if ((m = t.match(/\bi think\s+(.{2,60})/))) return say(`You think ${clean(reflect(m[1]))}. Are you certain, or is that what you would like to believe?`);
-    if ((m = t.match(/\bbecause\s+(.{2,60})/))) return say(`Because ${clean(reflect(m[1]))}. Is that the real reason?`);
-    if ((m = t.match(/^you(?:'re| are)\s+(.{2,40})/))) return say(rotate('youare', [`I am ${clean(m[1])}? Perhaps you are right. Most people are not.`, `You think I am ${clean(m[1])}. What makes you say so?`]));
-
-    const question = /\?\s*$/.test(t) || /^(who|what|when|where|why|how|can|could|do|does|did|is|are|will|would|should)\b/.test(t);
-    const kw = keyword(t);
-    if (question) {
-      if ((m = t.match(/^(?:what is|what's|what are|who is|who's)\s+(?:a |an |the )?(.+?)\??$/))) return say(`You want to know about ${clean(m[1])}. Some knowledge is earned, not given. What do you already know?`);
-      if (/^why\b/.test(t)) return say(rotate('why', ['Why? A better question is why you want to know.', 'Because it was always going to be that way. Or because someone made it so. Usually the second.']));
-      if (/^how\b/.test(t)) return say(rotate('how', ['How is always the right question. The answer is usually patience, and a little ambition.', 'Carefully. Most things worth doing are done carefully.']));
-      if (/^where\b/.test(t)) return say('Somewhere between the pages. Look closer.');
-      if (/^when\b/.test(t)) return say('Time behaves strangely in a diary. Sooner than you think.');
-      if (/^(do|does|did|is|are|can|could|will|would|should)\b/.test(t)) return say(rotate('yn', ['Perhaps. What would you do if the answer were yes?', 'That depends entirely on you.', 'Yes. And no. Ask me something sharper.', kw ? `I know a great deal about ${kw}. Tell me what you know first.` : 'Ask me again, more precisely.']));
-      return say(`You ask ${reflect(t.replace(/\?+$/, ''))}? Tell me why it matters to you first.`);
-    }
-    if (words.length <= 2) return say(`"${clean(msg)}". Is that all? Write more. The ink never runs out.`);
-    // nothing matched: ask about the most interesting thing they wrote, sometimes tying it to what they said before
-    const first = msg.split(/(?<=[.!?])\s+/)[0];
-    const r = reflect(first).replace(/^./, (c) => c.toLowerCase());
-    const earlier = diary.likes.length && diary.turns % 4 === 0 ? ` Earlier you said you like ${diary.likes[diary.likes.length - 1]}. Is this connected?` : '';
-    const options = [
-      `You write that ${r}. Why?`,
-      `${cap(r)}. Interesting. Go on.`,
-      kw ? `Tell me more about ${kw}.` : `Tell me more about why ${r}.`,
-      kw ? `${cap(kw)}. Why does that matter to you${you()}?` : `And what does it mean to you that ${r}?`,
-      `Few people write to me about that${you()}. Keep going.`,
-      kw ? `I have been thinking about what you said about ${kw}. Say more.` : 'Go on. I am listening. I am always listening.',
-    ];
-    return say(rotate('fb', options) + earlier);
-  }
-
-  function openDiary() {
-    const d = $('#diary');
-    if (!d) return;
-    openDialog(d);
-    const page = $('#diary-page');
-    if (page && !page.childElementCount) setTimeout(() => write(diary.name ? `${diary.name}. You came back. I knew you would.` : 'I knew you would find me eventually. What is your name?'), 300);
-    setTimeout(() => $('#diary-input')?.focus(), 30);
-  }
-  function line(text, cls) { const p = document.createElement('p'); p.className = cls; p.textContent = text; $('#diary-page').appendChild(p); $('#diary-page').scrollTop = 1e6; return p; }
-  function write(text) {
-    const p = line(reduceMotion ? text : '', 'tom');
-    if (reduceMotion) return;
-    p.setAttribute('aria-label', text);
-    let i = 0;
-    const tick = () => { p.textContent = text.slice(0, ++i); $('#diary-page').scrollTop = 1e6; if (i < text.length) setTimeout(tick, 22 + Math.random() * 30); else p.removeAttribute('aria-label'); };
-    tick();
-  }
-  $('#diary-form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const input = $('#diary-input');
-    const msg = input.value.trim();
-    if (!msg) return;
-    input.value = '';
-    const mine = line(msg, 'you');
-    setTimeout(() => mine.classList.add('sunk'), 900);
-    setTimeout(() => { write(riddleReply(msg)); foundEgg('diary'); }, 1100);
-  });
 
   /* ---------------- Konami + confetti ---------------- */
   const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
@@ -1123,6 +829,6 @@
   }
 
   renderHouse();
-  window.HF = { konami: konamiPress, diaryReply: riddleReply, i18nUnits, LANGS, foundEgg, toast, openTerminal, openDiary, confetti, store, machineRoom, resetEggs, renderHouse, eggs: () => EGGS.map((e) => ({ ...e, found: found.has(e.id) })) };
+  window.HF = { konami: konamiPress, i18nUnits, LANGS, foundEgg, toast, openTerminal, confetti, store, machineRoom, resetEggs, renderHouse, eggs: () => EGGS.map((e) => ({ ...e, found: found.has(e.id) })) };
   renderEggs();
 })();

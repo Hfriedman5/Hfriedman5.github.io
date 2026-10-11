@@ -169,5 +169,26 @@ export function nextReport(c, m, today = new Date()) {
   }
   return { days: 7, date: addDays(today, 7), moved: null };
 }
+/* ---------------- The farm: crops and what Demetrios pays for them ---------------- */
+// Slower crops pay more per harvest; faster ones pay more per hour, if you come back often to replant.
+export const CROPS = [
+  { id: 'radish', name: 'Radishes', seedName: 'Radish seeds', one: 'bunch of radishes', many: 'bunches of radishes', cost: 10, hours: 1, price: 25 },
+  { id: 'wheat', name: 'Wheat', seedName: 'Wheat seeds', one: 'sheaf of wheat', many: 'sheaves of wheat', cost: 30, hours: 8, price: 90 },
+  { id: 'grapes', name: 'Grapes', seedName: 'Grape vines', one: 'basket of grapes', many: 'baskets of grapes', cost: 60, hours: 24, price: 200 },
+  { id: 'olives', name: 'Olives', seedName: 'Olive saplings', one: 'basket of olives', many: 'baskets of olives', cost: 100, hours: 72, price: 400 },
+];
+export const cropById = (id) => CROPS.find((c) => c.id === id);
+const CROP_MARKETS = [['low', .8, .25], ['normal', 1, .5], ['high', 1.25, .25]];
+// Today's price for one harvest: a daily ups and downs (the same for everyone), plus two seasons:
+// grapes sell high in the two weeks before the Great Dionysia, olives during the olive harvest.
+export function cropPrice(crop, date = new Date()) {
+  const day = pickBy(CROP_MARKETS, seeded(`${dayKeyOf(date)}:crop:${crop.id}`));
+  let mult = day[1], note = day[0] === 'normal' ? '' : day[0] === 'high' ? 'in demand today' : 'not much demand today';
+  const m = date.getMonth(), dd = date.getDate();
+  if (crop.id === 'grapes' && m === 2 && dd >= 14 && dd <= 29) { mult *= 1.4; note = 'the Great Dionysia is coming'; }
+  if (crop.id === 'olives' && [9, 10, 11].includes(m)) { mult *= 1.25; note = 'olive harvest season'; }
+  return { price: Math.round(crop.price * mult), note };
+}
+
 // The price a trade happens at: whole coins.
 export const tradePrice = (p) => Math.max(1, Math.round(p));

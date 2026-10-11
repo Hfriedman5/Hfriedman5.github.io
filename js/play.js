@@ -1,12 +1,12 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010ze';
-import { createRace } from './race.js?v=20261010ze';
-import { createWeather, currentWeather } from './weather.js?v=20261010ze';
-import { ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010ze';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010ze';
-import { CREATURES, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010ze';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zh';
+import { createRace } from './race.js?v=20261010zh';
+import { createWeather, currentWeather } from './weather.js?v=20261010zh';
+import { CROPS, cropById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zh';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zh';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zh';
 
-const HF = () => window.HF || { foundEgg() {}, toast() {}, openDiary() {}, store: { get: (k, d) => d, set() {} } };
+const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = (s) => document.querySelector(s);
 
@@ -196,7 +196,10 @@ const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'}`;
 const inTime = (ms) => {
   if (ms < 60e3) return plural(Math.max(1, Math.ceil(ms / 1000)), 'second');
   const m = Math.ceil(ms / 60e3);
-  return m < 60 ? plural(m, 'minute') : plural(Math.floor(m / 60), 'hour') + (m % 60 ? ` ${plural(m % 60, 'minute')}` : '');
+  if (m < 60) return plural(m, 'minute');
+  const h = Math.floor(m / 60);
+  if (h >= 48) return plural(Math.floor(h / 24), 'day') + (h % 24 ? ` ${plural(h % 24, 'hour')}` : '');
+  return plural(h, 'hour') + (m % 60 ? ` ${plural(m % 60, 'minute')}` : '');
 };
 const used = (key) => { cooldowns[key] = Date.now(); lsSet('hf-cooldowns', cooldowns); };
 renderCoins();
@@ -667,8 +670,9 @@ const INTERACT = {
   },
   async parthenon() {
     if (await requestTalk('parthenon')) return;
-    const v = await say(['The Parthenon. Temple of Athena, goddess of wisdom and strategy.', "Someone carved Hannah's resume into a marble slab by the door. It's a little much."], [{ label: 'Download it', value: 'resume' }, { label: 'Leave', value: null }]);
+    const v = await say(['The Parthenon. Temple of Athena, goddess of wisdom and strategy.', "Someone carved Hannah's resume into a marble slab by the door. It's a little much.", 'Beside it hangs a scroll labeled "Some Random Hannectodes". It is Hannah\u2019s blog.'], [{ label: 'Download the resume', value: 'resume' }, { label: 'Read the blog', value: 'blog' }, { label: 'Leave', value: null }]);
     if (v === 'resume') downloadResume();
+    if (v === 'blog') location.href = 'blog.html';
   },
   async gaming() {
     const v = await say(['The Gaming Hall. The Greeks played petteia in here. Today it is Minesweeper and blackjack.', `You have ${wallet.coins.toLocaleString()} coins.`], [{ label: 'Blackjack', value: 'bj' }, { label: 'Minesweeper', value: 'ms' }, ...(leaderboardReady() ? [{ label: 'Leaderboard', value: 'board' }] : []), { label: 'Leave', value: null }]);
@@ -682,9 +686,7 @@ const INTERACT = {
   },
   async library() {
     if (await requestTalk('library')) return;
-    const v = await say(['The library is quiet. Scrolls everywhere.', 'Among them sits a small black diary. It is very old, but not this old.', 'On a shelf nearby, a newer scroll is labeled "Some Random Hannectodes". It is Hannah\u2019s blog.'], [{ label: 'Write in the diary', value: 'diary' }, { label: 'Read the blog', value: 'blog' }, { label: 'Leave', value: null }]);
-    if (v === 'diary') HF().openDiary();
-    if (v === 'blog') location.href = 'blog.html';
+    await say(['The library is quiet. Scrolls everywhere, from Homer to Herodotus.', 'Looking for Hannah\u2019s blog? It hangs by the door of the Parthenon now.']);
   },
   async merchant() {
     if (await requestTalk('merchant')) return;
@@ -795,6 +797,9 @@ function pressA() {
   if (sign) return sign.board ? readBoard() : say(sign.text);
   const b = doorAt(fx, fy);
   if (b) return INTERACT[b.id]();
+  if (plotAt(fx, fy) >= 0) return plotTalk(plotAt(fx, fy));
+  if (fx === WELL.x && fy === WELL.y) return wellTalk();
+  if (fy === FARM_STALL.y && fx >= FARM_STALL.x && fx < FARM_STALL.x + FARM_STALL.w) return farmerTalk();
   if (harbor.boat && fy === DOCK.y && Math.abs(fx - DOCK.x) <= 1) return boardBoat();
   if (lostAt(fx, fy)) return pickUpLost();
   if (grid[fy]?.[fx] === '~' || grid[fy]?.[fx] === 's' && grid[fy + 1]?.[fx] === '~') return say('The Aegean. Homer called it wine-dark. You decide not to swim in it.');
@@ -880,6 +885,7 @@ function occupied(x, y, self) {
 }
 let lastPlace = '';
 function placeName(x, y) {
+  if (x >= 36 && y <= 20) return 'The farm';
   if (grid[y][x] === 'i') return 'The Stadium';
   if (y === 13 || y === 14) return 'The Panathenaic Way';
   if (y >= 8 && y <= 12 && x >= 11 && x <= 24) return 'The Agora';
@@ -968,6 +974,10 @@ function render(now) {
   const frame = reduceMotion ? 0 : Math.floor(now / 450) % waterFrames.length;
   ctx.drawImage(waterFrames[frame], camX, camY, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
 
+  PLOTS.forEach((p, i) => {
+    const sx = p.x * TILE - camX, sy = p.y * TILE - camY;
+    if (sx > -TILE && sx < canvas.width && sy > -TILE && sy < canvas.height) ctx.drawImage(plotCanvas(plotKey(i)), sx, sy);
+  });
   const lost = lostItem(); if (lost) ctx.drawImage(spriteCanvas(lost.sprite), lost.x * TILE - camX, lost.y * TILE - camY);
   drawHarbor(camX, camY, now);
   sailTick(now);
@@ -1116,6 +1126,123 @@ function flag(i) {
 }
 $('#ms-new').addEventListener('click', newMines);
 
+/* ---------------- The farm: plots, seeds, watering, and Demetrios's stall ---------------- */
+// Crops grow in real time, even with the tab closed. Watering keeps a crop growing at full speed for 12 hours;
+// dry soil still grows it, at half speed, so nothing is ever lost. Rain from the Machine Room waters everything; snow slows it all.
+const WATER_HOURS = 12, SEED_MAX = 99;
+const farm = { owned: [], plots: {}, seeds: {}, basket: {}, ...lsGet('hf-farm', {}) };
+const saveFarm = () => lsSet('hf-farm', farm);
+const plotPrice = () => Math.round((100 * 1.5 ** farm.owned.length) / 50) * 50; // 100, 150, 250, 350, 500, 750, ...
+const fullSpeed = (crop) => (weatherKind === 'snow' ? .5 : 1) / (crop.hours * 3600e3); // growth per millisecond, watered
+const isWet = (pl, now = Date.now()) => weatherKind === 'rain' || (pl.wetUntil || 0) > now;
+// How grown a crop is, from 0 to 1: full speed while the soil was wet, half speed after.
+function grownAt(pl, now = Date.now()) {
+  const full = fullSpeed(cropById(pl.crop));
+  const wetEnd = weatherKind === 'rain' ? now : Math.min(now, Math.max(pl.at, pl.wetUntil || 0));
+  return Math.min(1, pl.grown + (wetEnd - pl.at) * full + ((now - wetEnd) * full) / 2);
+}
+function msLeft(pl, now = Date.now()) {
+  const full = fullSpeed(cropById(pl.crop)), left = 1 - grownAt(pl, now);
+  const wet = weatherKind === 'rain' ? Infinity : Math.max(0, (pl.wetUntil || 0) - now);
+  return left <= wet * full ? left / full : wet + (left - wet * full) / (full / 2);
+}
+function waterPlot(pl, now = Date.now()) { pl.grown = grownAt(pl, now); pl.at = now; pl.wetUntil = now + WATER_HOURS * 3600e3; }
+function plotKey(i) {
+  if (!farm.owned.includes(i)) return 'wild';
+  const pl = farm.plots[i];
+  if (!pl) return 'soil';
+  const g = grownAt(pl);
+  return `${pl.crop}:${g >= 1 ? 'ready' : g < .4 ? 'sprout' : 'grow'}${isWet(pl) ? '-wet' : ''}`;
+}
+const cropCount = (c, n) => `${n.toLocaleString()} ${n === 1 ? c.one : c.many}`;
+const lower = (c) => c.name.toLowerCase();
+
+async function plotTalk(i) {
+  if (!farm.owned.includes(i)) {
+    const price = plotPrice();
+    const v = await say([`An overgrown plot of farmland, for sale for ${price.toLocaleString()} coins.`, farm.owned.length ? `You own ${farm.owned.length} of the ${PLOTS.length} plots. Each new plot costs a little more than the last.` : 'Buy it, plant seeds from Demetrios at the gate, and sell him what you grow.'],
+      [{ label: `Buy it for ${price.toLocaleString()}`, value: 'buy' }, { label: 'Not now', value: null }]);
+    if (v !== 'buy') return;
+    if (wallet.coins < price) return say(`This plot costs ${price.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+    wallet.coins = wallet.coins - price; farm.owned.push(i); saveFarm();
+    return plantTalk(i, ['The plot is yours. You pull up the weeds and turn the soil.']);
+  }
+  const pl = farm.plots[i];
+  if (!pl) return plantTalk(i, ['Your plot. The soil is turned and ready.']);
+  const crop = cropById(pl.crop);
+  if (grownAt(pl) >= 1) {
+    delete farm.plots[i]; farm.basket[crop.id] = (farm.basket[crop.id] || 0) + 1; saveFarm();
+    return plantTalk(i, [`You harvest the ${lower(crop)}. Your basket holds ${cropCount(crop, farm.basket[crop.id])}. Demetrios at the gate will buy it.`]);
+  }
+  const lines = [`Your ${lower(crop)}: ${Math.floor(grownAt(pl) * 100)}% grown, ready in about ${inTime(msLeft(pl))}.`, ...(weatherKind === 'snow' ? ['The snow from the Machine Room is slowing everything down.'] : [])];
+  if (weatherKind === 'rain') return say([...lines, 'The rain from the Machine Room is watering it for you.']);
+  if (isWet(pl)) return say([...lines, `The soil is still damp. Watering lasts ${WATER_HOURS} hours.`]);
+  const v = await say([...lines, `The soil is dry, so it is growing at half speed. Water it and it grows at full speed for the next ${WATER_HOURS} hours.`], [{ label: 'Water it', value: 'water' }, { label: 'Leave it', value: null }]);
+  if (v !== 'water') return;
+  waterPlot(pl); saveFarm();
+  return say(`You water the ${lower(crop)}. It should be ready in about ${inTime(msLeft(pl))}.`);
+}
+async function plantTalk(i, intro) {
+  const have = CROPS.filter((c) => farm.seeds[c.id] > 0);
+  if (!have.length) return say([...intro, 'You have no seeds to plant. Demetrios sells them at the farm stall by the gate.']);
+  const pick = await say([...intro, 'What will you plant?'], [...have.map((c) => ({ label: `${c.seedName} (you have ${farm.seeds[c.id]}): ${plural(c.hours, 'hour')}`, value: c.id })), { label: 'Nothing for now', value: null }]);
+  const crop = cropById(pick);
+  if (!crop || !(farm.seeds[crop.id] > 0)) return;
+  farm.seeds[crop.id]--;
+  const pl = farm.plots[i] = { crop: crop.id, grown: 0, at: Date.now(), wetUntil: 0 };
+  saveFarm();
+  if (weatherKind === 'rain') return say(`You plant the ${crop.seedName.toLowerCase()}. The rain waters them for you. Ready in about ${inTime(msLeft(pl))}.`);
+  const v = await say(`You plant the ${crop.seedName.toLowerCase()}. Water them so they grow at full speed?`, [{ label: 'Water them', value: 'water' }, { label: 'Not now', value: null }]);
+  if (v === 'water') waterPlot(pl);
+  saveFarm();
+  return say(`${v === 'water' ? 'Watered. ' : ''}Ready in about ${inTime(msLeft(pl))}.`);
+}
+async function wellTalk() {
+  if (weatherKind === 'rain') return say('The well. No need for it today: the rain from the Machine Room is watering every field in Athens.');
+  if (!farm.owned.length) return say('A stone well. Once you own a plot, you can water your crops from here.');
+  const now = Date.now(), growing = Object.values(farm.plots).filter((pl) => grownAt(pl, now) < 1), dry = growing.filter((pl) => !isWet(pl, now));
+  if (!dry.length) return say(growing.length ? 'The well. Everything you have growing is already watered.' : 'The well. Nothing is growing yet, so nothing needs water.');
+  const v = await say(`The well. ${dry.length === 1 ? 'One of your crops is' : `${dry.length} of your crops are`} dry and growing at half speed.`, [{ label: dry.length === 1 ? 'Water it' : 'Water them all', value: 'all' }, { label: 'Not now', value: null }]);
+  if (v !== 'all') return;
+  dry.forEach((pl) => waterPlot(pl, now)); saveFarm();
+  return say(`You haul up bucket after bucket. ${dry.length === 1 ? 'It grows' : 'They grow'} at full speed for the next ${WATER_HOURS} hours.`);
+}
+async function farmerTalk() {
+  const prices = CROPS.map((c) => ({ c, ...cropPrice(c) }));
+  const sell = prices.filter((p) => farm.basket[p.c.id] > 0), worth = sell.reduce((t, p) => t + p.price * farm.basket[p.c.id], 0);
+  const v = await say(['Demetrios here. I sell seeds, and I buy whatever you grow.', `Today I pay:\n${prices.map((p) => `${p.c.name}: ${p.price} each${p.note ? `, ${p.note}` : ''}`).join('\n')}`], [
+    { label: 'Buy seeds', value: 'seeds' },
+    ...(sell.length ? [{ label: `Sell your harvest for ${worth.toLocaleString()}`, value: 'sell' }] : []),
+    { label: 'How does farming work?', value: 'how' },
+    { label: 'Leave', value: null }]);
+  if (v === 'how') {
+    return say(['Buy a plot, then plant seeds in it. Crops keep growing while you are away, even with the tab closed.',
+      `Radishes take ${plural(cropById('radish').hours, 'hour')}, wheat ${cropById('wheat').hours} hours, grapes a day, and olives three days. The slower the crop, the more it sells for.`,
+      `Water a crop and it grows at full speed for ${WATER_HOURS} hours. Dry soil grows it at half speed. Nothing ever dies. The well waters all your crops at once.`,
+      'My prices change every day. Grapes sell high in the two weeks before the Great Dionysia in March, and olives during the olive harvest, October to December.']);
+  }
+  if (v === 'sell') {
+    const sold = sell.map((p) => cropCount(p.c, farm.basket[p.c.id]));
+    farm.basket = {}; saveFarm();
+    const n = earn(worth, '', Infinity);
+    bumpRecord('farm', (t = 0) => t + n);
+    return say(`You sell ${sold.length > 1 ? `${sold.slice(0, -1).join(', ')} and ${sold.at(-1)}` : sold[0]} for ${n.toLocaleString()} coins.`);
+  }
+  if (v !== 'seeds') return;
+  const pick = await say(`Which seeds? You have ${wallet.coins.toLocaleString()} coins.`, [...CROPS.map((c) => ({ label: `${c.seedName}: ${c.cost} each, ready in ${plural(c.hours, 'hour')}`, value: c.id })), { label: 'Never mind', value: null }]);
+  const crop = cropById(pick);
+  if (!crop) return;
+  const have = farm.seeds[crop.id] || 0, most = Math.min(SEED_MAX - have, Math.floor(wallet.coins / crop.cost));
+  if (have >= SEED_MAX) return say(`You already have ${have} ${crop.seedName.toLowerCase()}. Plant some first.`);
+  if (most < 1) return say(`${crop.seedName} cost ${crop.cost} coins each, and you have ${wallet.coins.toLocaleString()}.`);
+  const n = await say(`How many ${crop.seedName.toLowerCase()}? ${crop.cost} coins each. You can buy up to ${most}.`, [...[1, 3, 6, 12].filter((k) => k <= most).map((k) => ({ label: `${k} for ${(k * crop.cost).toLocaleString()}`, value: k })), { label: 'Other amount', amount: { min: 1, max: most } }, { label: 'Never mind', value: null }]);
+  if (!n) return;
+  if (!Number.isInteger(n) || n < 1 || n > Math.min(SEED_MAX - (farm.seeds[crop.id] || 0), Math.floor(wallet.coins / crop.cost))) return say('Demetrios counts twice and shakes his head. That amount does not work.');
+  wallet.coins = wallet.coins - n * crop.cost; farm.seeds[crop.id] = (farm.seeds[crop.id] || 0) + n; saveFarm();
+  return say(`Demetrios hands you ${n} ${n === 1 ? crop.seedName.toLowerCase().replace(/s$/, '') : crop.seedName.toLowerCase()}. ${farm.owned.length ? 'Walk up to one of your plots to plant.' : 'Now you need a plot: walk up to one of the overgrown ones to buy it.'}`);
+}
+INTERACT.farmer = farmerTalk;
+
 /* ---------------- The Stadium: stadion race ---------------- */
 const RACE_STAKE = 200;
 const race = createRace({
@@ -1131,7 +1258,7 @@ const race = createRace({
     return { staked: true, text: `Stakes: ${RACE_STAKE} coins. Win and he pays you; lose and you pay him.` };
   },
   onFinish({ won, staked }) {
-    if (won) HF().confetti();
+    if (won) { HF().confetti(); HF().foundEgg('stadion'); }
     if (!staked) return won ? '<p class="race-prize">You win! Nothing was riding on it, but the crowd saw everything.</p>' : '<p>He does this every day. Line up again whenever you like.</p>';
     if (won) {
       used('stadion');
