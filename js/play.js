@@ -1,11 +1,11 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011n';
-import { createRace } from './race.js?v=20261011n';
-import { createWeather, currentWeather } from './weather.js?v=20261011n';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011n';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011n';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011n';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011n';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011o';
+import { createRace } from './race.js?v=20261011o';
+import { createWeather, currentWeather } from './weather.js?v=20261011o';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011o';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011o';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011o';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011o';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
