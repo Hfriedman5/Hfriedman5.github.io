@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zq';
-import { createRace } from './race.js?v=20261010zq';
-import { createWeather, currentWeather } from './weather.js?v=20261010zq';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zq';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zq';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zq';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zr';
+import { createRace } from './race.js?v=20261010zr';
+import { createWeather, currentWeather } from './weather.js?v=20261010zr';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zr';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zr';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zr';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1328,7 +1328,7 @@ async function farmerTalk() {
   const goods = STATIONS.some((s) => farm.works[s.id]) || GOODS.some((g) => farm.basket[g.id] > 0);
   const prices = [...CROPS, ...(goods ? GOODS : [])].map((c) => ({ c, ...cropPrice(c) }));
   const has = basketItems().length;
-  const v = await say(['Demetrios here. I sell seeds, and I buy whatever you grow or make.', `Today I pay:\n${prices.map((p) => `${p.c.name}: ${p.price} each${p.note ? `, ${p.note}` : ''}`).join('\n')}`, has ? basketLine() : 'Your basket is empty right now. Bring me anything you harvest or make, and I will buy it at these prices.'], [
+  const v = await say(['Demetrios here. I sell seeds, and I buy whatever you grow or make.', `Today I pay, with what the seeds cost:\n${prices.map((p) => `${p.c.name}: ${p.price}${p.c.cost ? ` (seeds ${p.c.cost})` : ''}${p.note ? `, ${p.note}` : ''}`).join('\n')}\nMy prices change every day. Seeds always cost the same.`, has ? basketLine() : 'Your basket is empty right now. Bring me anything you harvest or make, and I will buy it at these prices.'], [
     { label: 'Buy seeds', value: 'seeds' },
     ...(has ? [{ label: 'Sell from your basket', value: 'sell' }] : []),
     { label: 'How does farming work?', value: 'how' },
