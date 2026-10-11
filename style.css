@@ -534,7 +534,7 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 .dlg-more { position: absolute; right: 14px; bottom: 10px; width: 16px; height: 16px; animation: nudge 1s ease-in-out infinite; }
 @keyframes nudge { 50% { transform: translateY(3px); } }
-.place { position: absolute; left: 14px; top: 14px; padding: 6px 12px; border-radius: 8px; background: rgba(251, 250, 245, .92); color: #1f2433; border: 2px solid #2a2f3d; font-family: var(--font-pixel); font-size: 15px; opacity: 0; transform: translateY(-6px); transition: opacity .3s, transform .3s; pointer-events: none; }
+.place { position: absolute; left: 14px; top: 14px; padding: 6px 12px; border-radius: 8px; background: rgba(31, 36, 51, .8); color: #fbfaf5; border: 0; /* a label, not a button: dark, see-through, no outline */ font-family: var(--font-pixel); font-size: 15px; opacity: 0; transform: translateY(-6px); transition: opacity .3s, transform .3s; pointer-events: none; }
 .place.show { opacity: 1; transform: none; }
 .place.caption { top: auto; bottom: 14px; right: 14px; text-align: center; font-size: 14px; line-height: 1.35; }
 @media (max-width: 380px) { .place:not(.caption) { top: 58px; } } /* narrow phones: below the Backup, Map, and coin buttons */
