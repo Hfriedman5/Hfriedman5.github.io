@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zn';
-import { createRace } from './race.js?v=20261010zn';
-import { createWeather, currentWeather } from './weather.js?v=20261010zn';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zn';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zn';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zn';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zq';
+import { createRace } from './race.js?v=20261010zq';
+import { createWeather, currentWeather } from './weather.js?v=20261010zq';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zq';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zq';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zq';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -371,6 +371,8 @@ function renderExchange(note = '', tone = '') {
     <p class="ex-intro">Seven businesses, one report a day. On its day, each company reports its profit for the week. Beat what the market expected and the price usually jumps; miss and it usually falls. Owners get part of the profit each report day, on shares they have owned for at least a week. Every trade costs a 1% fee, and you can hold up to ${STOCK_CAP.toLocaleString()} coins in any one company.</p>
     <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>Your shares are worth <b>${held.toLocaleString()}</b>${paidIn ? ` <span class="${held >= paidIn ? 'ex-up' : 'ex-down'}">(${signed(held - paidIn)} on what you paid)</span>` : ''}</span></p>
     ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
+    ${helping('pasion') ? `<p class="ex-note ok">Pasion is waiving your fees for another ${about(scholars.pasion.until - Date.now())}.</p>` : ''}
+    ${scholars.thales?.day === dayKey() && scholars.thales.hint ? `<p class="ex-note"><b>Thales\u2019 hint:</b> ${scholars.thales.hint}</p>` : ''}
     ${closed ? `<p class="ex-note ex-closed">Closed today for the ${closed.name}, ${closed.about}. You can look around, but buying and selling wait until it reopens on ${dateText(nextOpen(new Date()))}. Any report due today moves to then.</p>` : ''}
     ${stormy() ? '<p class="ex-note">The weather dial in the Machine Room does not move these prices. The real sea is bigger than your lever.</p>' : ''}
     <section class="ex-season"><h3>Season</h3>${(() => { const s = seasonLines(); return [...s.now, ...s.soon].map((t) => `<p>${t}</p>`).join(''); })()}</section>
@@ -407,16 +409,16 @@ function trade(c, side, raw, msg) {
   const text = String(raw).trim().replace(/,/g, '');
   if (!/^\d{1,7}$/.test(text) || Number(text) < 1) return say('Enter a whole number of shares, like 5.');
   const qty = Number(text), p = tradePrice(market().companies[c.id].at(-1).price), n = sharesOf(c.id);
-  const fee = Math.max(1, Math.ceil(qty * p * FEE));
+  const fee = helping('pasion') ? 0 : Math.max(1, Math.ceil(qty * p * FEE)); // Pasion waives fees while he is hired
   if (side === 'buy') {
     const cost = qty * p + fee;
-    if (cost > wallet.coins) return say(`That costs ${cost.toLocaleString()} coins with the fee. You have ${wallet.coins.toLocaleString()}.`);
+    if (cost > wallet.coins) return say(`That costs ${cost.toLocaleString()} coins${fee ? ' with the fee' : ''}. You have ${wallet.coins.toLocaleString()}.`);
     if ((n + qty) * p > STOCK_CAP) return say(`That would put more than ${STOCK_CAP.toLocaleString()} coins in one company. You can buy up to ${Math.max(0, Math.floor(STOCK_CAP / p) - n).toLocaleString()} more.`);
     wallet.coins = wallet.coins - cost;
     const lots = (portfolio.lots[c.id] ||= []), todayLot = lots.find((l) => l.day === dayKey());
     if (todayLot) todayLot.n += qty; else lots.push({ n: qty, day: dayKey() });
     portfolio.cost[c.id] = (portfolio.cost[c.id] || 0) + cost; savePortfolio();
-    return renderExchange(`Bought ${qty.toLocaleString()} ${c.name} shares at ${p} each, plus a fee of ${fee} coins.`, 'ok');
+    return renderExchange(`Bought ${qty.toLocaleString()} ${c.name} shares at ${p} each${fee ? `, plus a fee of ${fee} coins` : ', with no fee, thanks to Pasion'}.`, 'ok');
   }
   if (qty > n) return say(`You only own ${n.toLocaleString()} ${c.name} shares.`);
   const proceeds = qty * p - fee, basis = (portfolio.cost[c.id] || 0) * (qty / n);
@@ -427,7 +429,7 @@ function trade(c, side, raw, msg) {
   if (!sharesOf(c.id)) { delete portfolio.lots[c.id]; delete portfolio.cost[c.id]; }
   savePortfolio(); wallet.coins = wallet.coins + proceeds;
   bumpRecord('stockGains', (v = 0) => v + (proceeds - basis));
-  renderExchange(`Sold ${qty.toLocaleString()} ${c.name} shares at ${p} each, less a fee of ${fee} coins. That is ${signed(proceeds - basis)} coins compared with what you paid.`, proceeds >= basis ? 'ok' : '');
+  renderExchange(`Sold ${qty.toLocaleString()} ${c.name} shares at ${p} each${fee ? `, less a fee of ${fee} coins` : ', with no fee, thanks to Pasion'}. That is ${signed(proceeds - basis)} coins compared with what you paid.`, proceeds >= basis ? 'ok' : '');
 }
 
 /* ---------------- City bonds, sold at the banker's table ---------------- */
@@ -484,6 +486,7 @@ function openMoney() {
     { id: 'bank', label: 'Bank', value: Math.floor(bank.bal), note: `Grows ${+(BANK_RATE * 100).toFixed(2)}% a day. Take it out anytime.` },
     { id: 'bonds', label: 'Bonds', value: lent, note: lent ? `Pays back ${Math.round(lent * (1 + BOND_RATE)).toLocaleString()} in all. Next on ${onDate(Math.min(...bonds.map((b) => b.due)))}.` : 'None right now.' },
     { id: 'shares', label: 'Shares', value: sharesValue, note: sharesValue ? `${signed(sharesValue - owned.reduce((t, o) => t + o.cost, 0))} compared with what you paid.` : 'None right now.' },
+    { id: 'ships', label: 'Ships', value: shipsValue(), note: (() => { const n = voyages().filter((v) => Date.now() < v.back).length; return `${shipCount() === 2 ? 'Your second ship at what you paid' : 'The captain\u2019s ship'}${n ? `, plus coins on ${plural(n, 'voyage')} at sea` : ''}.`; })() },
     { id: 'farm', label: 'Farm', value: farmValue(), note: farm.owned.length ? `${plural(farm.owned.length, 'plot')} at what you paid, plus seeds and your harvest at today's price.` : 'No plots yet.' },
   ];
   const total = parts.reduce((t, x) => t + x.value, 0), pct = (v) => (total ? Math.round((100 * v) / total) : 0);
@@ -498,10 +501,10 @@ function openMoney() {
 }
 
 /* ---------------- The town leaderboard (online, opt-in) ---------------- */
-// Everything a player owns: purse, bank, bonds (what they lent), shares at today's price, and the farm.
+// Everything a player owns: purse, bank, bonds (what they lent), shares at today's price, the farm, and ships.
 function netWorth() {
   const m = market();
-  return wallet.coins + Math.floor(bank.bal) + bonds.reduce((t, b) => t + b.amt, 0) + COMPANIES.reduce((t, c) => t + sharesOf(c.id) * tradePrice(m.companies[c.id].at(-1).price), 0) + farmValue();
+  return wallet.coins + Math.floor(bank.bal) + bonds.reduce((t, b) => t + b.amt, 0) + COMPANIES.reduce((t, c) => t + sharesOf(c.id) * tradePrice(m.companies[c.id].at(-1).price), 0) + farmValue() + shipsValue();
 }
 const sendScores = (force = false) => lbSubmit({ net: netWorth(), bjTotal: lsGet('hf-records', {}).bjProfit || 0 }, force);
 const boardView = { board: 'net', period: 'month' };
@@ -512,7 +515,7 @@ async function openBoard() {
 async function renderBoard(rows) {
   const body = $('#board-body'), me = lbPlayer(), { board, period } = boardView;
   const tab = (key, label, group) => `<button type="button" role="tab" aria-selected="${boardView[group] === key}" data-${group}="${key}">${label}</button>`;
-  const what = board === 'net' ? 'Everything a player owns: purse, bank, bonds, shares, and farm.' : 'Blackjack winnings minus losses.';
+  const what = board === 'net' ? 'Everything a player owns: purse, bank, bonds, shares, farm, and ships.' : 'Blackjack winnings minus losses.';
   let list = '<p class="lb-empty">Loading the board…</p>';
   if (rows !== null) {
     try {
@@ -560,10 +563,20 @@ if (leaderboardReady()) setTimeout(() => sendScores(), 3000); // keep a returnin
 // adds risk on top for this visitor. Whether a ship sinks is settled when it sails.
 const stormy = () => ['rain', 'ominous'].includes(weatherKind) ? .1 : ['fog', 'snow'].includes(weatherKind) ? .05 : 0;
 function seaReport(rt) {
-  const s = seaFor(rt, new Date());
-  return { ...s, risk: Math.min(.9, s.risk + (rt.risk ? stormy() : stormy() / 2)) };
+  const s = seaFor(rt, new Date()), risk = Math.min(.9, s.risk + (rt.risk ? stormy() : stormy() / 2));
+  return { ...s, risk: scholars.pytheas?.ready ? Math.round(risk * 50) / 100 : risk }; // Pytheas aboard halves it
 }
 const VOYAGE_MAX = 1000; // the most one voyage can carry
+const SHIP_PRICE = 2500;  // a second ship, so two voyages can be at sea at once
+const shipCount = () => (lsGet('hf-ships', 1) >= 2 ? 2 : 1);
+const voyages = () => { // ships at sea; older saves kept a single voyage under hf-voyage
+  const old = lsGet('hf-voyage', null);
+  if (old) { lsSet('hf-voyages', [...lsGet('hf-voyages', []), old]); try { localStorage.removeItem('hf-voyage'); } catch (e) { /* fine */ } }
+  return lsGet('hf-voyages', []);
+};
+const saveVoyages = (list) => lsSet('hf-voyages', list);
+// On the leaderboard: the second ship at what it cost, plus coins out on voyages.
+const shipsValue = () => (shipCount() === 2 ? SHIP_PRICE : 0) + voyages().reduce((t, v) => t + v.stake, 0);
 const sinkRisk = (risk) => (risk ? `${Math.round(risk * 100)}% sink risk` : 'no risk');
 // History, science, simple math, and a little Greece. Answers are shown in a fixed order; the right one moves around.
 const PLATO_QUIZ = [
@@ -687,7 +700,7 @@ const INTERACT = {
   },
   async library() {
     if (await requestTalk('library')) return;
-    await say(['The library is quiet. Scrolls everywhere, from Homer to Herodotus.', 'Looking for Hannah\u2019s blog? It hangs by the door of the Parthenon now.']);
+    renderLibrary(); openModal('#library');
   },
   async merchant() {
     if (await requestTalk('merchant')) return;
@@ -752,21 +765,32 @@ const INTERACT = {
   },
   async captain() {
     if (await requestTalk('captain')) return;
-    const vy = lsGet('hf-voyage', null), rt = vy && ROUTES.find((r) => r.id === vy.route);
-    if (rt && Date.now() < vy.back) return say([`Captain here. Your ship to ${rt.name} is still at sea.`, `It should be home in ${inTime(vy.back - Date.now())}.`]);
-    if (rt) {
-      lsSet('hf-voyage', null);
-      bumpRecord(vy.sank ? 'sunk' : 'home', (n = 0) => n + 1);
-      if (vy.sank) return say([`Bad news. Your ship to ${rt.name} met a storm and sank.`, `Your ${vy.stake.toLocaleString()} coins went down with it. The sea gives, and the sea takes.`]);
-      wallet.coins = wallet.coins + vy.stake;
-      const n = earn(Math.round(vy.stake * (vy.gain ?? rt.gain)), '', Infinity);
-      return say([`Your ship is home from ${rt.name}, full of ${rt.cargo}!`, `You get your ${vy.stake.toLocaleString()} coins back, plus ${n.toLocaleString()} in profit.`]);
+    const now = Date.now(), fleet = voyages(), away = fleet.filter((v) => now < v.back), home = fleet.filter((v) => now >= v.back);
+    const routeOf = (v) => ROUTES.find((r) => r.id === v.route);
+    if (home.length) { // ships back since your last visit: pay out, or break the bad news
+      saveVoyages(away);
+      await say(home.map((vy) => {
+        const rt = routeOf(vy);
+        bumpRecord(vy.sank ? 'sunk' : 'home', (n = 0) => n + 1);
+        if (vy.sank) return `Bad news. Your ship to ${rt.name} met a storm and sank, and your ${vy.stake.toLocaleString()} coins went down with it. The crew made it home, and the captain found you another ship. The sea gives, and the sea takes.`;
+        wallet.coins = wallet.coins + vy.stake;
+        const n = earn(Math.round(vy.stake * (vy.gain ?? rt.gain)), '', Infinity);
+        return `Your ship is home from ${rt.name}, full of ${rt.cargo}! You get your ${vy.stake.toLocaleString()} coins back, plus ${n.toLocaleString()} in profit.`;
+      }));
+    }
+    const ships = shipCount(), atSea = away.map((v) => `${routeOf(v).name}, home in ${inTime(v.back - now)}`);
+    if (away.length >= ships) {
+      if (ships === 2) return say(`Captain here. Both your ships are at sea: ${atSea.join('; ')}.`);
+      const v = await say([`Captain here. Your ship to ${atSea[0]}.`, `Want a second ship, so two voyages can be at sea at once? It costs ${SHIP_PRICE.toLocaleString()} coins.`], [{ label: `Buy a second ship for ${SHIP_PRICE.toLocaleString()}`, value: 'ship' }, { label: 'Not now', value: null }]);
+      return v === 'ship' ? buyShip() : undefined;
     }
     const report = ROUTES.map((r) => ({ ...r, ...seaReport(r) }));
-    const storm = stormy() ? ['Somebody has been turning the weather dials in the Machine Room, so every route is riskier than usual.'] : [];
-    const pick = await say(['Captain here. Pay for a voyage and you share the profit when the ship comes home. Not every ship comes home.', ...storm,
+    const storm = [...(stormy() ? ['Somebody has been turning the weather dials in the Machine Room, so every route is riskier than usual.'] : []), ...(scholars.pytheas?.ready ? ['Pytheas the explorer is sailing with your next ship, so every route is half as likely to sink.'] : [])];
+    const fleetLine = ships === 2 ? [away.length ? `One of your ships is at sea (${atSea[0]}). The other is ready to sail.` : 'Both of your ships are in port, ready to sail.'] : [];
+    const pick = await say([...(home.length ? [] : ['Captain here. Pay for a voyage and you share the profit when the ship comes home. Not every ship comes home.']), ...fleetLine, ...storm,
       `Today's sea report:\n${report.map((r) => `${r.name}: ${r.sea}, ${r.demand} demand for ${r.cargo}.`).join('\n')}`],
-      [...report.map((r) => ({ label: `${r.name}: ${r.hours} hours, +${Math.round(r.gain * 100)}% profit, ${sinkRisk(r.risk)}`, value: r.id })), { label: 'Not today', value: null }]);
+      [...report.map((r) => ({ label: `${r.name}: ${r.hours} hours, +${Math.round(r.gain * 100)}% profit, ${sinkRisk(r.risk)}`, value: r.id })), ...(ships === 1 ? [{ label: `Buy a second ship for ${SHIP_PRICE.toLocaleString()}`, value: 'ship' }] : []), { label: 'Not today', value: null }]);
+    if (pick === 'ship') return buyShip();
     const route = report.find((r) => r.id === pick);
     if (!route) return;
     if (wallet.coins < 100) return say('A voyage takes at least 100 coins. Come back when your purse is heavier.');
@@ -775,11 +799,21 @@ const INTERACT = {
       [...[100, 250, 500, 1000].filter((n) => n <= most).map((n) => ({ label: n.toLocaleString(), value: n })), { label: 'Other amount', amount: { min: 100, max: most } }, { label: 'Never mind', value: null }]);
     if (!stake) return;
     if (!Number.isInteger(stake) || stake < 100 || stake > Math.min(VOYAGE_MAX, wallet.coins)) return say('The captain counts your coins twice and frowns. That amount does not work. Try again.');
+    if (voyages().filter((v) => Date.now() < v.back).length >= shipCount()) return say('Every ship you own is already at sea.');
     wallet.coins = wallet.coins - stake;
-    lsSet('hf-voyage', { route: route.id, stake, back: Date.now() + route.hours * 3600e3, sank: Math.random() < route.risk, gain: route.gain });
+    saveVoyages([...voyages(), { route: route.id, stake, back: Date.now() + route.hours * 3600e3, sank: Math.random() < route.risk, gain: route.gain }]);
+    if (scholars.pytheas?.ready) { scholars.pytheas.ready = false; saveScholars(); }
     await say(`The ship sails for ${route.name} with your ${stake.toLocaleString()} coins aboard. Come back in ${route.hours} hours.`);
   },
 };
+async function buyShip() {
+  const v = await say([`A second ship costs ${SHIP_PRICE.toLocaleString()} coins. With two, you can have two voyages at sea at once.`, 'If a ship sinks, you lose the coins on that voyage, never the ship itself.'], [{ label: `Buy it for ${SHIP_PRICE.toLocaleString()}`, value: 'buy' }, { label: 'Not now', value: null }]);
+  if (v !== 'buy') return;
+  if (shipCount() >= 2) return say('You already own two ships.');
+  if (wallet.coins < SHIP_PRICE) return say(`A second ship costs ${SHIP_PRICE.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+  wallet.coins = wallet.coins - SHIP_PRICE; lsSet('hf-ships', 2);
+  return say('The captain shakes your hand. You own two ships now, so two voyages can be at sea at once.');
+}
 async function boardBoat() {
   const v = await say(['A little sailboat is tied up at the dock. Someone in the Machine Room launched it.', 'Take it out for a short sail along the coast?'], [{ label: 'Set sail', value: 'sail' }, { label: 'Not now', value: null }]);
   if (v === 'sail') startSail();
@@ -1131,6 +1165,18 @@ function flag(i) {
 }
 $('#ms-new').addEventListener('click', newMines);
 
+/* ---------------- The library: scholars to hire, each once a day ---------------- */
+const SCHOLARS = [
+  { id: 'theophrastus', name: 'Theophrastus', price: 600, who: 'Aristotle’s student, who wrote the first books about plants.', does: 'Your crops grow twice as fast for 24 hours, on top of watering.' },
+  { id: 'pasion', name: 'Pasion', price: 100, who: 'The richest banker in Athens. He started out as a slave working at a bank and ended up owning it.', does: 'No fees on the Athenian Exchange for 24 hours.' },
+  { id: 'pytheas', name: 'Pytheas', price: 300, who: 'An explorer from Massalia who sailed to Britain and far beyond.', does: 'He sails with your next ship, whenever you send it, and halves its chance of sinking.' },
+  { id: 'thales', name: 'Thales', price: 400, who: 'The thinker who saw a big olive harvest coming and rented every olive press before anyone else.', does: 'One hint about the next company report on the Exchange: will it beat or miss what the market expects?' },
+];
+const DAY_MS = 24 * 3600e3;
+const scholars = lsGet('hf-scholars', {}); // { id: { day, until (Theophrastus, Pasion), ready (Pytheas), hint (Thales) } }
+const saveScholars = () => lsSet('hf-scholars', scholars);
+const helping = (id, now = Date.now()) => (scholars[id]?.until || 0) > now;
+
 /* ---------------- The farm: plots, seeds, watering, and Demetrios's stall ---------------- */
 // Crops grow in real time, even with the tab closed. A watered crop grows twice as fast as a dry one, and watering lasts 12 hours,
 // so nothing is ever lost by forgetting. Rain from the Machine Room waters everything; snow makes everything take twice as long.
@@ -1155,17 +1201,31 @@ const farmValue = () => farm.owned.reduce((t, _, n) => t + plotPriceAt(n), 0)
   + Object.entries(farm.basket).reduce((t, [id, n]) => t + (produceById(id) ? n * cropPrice(produceById(id)).price : 0), 0);
 const fullSpeed = (crop) => (weatherKind === 'snow' ? .5 : 1) / (crop.hours * 3600e3); // growth per millisecond, watered
 const isWet = (pl, now = Date.now()) => weatherKind === 'rain' || (pl.wetUntil || 0) > now;
-// How grown a crop is, from 0 to 1: twice as fast while the soil was wet as after it dried.
+// How fast a crop grows at moment t, as a multiple of its watered speed: dry soil halves it, Theophrastus doubles it.
+function speedAt(pl, t) {
+  const b = scholars.theophrastus?.until || 0;
+  return (weatherKind === 'rain' || t < (pl.wetUntil || 0) ? 1 : .5) * (t >= b - DAY_MS && t < b ? 2 : 1);
+}
+// The moments between `from` and `to` when that speed changes: the soil drying out, Theophrastus arriving or leaving.
+const speedChanges = (pl, from, to) => { const b = scholars.theophrastus?.until || 0; return [pl.wetUntil || 0, b - DAY_MS, b].filter((x) => x > from && x < to).sort((p, q) => p - q); };
+// How grown a crop is, from 0 to 1, adding up each stretch of time at its own speed.
 function grownAt(pl, now = Date.now()) {
   const full = fullSpeed(cropById(pl.crop));
-  const wetEnd = weatherKind === 'rain' ? now : Math.min(now, Math.max(pl.at, pl.wetUntil || 0));
-  return Math.min(1, pl.grown + (wetEnd - pl.at) * full + ((now - wetEnd) * full) / 2);
+  let g = pl.grown, t = pl.at;
+  for (const next of [...speedChanges(pl, t, now), now]) { g += (next - t) * full * speedAt(pl, t); t = next; }
+  return Math.min(1, g);
 }
 function msLeft(pl, now = Date.now()) {
-  const full = fullSpeed(cropById(pl.crop)), left = 1 - grownAt(pl, now);
-  const wet = weatherKind === 'rain' ? Infinity : Math.max(0, (pl.wetUntil || 0) - now);
-  return left <= wet * full ? left / full : wet + (left - wet * full) / (full / 2);
+  const full = fullSpeed(cropById(pl.crop));
+  let left = 1 - grownAt(pl, now), t = now;
+  for (const next of speedChanges(pl, now, Infinity)) {
+    const rate = full * speedAt(pl, t), gain = (next - t) * rate;
+    if (gain >= left) return t - now + left / rate;
+    left -= gain; t = next;
+  }
+  return t - now + left / (full * speedAt(pl, t));
 }
+const settlePlots = (now = Date.now()) => { Object.values(farm.plots).forEach((pl) => { pl.grown = grownAt(pl, now); pl.at = now; }); saveFarm(); };
 function waterPlot(pl, now = Date.now()) { pl.grown = grownAt(pl, now); pl.at = now; pl.wetUntil = now + WATER_HOURS * 3600e3; }
 const ifWatered = (pl) => { const copy = { ...pl }; waterPlot(copy); return msLeft(copy); }; // time left if watered right now
 const needsWater = (pl, now = Date.now()) => grownAt(pl, now) < 1 && !isWet(pl, now);
@@ -1207,7 +1267,7 @@ async function plotTalk(i) {
     return plantTalk(i, [`You harvest the ${lower(crop)}. ${basketLine()}`, `Sell ${crop.id === 'wheat' ? 'it' : 'them'} at Demetrios's stall by the gate${next ? `, or make ${lower(produceById(next.makes))} at the workshop` : ''}.`]);
   }
   const head = `Your ${lower(crop)}: ${Math.floor(grownAt(pl) * 100)}% grown.`;
-  const snow = weatherKind === 'snow' ? ['Snow from the Machine Room is slowing everything down: crops take twice as long.'] : [];
+  const snow = [...(weatherKind === 'snow' ? ['Snow from the Machine Room is slowing everything down: crops take twice as long.'] : []), ...(helping('theophrastus') ? [`Theophrastus is helping: crops grow twice as fast for another ${about(scholars.theophrastus.until - Date.now())}.`] : [])];
   if (weatherKind === 'rain') return say([`${head} Ready in about ${about(msLeft(pl))}.`, 'The rain from the Machine Room is watering it for you.']);
   if (isWet(pl)) return say([`${head} Ready in about ${about(msLeft(pl))}.`, ...snow, `It is watered. The soil stays damp for another ${about(pl.wetUntil - Date.now())}.`]);
   const v = await say([`${head} The soil is dry.`, ...snow, `Water it now: ready in about ${about(ifWatered(pl))}.\nLeave it dry: about ${about(msLeft(pl))}.`], [{ label: 'Water it', value: 'water' }, { label: 'Leave it', value: null }]);
@@ -1255,6 +1315,7 @@ function farmLedger(sign) {
     const w = farm.works[s.id], g = produceById(s.makes), st = stationState(s.id, now);
     return st === 'idle' ? `${s.name}: empty` : st === 'done' ? `${s.name}: ${cropCount(g, w.n)} ready` : `${s.name}: ${cropCount(g, w.n)} ready in ${about(w.done - now)}`;
   });
+  if (helping('theophrastus', now)) rows.push(`Theophrastus is helping for another ${about(scholars.theophrastus.until - now)}.`);
   return say([`Your farm\n${rows.join('\n')}`, ...(works.length ? [`Your workshop\n${works.join('\n')}`] : []), basketLine()]);
 }
 // A short note when you walk onto the farm: what is ready, and what needs water.
@@ -1267,7 +1328,7 @@ async function farmerTalk() {
   const goods = STATIONS.some((s) => farm.works[s.id]) || GOODS.some((g) => farm.basket[g.id] > 0);
   const prices = [...CROPS, ...(goods ? GOODS : [])].map((c) => ({ c, ...cropPrice(c) }));
   const has = basketItems().length;
-  const v = await say(['Demetrios here. I sell seeds, and I buy whatever you grow or make.', `Today I pay:\n${prices.map((p) => `${p.c.name}: ${p.price} each${p.note ? `, ${p.note}` : ''}`).join('\n')}`, ...(has ? [basketLine()] : [])], [
+  const v = await say(['Demetrios here. I sell seeds, and I buy whatever you grow or make.', `Today I pay:\n${prices.map((p) => `${p.c.name}: ${p.price} each${p.note ? `, ${p.note}` : ''}`).join('\n')}`, has ? basketLine() : 'Your basket is empty right now. Bring me anything you harvest or make, and I will buy it at these prices.'], [
     { label: 'Buy seeds', value: 'seeds' },
     ...(has ? [{ label: 'Sell from your basket', value: 'sell' }] : []),
     { label: 'How does farming work?', value: 'how' },
@@ -1377,6 +1438,60 @@ $('#ws-body')?.addEventListener('submit', (e) => {
   renderWorkshop(`${s.doing} ${cropCount(from, n)} into ${cropCount(good, n)}. Ready in ${hoursText(s.hours)}.`, 'ok');
 });
 INTERACT.workshop = openWorkshop;
+
+// Thales reads the signs: the next company to report, and whether it will beat or miss what the market expects.
+function thalesHint(today = new Date()) {
+  const m = market(today);
+  const next = COMPANIES.map((c) => ({ c, ...nextReport(c, m, today) })).sort((a, b) => a.days - b.days)[0];
+  const r = market(next.date).companies[next.c.id].at(-1).report;
+  market(today); // put today's market back in the cache
+  const when = next.days === 1 ? 'tomorrow' : `on ${DAY_NAMES[next.date.getDay()]}`;
+  if (!r) return 'The signs are unclear this week. Ask again tomorrow.';
+  return `${next.c.name} reports ${when}. Thales expects the profit to come in ${r.surprise >= 0 ? 'above' : 'below'} what the market expects. Prices usually follow a report like that, but not always.`;
+}
+const canHire = (s, now = Date.now()) => scholars[s.id]?.day !== dayKey() && !helping(s.id, now) && !(s.id === 'pytheas' && scholars.pytheas?.ready);
+function renderLibrary(note = '', tone = '') {
+  const now = Date.now();
+  $('#lib-body').innerHTML = `
+    <p class="ex-intro">Four scholars work in the library, and each will help you for a while if you hire them. You can hire each one once a day.</p>
+    <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span></p>
+    ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
+    <div class="ex-list">${SCHOLARS.map((s) => {
+      const st = scholars[s.id] || {}, active = helping(s.id, now);
+      let status = '';
+      if (active) {
+        const pct = Math.round(((now - (st.until - DAY_MS)) / DAY_MS) * 100);
+        status = `<div class="ws-progress"><div class="ws-bar" role="progressbar" aria-label="${s.name}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div><span class="ex-own">${s.name} is helping for another <b>${about(st.until - now)}</b>.</span></div>`;
+      } else if (s.id === 'pytheas' && st.ready) status = '<span class="ex-own">Pytheas will sail with your next ship. Visit the captain on the beach.</span>';
+      else if (s.id === 'thales' && st.day === dayKey() && st.hint) status = `<span class="ex-own"><b>Thales says:</b> ${st.hint}</span>`;
+      const button = canHire(s, now) ? `<button type="button" class="btn btn-primary btn-sm" data-hire="${s.id}">Hire for ${s.price.toLocaleString()}</button>`
+        : `<button type="button" class="btn btn-secondary btn-sm" disabled>${active || st.ready ? 'Hired' : 'Back tomorrow'}</button>`;
+      return `<article class="ex-co">
+        <div class="ex-top"><h3>${s.name}</h3><span class="ex-day">${s.price.toLocaleString()} coins</span></div>
+        <p class="ex-how">${s.who}</p>
+        <p class="ex-facts"><b>Hire him:</b> ${s.does}</p>
+        <div class="ex-trade">${status || '<span class="ex-own"></span>'}${button}</div>
+      </article>`;
+    }).join('')}</div>`;
+}
+$('#lib-body')?.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-hire]');
+  if (!b) return;
+  const s = SCHOLARS.find((x) => x.id === b.dataset.hire), now = Date.now();
+  if (!canHire(s, now)) return renderLibrary();
+  if (wallet.coins < s.price) return renderLibrary(`${s.name} charges ${s.price.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+  wallet.coins = wallet.coins - s.price;
+  if (s.id === 'theophrastus') settlePlots(now); // lock in growth so far before the new window starts
+  const st = scholars[s.id] = { day: dayKey() };
+  let msg = '';
+  if (s.id === 'theophrastus') { st.until = now + DAY_MS; msg = 'Theophrastus heads out to your farm. For the next 24 hours, your crops grow twice as fast.'; }
+  if (s.id === 'pasion') { st.until = now + DAY_MS; msg = 'Pasion sends word to the Exchange. For the next 24 hours, you trade without fees.'; }
+  if (s.id === 'pytheas') { st.ready = true; msg = 'Pytheas packs his charts. He will sail with your next ship, whenever you send it.'; }
+  if (s.id === 'thales') { st.hint = thalesHint(); msg = `Thales looks up from his notes. ${st.hint}`; }
+  saveScholars(); bumpRecord('scholars', (n = 0) => n + 1);
+  renderLibrary(msg, 'ok');
+});
+
 INTERACT.farmer = farmerTalk;
 
 /* ---------------- The Stadium: stadion race ---------------- */
