@@ -1,11 +1,11 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011j';
-import { createRace } from './race.js?v=20261011j';
-import { createWeather, currentWeather } from './weather.js?v=20261011j';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011j';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011j';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011j';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011j';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011k';
+import { createRace } from './race.js?v=20261011k';
+import { createWeather, currentWeather } from './weather.js?v=20261011k';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011k';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011k';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011k';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011k';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -126,7 +126,7 @@ function renderCloud() {
       <p class="save-msg" role="status">${signin.msg}</p>`;
   }
 }
-const CODE_TROUBLE = { wait: 'Please wait a minute before asking for another code.', failed: 'That email did not work. Check it and try again.', offline: 'Could not reach the sign-in service. Try again in a bit.' };
+const CODE_TROUBLE = { wait: 'Please wait a minute before asking for another code.', failed: 'That email did not work. Check it and try again.', server: 'The sign-in email could not be sent right now. Try again in a few minutes.', offline: 'Could not reach the sign-in service. Try again in a bit.' };
 $('#cloud-box')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
