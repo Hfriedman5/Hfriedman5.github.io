@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zt';
-import { createRace } from './race.js?v=20261010zt';
-import { createWeather, currentWeather } from './weather.js?v=20261010zt';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zt';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zt';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zt';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011a';
+import { createRace } from './race.js?v=20261011a';
+import { createWeather, currentWeather } from './weather.js?v=20261011a';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011a';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011a';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011a';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1184,7 +1184,7 @@ const WATER_HOURS = 12, SEED_MAX = 99, BATCH_MAX = 10;
 const savedFarm = lsGet('hf-farm', null);
 const farm = { owned: [], plots: {}, seeds: {}, basket: {}, works: {}, ...savedFarm, v: 2 }; // works: the workshop stations you have built
 const saveFarm = () => lsSet('hf-farm', farm);
-const plotPriceAt = (n) => 100 * 2 ** n; // each plot costs double the last: 100, 200, 400, ... 25,600, so all nine cost 51,100
+const plotPriceAt = (n) => Math.round((100 * 1.6 ** n) / 50) * 50; // 100, 150, 250, 400, 650, 1,050, 1,700, 2,700, 4,300 (11,300 for all nine)
 const plotPrice = () => plotPriceAt(farm.owned.length);
 if (savedFarm && savedFarm.v !== 2) { // the first farm had 12 small plots; keep what people bought on the 9 bigger ones, and refund any extra
   const was = farm.owned, plots = {};
@@ -1194,7 +1194,7 @@ if (savedFarm && savedFarm.v !== 2) { // the first farm had 12 small plots; keep
   Object.assign(farm, { owned: was.slice(0, PLOTS.length).map((_, i) => i), plots });
   saveFarm();
 }
-// What the plots actually cost. Prices went up on 2026-10-10; plots bought before then count at the old prices.
+// What the plots actually cost, since prices have changed. Saves from before this was tracked count at these prices.
 if (farm.plotsPaid == null) { farm.plotsPaid = farm.owned.reduce((t, _, n) => t + Math.round((100 * 1.6 ** n) / 50) * 50, 0); saveFarm(); }
 // What the farm is worth on the leaderboard: plots and workshop at what they cost, seeds at cost, and goods at today's price.
 const farmValue = () => farm.plotsPaid
