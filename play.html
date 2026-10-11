@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#0b1424" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/pixelify.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=20261010zi">
+<link rel="stylesheet" href="style.css?v=20261010zn">
 <script>try { const r = document.documentElement; if (localStorage.getItem('hf-hannah-mode') === '1') r.classList.add('hannah-mode'); } catch (e) {}</script>
 </head>
 <body class="play-page">
@@ -244,7 +244,7 @@
       <dt>Earn coins with challenges</dt>
       <dd>Pick olives, pet the cat, answer Plato's questions, race the runner at the Stadium, clear the Minesweeper board, and do the daily job on the request board. Hatchlings from the Machine Room can run errands for coins too.</dd>
       <dt>Farm</dt>
-      <dd>Buy a plot on the farm east of town, plant seeds from Demetrios, water them, and sell what you grow. Crops keep growing while you are away, and his prices change every day.</dd>
+      <dd>Buy a plot on the farm east of town, plant seeds from Demetrios, water them, and sell what you grow. In the workshop next door, turn crops into bread, wine, and olive oil, which sell for more. Crops keep growing while you are away, and prices change every day.</dd>
       <dt>Grow them at the Bank</dt>
       <dd>A savings account that grows every day, city bonds that pay 25% after 30 days, and the Athenian Exchange, where you buy shares in town businesses. The captain on the beach takes coins on trading voyages, too.</dd>
       <dt>Try your luck</dt>
@@ -272,6 +272,14 @@
     <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
   </div>
   <div class="modal-body" id="ex-body"></div>
+</dialog>
+
+<dialog class="modal modal-wide" id="workshop" aria-labelledby="ws-h">
+  <div class="modal-head">
+    <h2 id="ws-h">The workshop</h2>
+    <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="modal-body" id="ws-body"></div>
 </dialog>
 
 <dialog class="modal modal-wide" id="shop" aria-labelledby="shop-h">
@@ -337,7 +345,7 @@
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="script.js?v=20261010zi" defer></script>
-<script type="module" src="js/play.js?v=20261010zi"></script>
+<script src="script.js?v=20261010zn" defer></script>
+<script type="module" src="js/play.js?v=20261010zn"></script>
 </body>
 </html>

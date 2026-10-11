@@ -595,6 +595,9 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .ex-own b { color: var(--ink); }
 .ex-trade input { width: 6.5em; height: 34px; padding: 0 10px; border-radius: var(--r-sm); border: 1px solid var(--hairline-strong); background: var(--bg); color: var(--ink); font: inherit; font-size: .9rem; }
 .ex-trade input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ws-progress { flex: 1 1 100%; display: grid; gap: 6px; }
+.ws-bar { height: 10px; border-radius: 999px; background: var(--surface); overflow: hidden; box-shadow: inset 0 0 0 1px var(--hairline); }
+.ws-bar span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .9s linear; }
 .ex-msg { flex-basis: 100%; font-size: .84rem; }
 .ex-msg:empty { display: none; }
 .ex-msg.bad { color: var(--tint-rose-ink); }

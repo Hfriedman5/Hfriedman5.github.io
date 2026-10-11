@@ -177,15 +177,27 @@ export const CROPS = [
   { id: 'grapes', name: 'Grapes', seedName: 'Grape vines', one: 'basket of grapes', many: 'baskets of grapes', cost: 60, hours: 24, price: 200 },
   { id: 'olives', name: 'Olives', seedName: 'Olive saplings', one: 'basket of olives', many: 'baskets of olives', cost: 100, hours: 72, price: 400 },
 ];
+// What the workshop makes from them. Each sells for about 40% more than the crop it came from.
+export const GOODS = [
+  { id: 'bread', name: 'Bread', one: 'loaf of bread', many: 'loaves of bread', price: 130 },
+  { id: 'wine', name: 'Wine', one: 'amphora of wine', many: 'amphorae of wine', price: 290 },
+  { id: 'oil', name: 'Olive oil', one: 'amphora of olive oil', many: 'amphorae of olive oil', price: 560 },
+];
+export const STATIONS = [
+  { id: 'oven', name: 'Bread oven', cost: 400, from: 'wheat', makes: 'bread', hours: 1, verb: 'bake', doing: 'Baking', what: 'Each sheaf of wheat bakes into a loaf of bread.' },
+  { id: 'winepress', name: 'Wine press', cost: 1200, from: 'grapes', makes: 'wine', hours: 24, verb: 'press', doing: 'Fermenting', what: 'Each basket of grapes makes an amphora of wine.' },
+  { id: 'oilpress', name: 'Olive press', cost: 2500, from: 'olives', makes: 'oil', hours: 12, verb: 'press', doing: 'Pressing', what: 'Each basket of olives makes an amphora of olive oil.' },
+];
 export const cropById = (id) => CROPS.find((c) => c.id === id);
+export const produceById = (id) => CROPS.find((c) => c.id === id) || GOODS.find((g) => g.id === id);
 const CROP_MARKETS = [['low', .8, .25], ['normal', 1, .5], ['high', 1.25, .25]];
-// Today's price for one harvest: a daily ups and downs (the same for everyone), plus two seasons:
+// Today's price for one harvest (or one thing made from it): a daily ups and downs (the same for everyone), plus two seasons:
 // grapes sell high in the two weeks before the Great Dionysia, olives during the olive harvest.
 export function cropPrice(crop, date = new Date()) {
   const day = pickBy(CROP_MARKETS, seeded(`${dayKeyOf(date)}:crop:${crop.id}`));
   let mult = day[1], note = day[0] === 'normal' ? '' : day[0] === 'high' ? 'in demand today' : 'not much demand today';
   const m = date.getMonth(), dd = date.getDate();
-  if (crop.id === 'grapes' && m === 2 && dd >= 14 && dd <= 29) { mult *= 1.4; note = 'the Great Dionysia is coming'; }
+  if ((crop.id === 'grapes' || crop.id === 'wine') && m === 2 && dd >= 14 && dd <= 29) { mult *= 1.4; note = 'the Great Dionysia is coming'; }
   if (crop.id === 'olives' && [9, 10, 11].includes(m)) { mult *= 1.25; note = 'olive harvest season'; }
   return { price: Math.round(crop.price * mult), note };
 }

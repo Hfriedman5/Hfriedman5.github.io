@@ -11,7 +11,7 @@ const P = {
   water: '#2f80c6', water2: '#63aee4', water3: '#1f5f9e',
   leaf: '#8fa66b', leaf2: '#b6c78e', leaf3: '#6a7f4b', trunk: '#7a5a3a', cypress: '#3f6b3c', cypress2: '#56864f', cypress3: '#2c4f2b',
   wall: '#f4f0e7', wall2: '#ddd6c6', wall3: '#bfb5a2', col: '#fbf9f4',
-  roof: '#c8643c', roof2: '#a14c2c', roofR: '#c8643c', roofR2: '#a14c2c', roofT: '#d39a4a', roofT2: '#a8762f', roofP: '#b85a48', roofP2: '#8e4234', roofB: '#5f7896', roofB2: '#46607e', roofG: '#8a4f7d', roofG2: '#6b3a60',
+  roof: '#c8643c', roof2: '#a14c2c', roofR: '#c8643c', roofR2: '#a14c2c', roofT: '#d39a4a', roofT2: '#a8762f', roofP: '#b85a48', roofP2: '#8e4234', roofB: '#5f7896', roofB2: '#46607e', roofG: '#8a4f7d', roofG2: '#6b3a60', roofW: '#8a6a44', roofW2: '#6a4e30',
   ped: '#3d6fa8', ped2: '#c8643c',
   win: '#4a3a2c', win2: '#7a6248', door: '#6b4a2f', door2: '#4e3420',
   ice: '#d9a46b', ice2: '#f6efe2', board: '#e3dac8', boardLine: '#c7bca6',
@@ -54,6 +54,7 @@ export const BUILDINGS = [
   { id: 'academy', name: 'The Academy', kind: 'house', roof: ['roofT', 'roofT2'], x: 28, y: 3, w: 6, h: 5, door: [30, 7], pediment: true },
   { id: 'library', name: 'Library', kind: 'house', roof: ['roof', 'roof2'], x: 3, y: 15, w: 6, h: 5, door: [5, 19] },
   { id: 'bank', name: 'The Bank', kind: 'house', roof: ['roofB', 'roofB2'], x: 28, y: 15, w: 6, h: 5, door: [30, 19], pediment: true },
+  { id: 'workshop', name: 'The workshop', kind: 'house', roof: ['roofW', 'roofW2'], x: 40, y: 15, w: 6, h: 4, door: [42, 18] },
 ];
 export const RINK = { x: 14, y: 15, w: 9, h: 5 };
 // Places on the map. `at` is where the label sits (tile coords); `go` is where travel puts you, and which way you face.
@@ -67,6 +68,7 @@ export const MAP_PLACES = [
   { id: 'board', name: 'Request board', desc: 'One small job for the town, every day.', at: [12.5, 11.1], go: [12, 13, 'up'] },
   { id: 'stadium', name: 'The Stadium', desc: 'Race the runner, one lap.', at: [18.5, 17.5], go: [18, 14, 'down'] },
   { id: 'farm', name: 'The farm', desc: 'Buy a plot, plant seeds, and sell what you grow.', at: [41.5, 1.4], go: [37, 13, 'up'] },
+  { id: 'workshop', name: 'The workshop', desc: 'Turn crops into bread, wine, and olive oil.', at: [43, 14.6], go: [42, 19, 'up'] },
   { id: 'shore', name: 'The Aegean Sea', desc: 'Sand, sea, and a captain with ships for hire.', at: [18, 22.6], go: [18, 21, 'down'] },
 ];
 export const STALL = { x: 22, y: 11, w: 3, h: 1 };
@@ -88,7 +90,8 @@ export const SIGNS = [
   { x: 9, y: 19, text: 'Library.\nQuiet, please. Something in here writes back.' },
   { x: 27, y: 19, text: 'The Bank.\nThe banker sits at a table, a trapeza. Coins left with him grow 0.5% a day.' },
   { x: 12, y: 12, board: true, text: 'Town request board.' },
-  { x: 39, y: 12, text: 'The farm.\nWalk up to a plot to buy it. Demetrios sells seeds and buys whatever you grow.' },
+  { x: 39, y: 12, farm: true, text: 'The farm.\nWalk up to a plot to buy it. Demetrios sells seeds and buys whatever you grow.' },
+  { x: 38, y: 15, text: 'The workshop.\nTurn your harvest into bread, wine, and olive oil, which sell for more than the crops do. The door faces the sea.' },
   { x: 14, y: 21, text: 'The Aegean Sea.\nHomer called it wine-dark. It looks blue to you.' },
 ];
 
@@ -382,6 +385,7 @@ const CROP_ART = {
     if (big) [[9, 8], [14, 5], [20, 7], [24, 12], [17, 13], [11, 13], [22, 4], [6, 12]].forEach(([x, y]) => { px(c, x, y, 2, 3, K.fruit); px(c, x, y, 1, 1, '#6a5a80'); });
   },
 };
+const sparkle = (c) => { px(c, 27, 1, 1, 5, '#f6d24a'); px(c, 25, 3, 5, 1, '#f6d24a'); px(c, 27, 3, 1, 1, '#fff6c8'); }; // ready to collect
 export function plotCanvas(key) { // 'wild', 'soil', or `${crop}:${stage}` (stage: sprout, grow, ready), plus '-wet' for watered soil
   if (plotCache.has(key)) return plotCache.get(key);
   const cv = document.createElement('canvas'); cv.width = cv.height = 32;
@@ -399,7 +403,11 @@ export function plotCanvas(key) { // 'wild', 'soil', or `${crop}:${stage}` (stag
     px(c, 2, 2, 28, 28, soil);
     for (let y = 5; y < 30; y += 7) { px(c, 3, y, 26, 1, furrow); px(c, 3, y - 1, 26, 1, ridge); }
     if (CROP_ART[crop]) CROP_ART[crop](c, stage);
-    if (stage === 'ready') { px(c, 27, 1, 1, 5, '#f6d24a'); px(c, 25, 3, 5, 1, '#f6d24a'); px(c, 27, 3, 1, 1, '#fff6c8'); }
+    if (stage === 'ready') sparkle(c);
+    else if (!wet) { // a water drop in the corner: this crop is dry and would grow faster with water
+      px(c, 3, 1, 1, 1, '#2f6fae'); px(c, 2, 2, 3, 1, '#2f6fae'); px(c, 1, 3, 5, 3, '#2f6fae'); px(c, 2, 6, 3, 1, '#2f6fae');
+      px(c, 3, 2, 1, 1, '#7cc4f2'); px(c, 2, 3, 3, 3, '#5aa9e6'); px(c, 2, 3, 1, 2, '#bfe4fa');
+    }
   }
   plotCache.set(key, cv);
   return cv;

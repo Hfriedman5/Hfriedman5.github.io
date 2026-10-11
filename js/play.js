@@ -1,10 +1,10 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zi';
-import { createRace } from './race.js?v=20261010zi';
-import { createWeather, currentWeather } from './weather.js?v=20261010zi';
-import { CROPS, cropById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zi';
-import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zi';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zi';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261010zn';
+import { createRace } from './race.js?v=20261010zn';
+import { createWeather, currentWeather } from './weather.js?v=20261010zn';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261010zn';
+import { leaderboardReady, player as lbPlayer, join as lbJoin, leave as lbLeave, submit as lbSubmit, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261010zn';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261010zn';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -795,7 +795,7 @@ function pressA() {
   const npc = npcs.find((n) => n.tx === fx && n.ty === fy);
   if (npc) { if (!npc.still) npc.dir = opposite(player.dir); return npc.creature ? say(CREATURES[npc.creature].line) : INTERACT[npc.id](); }
   const sign = SIGNS.find((s) => s.x === fx && s.y === fy);
-  if (sign) return sign.board ? readBoard() : say(sign.text);
+  if (sign) return sign.board ? readBoard() : sign.farm ? farmLedger(sign) : say(sign.text);
   const b = doorAt(fx, fy);
   if (b) return INTERACT[b.id]();
   if (plotAt(fx, fy) >= 0) return plotTalk(plotAt(fx, fy));
@@ -886,6 +886,7 @@ function occupied(x, y, self) {
 }
 let lastPlace = '';
 function placeName(x, y) {
+  if (x >= 36 && y >= 15 && y <= 20) return 'The workshop';
   if (x >= 36 && y <= 20) return 'The farm';
   if (grid[y][x] === 'i') return 'The Stadium';
   if (y === 13 || y === 14) return 'The Panathenaic Way';
@@ -896,7 +897,10 @@ function placeName(x, y) {
 let placeTimer;
 function updatePlace() {
   const name = placeName(player.tx, player.ty);
-  if (name && name !== lastPlace) {
+  const farmy = (n) => n === 'The farm' || n === 'The workshop';
+  const news = name && farmy(name) && !farmy(lastPlace) ? farmNews() : '';
+  if (news) caption(`${name}: ${news}.`, 3600);
+  else if (name && name !== lastPlace) {
     const el = $('#place'); el.textContent = name; el.classList.add('show');
     clearTimeout(placeTimer); placeTimer = setTimeout(() => el.classList.remove('show'), 1800);
   }
@@ -1018,7 +1022,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-updatePlace();
+setTimeout(updatePlace); // after the whole file has run, since the farm note reads farm state set up further down
 setTimeout(() => screen.focus({ preventScroll: true }), 50);
 if (!HF().store?.get?.('hf-play-welcomed', false)) {
   HF().store?.set?.('hf-play-welcomed', true);
@@ -1128,11 +1132,11 @@ function flag(i) {
 $('#ms-new').addEventListener('click', newMines);
 
 /* ---------------- The farm: plots, seeds, watering, and Demetrios's stall ---------------- */
-// Crops grow in real time, even with the tab closed. Watering keeps a crop growing at full speed for 12 hours;
-// dry soil still grows it, at half speed, so nothing is ever lost. Rain from the Machine Room waters everything; snow slows it all.
-const WATER_HOURS = 12, SEED_MAX = 99;
+// Crops grow in real time, even with the tab closed. A watered crop grows twice as fast as a dry one, and watering lasts 12 hours,
+// so nothing is ever lost by forgetting. Rain from the Machine Room waters everything; snow makes everything take twice as long.
+const WATER_HOURS = 12, SEED_MAX = 99, BATCH_MAX = 10;
 const savedFarm = lsGet('hf-farm', null);
-const farm = { owned: [], plots: {}, seeds: {}, basket: {}, ...savedFarm, v: 2 };
+const farm = { owned: [], plots: {}, seeds: {}, basket: {}, works: {}, ...savedFarm, v: 2 }; // works: the workshop stations you have built
 const saveFarm = () => lsSet('hf-farm', farm);
 const plotPriceAt = (n) => Math.round((100 * 1.6 ** n) / 50) * 50; // 100, 150, 250, 400, 650, 1,050, 1,700, 2,700, 4,300
 const plotPrice = () => plotPriceAt(farm.owned.length);
@@ -1144,12 +1148,14 @@ if (savedFarm && savedFarm.v !== 2) { // the first farm had 12 small plots; keep
   Object.assign(farm, { owned: was.slice(0, PLOTS.length).map((_, i) => i), plots });
   saveFarm();
 }
-// What the farm is worth on the leaderboard: plots at what they cost, seeds at cost, and the harvest at today's price.
+// What the farm is worth on the leaderboard: plots and workshop at what they cost, seeds at cost, and goods at today's price.
 const farmValue = () => farm.owned.reduce((t, _, n) => t + plotPriceAt(n), 0)
-  + CROPS.reduce((t, c) => t + (farm.seeds[c.id] || 0) * c.cost + (farm.basket[c.id] || 0) * cropPrice(c).price, 0);
+  + CROPS.reduce((t, c) => t + (farm.seeds[c.id] || 0) * c.cost, 0)
+  + STATIONS.reduce((t, s) => t + (farm.works[s.id] ? s.cost + (farm.works[s.id].n || 0) * cropPrice(produceById(s.makes)).price : 0), 0)
+  + Object.entries(farm.basket).reduce((t, [id, n]) => t + (produceById(id) ? n * cropPrice(produceById(id)).price : 0), 0);
 const fullSpeed = (crop) => (weatherKind === 'snow' ? .5 : 1) / (crop.hours * 3600e3); // growth per millisecond, watered
 const isWet = (pl, now = Date.now()) => weatherKind === 'rain' || (pl.wetUntil || 0) > now;
-// How grown a crop is, from 0 to 1: full speed while the soil was wet, half speed after.
+// How grown a crop is, from 0 to 1: twice as fast while the soil was wet as after it dried.
 function grownAt(pl, now = Date.now()) {
   const full = fullSpeed(cropById(pl.crop));
   const wetEnd = weatherKind === 'rain' ? now : Math.min(now, Math.max(pl.at, pl.wetUntil || 0));
@@ -1161,6 +1167,8 @@ function msLeft(pl, now = Date.now()) {
   return left <= wet * full ? left / full : wet + (left - wet * full) / (full / 2);
 }
 function waterPlot(pl, now = Date.now()) { pl.grown = grownAt(pl, now); pl.at = now; pl.wetUntil = now + WATER_HOURS * 3600e3; }
+const ifWatered = (pl) => { const copy = { ...pl }; waterPlot(copy); return msLeft(copy); }; // time left if watered right now
+const needsWater = (pl, now = Date.now()) => grownAt(pl, now) < 1 && !isWet(pl, now);
 function plotKey(i) {
   if (!farm.owned.includes(i)) return 'wild';
   const pl = farm.plots[i];
@@ -1168,8 +1176,17 @@ function plotKey(i) {
   const g = grownAt(pl);
   return `${pl.crop}:${g >= 1 ? 'ready' : g < .4 ? 'sprout' : 'grow'}${isWet(pl) ? '-wet' : ''}`;
 }
+const stationState = (id, now = Date.now()) => { const w = farm.works[id]; return !w ? 'unbuilt' : !w.n ? 'idle' : now < w.done ? 'working' : 'done'; };
+// Farm times are estimates, so round them: to the minute under an hour, to 5 minutes under 6 hours, then to the hour.
+const about = (ms) => { const step = ms < 3600e3 ? 60e3 : ms < 6 * 3600e3 ? 5 * 60e3 : 3600e3; return inTime(Math.max(60e3, Math.round(ms / step) * step)); };
+const aOrAn = (s) => `${/^[aeiou]/i.test(s) ? 'an' : 'a'} ${s}`;
 const cropCount = (c, n) => `${n.toLocaleString()} ${n === 1 ? c.one : c.many}`;
 const lower = (c) => c.name.toLowerCase();
+const listOf = (items) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : items[0] || '');
+const hoursText = (h) => (h < 24 ? plural(h, 'hour') : plural(h / 24, 'day'));
+const basketItems = () => Object.keys(farm.basket).filter((id) => farm.basket[id] > 0 && produceById(id));
+const basketLine = () => `In your basket: ${listOf(basketItems().map((id) => cropCount(produceById(id), farm.basket[id]))) || 'nothing yet'}.`;
+const addToBasket = (id, n) => { farm.basket[id] = (farm.basket[id] || 0) + n; };
 
 async function plotTalk(i) {
   if (!farm.owned.includes(i)) {
@@ -1185,76 +1202,181 @@ async function plotTalk(i) {
   if (!pl) return plantTalk(i, ['Your plot. The soil is turned and ready.']);
   const crop = cropById(pl.crop);
   if (grownAt(pl) >= 1) {
-    delete farm.plots[i]; farm.basket[crop.id] = (farm.basket[crop.id] || 0) + 1; saveFarm();
-    return plantTalk(i, [`You harvest the ${lower(crop)}. Your basket holds ${cropCount(crop, farm.basket[crop.id])}. Demetrios at the gate will buy it.`]);
+    delete farm.plots[i]; addToBasket(crop.id, 1); saveFarm();
+    const next = STATIONS.find((s) => s.from === crop.id);
+    return plantTalk(i, [`You harvest the ${lower(crop)}. ${basketLine()}`, `Sell ${crop.id === 'wheat' ? 'it' : 'them'} at Demetrios's stall by the gate${next ? `, or make ${lower(produceById(next.makes))} at the workshop` : ''}.`]);
   }
-  const lines = [`Your ${lower(crop)}: ${Math.floor(grownAt(pl) * 100)}% grown, ready in about ${inTime(msLeft(pl))}.`, ...(weatherKind === 'snow' ? ['The snow from the Machine Room is slowing everything down.'] : [])];
-  if (weatherKind === 'rain') return say([...lines, 'The rain from the Machine Room is watering it for you.']);
-  if (isWet(pl)) return say([...lines, `The soil is still damp. Watering lasts ${WATER_HOURS} hours.`]);
-  const v = await say([...lines, `The soil is dry, so it is growing at half speed. Water it and it grows at full speed for the next ${WATER_HOURS} hours.`], [{ label: 'Water it', value: 'water' }, { label: 'Leave it', value: null }]);
+  const head = `Your ${lower(crop)}: ${Math.floor(grownAt(pl) * 100)}% grown.`;
+  const snow = weatherKind === 'snow' ? ['Snow from the Machine Room is slowing everything down: crops take twice as long.'] : [];
+  if (weatherKind === 'rain') return say([`${head} Ready in about ${about(msLeft(pl))}.`, 'The rain from the Machine Room is watering it for you.']);
+  if (isWet(pl)) return say([`${head} Ready in about ${about(msLeft(pl))}.`, ...snow, `It is watered. The soil stays damp for another ${about(pl.wetUntil - Date.now())}.`]);
+  const v = await say([`${head} The soil is dry.`, ...snow, `Water it now: ready in about ${about(ifWatered(pl))}.\nLeave it dry: about ${about(msLeft(pl))}.`], [{ label: 'Water it', value: 'water' }, { label: 'Leave it', value: null }]);
   if (v !== 'water') return;
   waterPlot(pl); saveFarm();
-  return say(`You water the ${lower(crop)}. It should be ready in about ${inTime(msLeft(pl))}.`);
+  return say(`You water the ${lower(crop)}. Ready in about ${about(msLeft(pl))}.`);
 }
 async function plantTalk(i, intro) {
   const have = CROPS.filter((c) => farm.seeds[c.id] > 0);
   if (!have.length) return say([...intro, 'You have no seeds to plant. Demetrios sells them at the farm stall by the gate.']);
-  const pick = await say([...intro, 'What will you plant?'], [...have.map((c) => ({ label: `${c.seedName} (you have ${farm.seeds[c.id]}): ${plural(c.hours, 'hour')}`, value: c.id })), { label: 'Nothing for now', value: null }]);
+  const pick = await say([...intro, 'What will you plant?'], [...have.map((c) => ({ label: `${c.seedName} (you have ${farm.seeds[c.id]}): ${hoursText(c.hours)} watered`, value: c.id })), { label: 'Nothing for now', value: null }]);
   const crop = cropById(pick);
   if (!crop || !(farm.seeds[crop.id] > 0)) return;
   farm.seeds[crop.id]--;
   const pl = farm.plots[i] = { crop: crop.id, grown: 0, at: Date.now(), wetUntil: 0 };
   saveFarm();
-  if (weatherKind === 'rain') return say(`You plant the ${crop.seedName.toLowerCase()}. The rain waters them for you. Ready in about ${inTime(msLeft(pl))}.`);
-  const v = await say(`You plant the ${crop.seedName.toLowerCase()}. Water them so they grow at full speed?`, [{ label: 'Water them', value: 'water' }, { label: 'Not now', value: null }]);
-  if (v === 'water') waterPlot(pl);
-  saveFarm();
-  return say(`${v === 'water' ? 'Watered. ' : ''}Ready in about ${inTime(msLeft(pl))}.`);
+  if (weatherKind === 'rain') return say(`You plant the ${crop.seedName.toLowerCase()}. The rain waters them for you. Ready in about ${about(msLeft(pl))}.`);
+  const v = await say([`You plant the ${crop.seedName.toLowerCase()}.`, `Water them now: ready in about ${about(ifWatered(pl))}.\nLeave them dry: about ${about(msLeft(pl))}.`], [{ label: 'Water them', value: 'water' }, { label: 'Not now', value: null }]);
+  if (v !== 'water') return;
+  waterPlot(pl); saveFarm();
+  return say(`Watered. Ready in about ${about(msLeft(pl))}.`);
 }
 async function wellTalk() {
   if (weatherKind === 'rain') return say('The well. No need for it today: the rain from the Machine Room is watering every field in Athens.');
   if (!farm.owned.length) return say('A stone well. Once you own a plot, you can water your crops from here.');
-  const now = Date.now(), growing = Object.values(farm.plots).filter((pl) => grownAt(pl, now) < 1), dry = growing.filter((pl) => !isWet(pl, now));
+  const now = Date.now(), growing = Object.values(farm.plots).filter((pl) => grownAt(pl, now) < 1), dry = growing.filter((pl) => needsWater(pl, now));
   if (!dry.length) return say(growing.length ? 'The well. Everything you have growing is already watered.' : 'The well. Nothing is growing yet, so nothing needs water.');
-  const v = await say(`The well. ${dry.length === 1 ? 'One of your crops is' : `${dry.length} of your crops are`} dry and growing at half speed.`, [{ label: dry.length === 1 ? 'Water it' : 'Water them all', value: 'all' }, { label: 'Not now', value: null }]);
+  const v = await say([`The well. ${dry.length === 1 ? 'One of your crops is' : `${dry.length} of your crops are`} dry.`, `Watered, ${dry.length === 1 ? 'it would be' : 'they would be'} ready sooner:\n${dry.map((pl) => `${cropById(pl.crop).name}: ${about(ifWatered(pl))} instead of ${about(msLeft(pl))}`).join('\n')}`],
+    [{ label: dry.length === 1 ? 'Water it' : 'Water them all', value: 'all' }, { label: 'Not now', value: null }]);
   if (v !== 'all') return;
   dry.forEach((pl) => waterPlot(pl, now)); saveFarm();
-  return say(`You haul up bucket after bucket. ${dry.length === 1 ? 'It grows' : 'They grow'} at full speed for the next ${WATER_HOURS} hours.`);
+  return say(`You haul up bucket after bucket. ${dry.length === 1 ? 'It stays' : 'They stay'} watered for the next ${WATER_HOURS} hours.`);
+}
+// The farm sign doubles as a status board once you own a plot.
+function farmLedger(sign) {
+  if (!farm.owned.length) return say(sign.text);
+  const now = Date.now();
+  const rows = farm.owned.filter((i) => farm.plots[i]).map((i) => {
+    const pl = farm.plots[i], c = cropById(pl.crop);
+    return grownAt(pl, now) >= 1 ? `${c.name}: ready to harvest` : isWet(pl, now) ? `${c.name}: ready in ${about(msLeft(pl, now))}, watered` : `${c.name}: dry, ready in ${about(msLeft(pl, now))} (${about(ifWatered(pl))} if watered)`;
+  });
+  const empty = farm.owned.length - rows.length;
+  if (empty) rows.push(plural(empty, 'empty plot'));
+  const works = STATIONS.filter((s) => farm.works[s.id]).map((s) => {
+    const w = farm.works[s.id], g = produceById(s.makes), st = stationState(s.id, now);
+    return st === 'idle' ? `${s.name}: empty` : st === 'done' ? `${s.name}: ${cropCount(g, w.n)} ready` : `${s.name}: ${cropCount(g, w.n)} ready in ${about(w.done - now)}`;
+  });
+  return say([`Your farm\n${rows.join('\n')}`, ...(works.length ? [`Your workshop\n${works.join('\n')}`] : []), basketLine()]);
+}
+// A short note when you walk onto the farm: what is ready, and what needs water.
+function farmNews(now = Date.now()) {
+  const pls = Object.values(farm.plots), ready = pls.filter((pl) => grownAt(pl, now) >= 1).length, dry = pls.filter((pl) => needsWater(pl, now)).length;
+  const done = STATIONS.filter((s) => stationState(s.id, now) === 'done').length;
+  return listOf([ready && `${ready} ${ready === 1 ? 'crop is' : 'crops are'} ready`, dry && `${dry} ${dry === 1 ? 'needs' : 'need'} water`, done && 'the workshop has goods ready'].filter(Boolean));
 }
 async function farmerTalk() {
-  const prices = CROPS.map((c) => ({ c, ...cropPrice(c) }));
-  const sell = prices.filter((p) => farm.basket[p.c.id] > 0), worth = sell.reduce((t, p) => t + p.price * farm.basket[p.c.id], 0);
-  const v = await say(['Demetrios here. I sell seeds, and I buy whatever you grow.', `Today I pay:\n${prices.map((p) => `${p.c.name}: ${p.price} each${p.note ? `, ${p.note}` : ''}`).join('\n')}`], [
+  const goods = STATIONS.some((s) => farm.works[s.id]) || GOODS.some((g) => farm.basket[g.id] > 0);
+  const prices = [...CROPS, ...(goods ? GOODS : [])].map((c) => ({ c, ...cropPrice(c) }));
+  const has = basketItems().length;
+  const v = await say(['Demetrios here. I sell seeds, and I buy whatever you grow or make.', `Today I pay:\n${prices.map((p) => `${p.c.name}: ${p.price} each${p.note ? `, ${p.note}` : ''}`).join('\n')}`, ...(has ? [basketLine()] : [])], [
     { label: 'Buy seeds', value: 'seeds' },
-    ...(sell.length ? [{ label: `Sell your harvest for ${worth.toLocaleString()}`, value: 'sell' }] : []),
+    ...(has ? [{ label: 'Sell from your basket', value: 'sell' }] : []),
     { label: 'How does farming work?', value: 'how' },
     { label: 'Leave', value: null }]);
   if (v === 'how') {
     return say(['Buy a plot, then plant seeds in it. Crops keep growing while you are away, even with the tab closed.',
-      `Radishes take ${plural(cropById('radish').hours, 'hour')}, wheat ${cropById('wheat').hours} hours, grapes a day, and olives three days. The slower the crop, the more it sells for.`,
-      `Water a crop and it grows at full speed for ${WATER_HOURS} hours. Dry soil grows it at half speed. Nothing ever dies. The well waters all your crops at once.`,
-      'My prices change every day. Grapes sell high in the two weeks before the Great Dionysia in March, and olives during the olive harvest, October to December.']);
+      `Watered crops grow twice as fast as dry ones, and one watering lasts ${WATER_HOURS} hours. Nothing ever dies. The well waters all your crops at once.`,
+      `${CROPS.map((c) => `${c.name}: ${hoursText(c.hours)} watered, ${hoursText(c.hours * 2)} dry`).join('\n')}\nThe slower the crop, the more it sells for.`,
+      'The workshop is the building south of the road. Its oven turns wheat into bread, and its presses turn grapes into wine and olives into olive oil. Those sell for about 40% more than the crops.',
+      'My prices change every day. Grapes and wine sell high in the two weeks before the Great Dionysia in March, and olives during the olive harvest, October to December.']);
   }
-  if (v === 'sell') {
-    const sold = sell.map((p) => cropCount(p.c, farm.basket[p.c.id]));
-    farm.basket = {}; saveFarm();
-    const n = earn(worth, '', Infinity);
-    bumpRecord('farm', (t = 0) => t + n);
-    return say(`You sell ${sold.length > 1 ? `${sold.slice(0, -1).join(', ')} and ${sold.at(-1)}` : sold[0]} for ${n.toLocaleString()} coins.`);
-  }
+  if (v === 'sell') return sellTalk();
   if (v !== 'seeds') return;
-  const pick = await say(`Which seeds? You have ${wallet.coins.toLocaleString()} coins.`, [...CROPS.map((c) => ({ label: `${c.seedName}: ${c.cost} each, ready in ${plural(c.hours, 'hour')}`, value: c.id })), { label: 'Never mind', value: null }]);
+  const pick = await say(`Which seeds? You have ${wallet.coins.toLocaleString()} coins.`, [...CROPS.map((c) => ({ label: `${c.seedName}: ${c.cost} each, ready in ${hoursText(c.hours)} if watered`, value: c.id })), { label: 'Never mind', value: null }]);
   const crop = cropById(pick);
   if (!crop) return;
   const have = farm.seeds[crop.id] || 0, most = Math.min(SEED_MAX - have, Math.floor(wallet.coins / crop.cost));
   if (have >= SEED_MAX) return say(`You already have ${have} ${crop.seedName.toLowerCase()}. Plant some first.`);
   if (most < 1) return say(`${crop.seedName} cost ${crop.cost} coins each, and you have ${wallet.coins.toLocaleString()}.`);
-  const n = await say(`How many ${crop.seedName.toLowerCase()}? ${crop.cost} coins each. You can buy up to ${most}.`, [...[1, 3, 6, 12].filter((k) => k <= most).map((k) => ({ label: `${k} for ${(k * crop.cost).toLocaleString()}`, value: k })), { label: 'Other amount', amount: { min: 1, max: most } }, { label: 'Never mind', value: null }]);
+  const n = await say(`How many ${crop.seedName.toLowerCase()}? ${crop.cost} coins each. You can buy up to ${most}.`, [...[1, 3, 6, 9].filter((k) => k <= most).map((k) => ({ label: `${k} for ${(k * crop.cost).toLocaleString()}`, value: k })), { label: 'Other amount', amount: { min: 1, max: most } }, { label: 'Never mind', value: null }]);
   if (!n) return;
   if (!Number.isInteger(n) || n < 1 || n > Math.min(SEED_MAX - (farm.seeds[crop.id] || 0), Math.floor(wallet.coins / crop.cost))) return say('Demetrios counts twice and shakes his head. That amount does not work.');
   wallet.coins = wallet.coins - n * crop.cost; farm.seeds[crop.id] = (farm.seeds[crop.id] || 0) + n; saveFarm();
   return say(`Demetrios hands you ${n} ${n === 1 ? crop.seedName.toLowerCase().replace(/s$/, '') : crop.seedName.toLowerCase()}. ${farm.owned.length ? 'Walk up to one of your plots to plant.' : 'Now you need a plot: walk up to one of the overgrown ones to buy it.'}`);
 }
+// Sell one kind of thing, or everything, at today's prices. Nothing spoils, so waiting for a better day is fine.
+async function sellTalk() {
+  const items = basketItems().map((id) => { const c = produceById(id), n = farm.basket[id], { price } = cropPrice(c); return { id, c, n, total: n * price }; });
+  const all = items.reduce((t, x) => t + x.total, 0);
+  const pick = await say('What will you sell? Nothing in your basket spoils, so you can also wait for a better price.', [...items.map((x) => ({ label: `${cropCount(x.c, x.n)} for ${x.total.toLocaleString()}`, value: x.id })), ...(items.length > 1 ? [{ label: `Everything for ${all.toLocaleString()}`, value: 'all' }] : []), { label: 'Never mind', value: null }]);
+  const sold = items.filter((x) => pick === 'all' || x.id === pick);
+  if (!sold.length) return;
+  sold.forEach((x) => delete farm.basket[x.id]); saveFarm();
+  const n = earn(sold.reduce((t, x) => t + x.total, 0), '', Infinity);
+  bumpRecord('farm', (t = 0) => t + n);
+  return say(`You sell ${listOf(sold.map((x) => cropCount(x.c, x.n)))} for ${n.toLocaleString()} coins.`);
+}
+
+/* ---------------- The workshop: one building, one panel. Each bench turns a crop into goods worth about 40% more ---------------- */
+const benchStart = (s, w) => w.start || w.done - s.hours * 3600e3;
+function renderWorkshop(note = '', tone = '') {
+  const now = Date.now();
+  $('#ws-body').innerHTML = `
+    <p class="ex-intro">Turn crops from your basket into goods that sell for about 40% more. Each bench works on one batch at a time, up to ${BATCH_MAX} at once, and keeps working while you are away. Collect what is ready, then sell it to Demetrios at the farm stall.</p>
+    <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>${basketLine()}</span></p>
+    ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
+    <div class="ex-list">${STATIONS.map((s) => {
+      const from = produceById(s.from), good = produceById(s.makes), w = farm.works[s.id], state = stationState(s.id, now), have = farm.basket[from.id] || 0;
+      let action;
+      if (state === 'unbuilt') action = `<span class="ex-own">Setting up this bench costs <b>${s.cost.toLocaleString()}</b> coins, once.</span><button type="button" class="btn btn-primary btn-sm" data-build="${s.id}">Set up for ${s.cost.toLocaleString()}</button>`;
+      else if (state === 'idle' && !have) action = `<span class="ex-own">No ${lower(from)} in your basket. Grow some on the farm.</span>`;
+      else if (state === 'idle') action = `<span class="ex-own">You have <b>${cropCount(from, have)}</b>.</span><input type="text" inputmode="numeric" autocomplete="off" value="${Math.min(have, BATCH_MAX)}" aria-label="How many ${from.many} to use"><button type="submit" class="btn btn-primary btn-sm">${s.verb[0].toUpperCase() + s.verb.slice(1)}</button>`;
+      else if (state === 'working') {
+        const start = benchStart(s, w), pct = Math.min(100, Math.round(((now - start) / (w.done - start)) * 100));
+        action = `<div class="ws-progress" data-start="${start}" data-done="${w.done}"><div class="ws-bar" role="progressbar" aria-label="${s.name}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div><span class="ex-own">${s.doing} ${cropCount(good, w.n)}. Ready in about <b class="ws-left">${about(w.done - now)}</b>.</span></div>`;
+      } else action = `<span class="ex-own"><b>${cropCount(good, w.n)}</b> ${w.n === 1 ? 'is' : 'are'} ready.</span><button type="button" class="btn btn-primary btn-sm" data-collect="${s.id}">Collect</button>`;
+      return `<article class="ex-co${state === 'done' ? ' today' : ''}">
+        <div class="ex-top"><h3>${s.name}</h3><span class="ex-day">${from.name} into ${lower(good)}, ${hoursText(s.hours)} a batch</span></div>
+        <p class="ex-how">${s.what} Today Demetrios pays <b>${cropPrice(from).price}</b> for ${aOrAn(from.one)} and <b>${cropPrice(good).price}</b> for ${aOrAn(good.one)}.</p>
+        <form class="ex-trade" data-bench="${s.id}">${action}<span class="ex-msg" role="status"></span></form>
+      </article>`;
+    }).join('')}</div>`;
+}
+let wsTimer = null;
+function openWorkshop() {
+  renderWorkshop(); openModal('#workshop');
+  clearInterval(wsTimer);
+  wsTimer = setInterval(() => { // move the progress bars along; redraw when a batch finishes (unless someone is typing)
+    const now = Date.now(); let finished = false;
+    $('#ws-body').querySelectorAll('.ws-progress').forEach((el) => {
+      const start = +el.dataset.start, done = +el.dataset.done, pct = Math.min(100, Math.round(((now - start) / (done - start)) * 100));
+      if (now >= done) finished = true;
+      el.querySelector('.ws-bar span').style.width = `${pct}%`; el.querySelector('.ws-bar').setAttribute('aria-valuenow', pct);
+      el.querySelector('.ws-left').textContent = about(done - now);
+    });
+    if (finished && !document.activeElement?.matches?.('#ws-body input')) renderWorkshop();
+  }, 1000);
+}
+$('#workshop')?.addEventListener('close', () => clearInterval(wsTimer));
+$('#ws-body')?.addEventListener('click', (e) => {
+  const build = e.target.closest('[data-build]'), collect = e.target.closest('[data-collect]');
+  if (build) {
+    const s = STATIONS.find((x) => x.id === build.dataset.build);
+    if (farm.works[s.id]) return renderWorkshop();
+    if (wallet.coins < s.cost) return renderWorkshop(`The ${lower(s)} costs ${s.cost.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+    wallet.coins = wallet.coins - s.cost; farm.works[s.id] = { n: 0, done: 0 }; saveFarm();
+    return renderWorkshop(`Your ${lower(s)} is set up and ready to use.`, 'ok');
+  }
+  if (collect) {
+    const s = STATIONS.find((x) => x.id === collect.dataset.collect), w = farm.works[s.id];
+    if (stationState(s.id) !== 'done') return renderWorkshop();
+    const good = produceById(s.makes), n = w.n;
+    addToBasket(good.id, n); farm.works[s.id] = { n: 0, done: 0 }; saveFarm();
+    return renderWorkshop(`You collect ${cropCount(good, n)} and put ${n === 1 ? 'it' : 'them'} in your basket.`, 'ok');
+  }
+});
+$('#ws-body')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const form = e.target.closest('[data-bench]'), s = STATIONS.find((x) => x.id === form.dataset.bench), from = produceById(s.from), good = produceById(s.makes);
+  const have = farm.basket[from.id] || 0, most = Math.min(BATCH_MAX, have), raw = form.querySelector('input').value.trim(), msg = form.querySelector('.ex-msg');
+  if (stationState(s.id) !== 'idle') return renderWorkshop();
+  if (!/^\d+$/.test(raw) || +raw < 1) { msg.textContent = 'Type a whole number, like 3.'; return; }
+  if (+raw > most) { msg.textContent = have > BATCH_MAX ? `One batch holds up to ${BATCH_MAX}.` : `You only have ${have}.`; return; }
+  const n = +raw, now = Date.now();
+  farm.basket[from.id] -= n; if (!farm.basket[from.id]) delete farm.basket[from.id];
+  farm.works[s.id] = { n, start: now, done: now + s.hours * 3600e3 }; saveFarm();
+  renderWorkshop(`${s.doing} ${cropCount(from, n)} into ${cropCount(good, n)}. Ready in ${hoursText(s.hours)}.`, 'ok');
+});
+INTERACT.workshop = openWorkshop;
 INTERACT.farmer = farmerTalk;
 
 /* ---------------- The Stadium: stadion race ---------------- */
