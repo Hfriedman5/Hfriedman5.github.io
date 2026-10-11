@@ -1,11 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011o';
-import { createRace } from './race.js?v=20261011o';
-import { createWeather, currentWeather } from './weather.js?v=20261011o';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011o';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011o';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011o';
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011o';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011p';
+import { createRace } from './race.js?v=20261011p';
+import { createWeather, currentWeather } from './weather.js?v=20261011p';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011p';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011p';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011p';
+import { checkSeal, guardedSet } from './seal.js?v=20261011p';
+checkSeal(); // notice any change to the saved money made outside the game since the last visit
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011p';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -246,7 +248,7 @@ function advance() {
 /* ---------------- Coins: earned around Athens, spent at the blackjack table ---------------- */
 const MAX_EARN = 1000; // no single reward pays more than this
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
-const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } };
+const lsSet = (k, v) => { try { guardedSet(k, JSON.stringify(v)); } catch (e) { /* private mode */ } }; // seal.js keeps the money sealed
 const wallet = {
   get coins() { return Math.max(0, Math.floor(Number(lsGet('hf-coins', 0)) || 0)); },
   set coins(v) { lsSet('hf-coins', Math.max(0, Math.floor(v))); renderCoins(); },
@@ -440,6 +442,8 @@ function spark(prices) {
   const pts = prices.map((p, i) => `${(i / (prices.length - 1)) * w},${h - 3 - ((p - lo) / span) * (h - 6)}`).join(' ');
   return `<svg class="ex-spark ${prices[prices.length - 1] >= prices[0] ? 'ex-up' : 'ex-down'}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
 }
+// "6 less than you paid", "40 more than you paid": gains and losses in words.
+const vsPaid = (d) => (d === 0 ? 'the same as you paid' : `${Math.abs(d).toLocaleString()} ${d > 0 ? 'more' : 'less'} than you paid`);
 function renderExchange(note = '', tone = '') {
   const m = market(), dayNow = new Date().getDay(), body = $('#ex-body'), closed = festivalOn(new Date());
   const price = (c) => tradePrice(m.companies[c.id].at(-1).price);
@@ -450,7 +454,7 @@ function renderExchange(note = '', tone = '') {
   const item = (h) => `<li class="${h.good === true ? 'ex-good' : h.good === false ? 'ex-bad' : ''}">${h.text}</li>`;
   body.innerHTML = `
     <p class="ex-intro">Seven businesses, one report a day. On its day, each company reports its profit for the week. Beat what the market expected and the price usually jumps; miss and it usually falls. Owners get part of the profit each report day, on shares they have owned for at least a week. Every trade costs a 1% fee, and you can hold up to ${STOCK_CAP.toLocaleString()} coins in any one company.</p>
-    <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>Your shares are worth <b>${held.toLocaleString()}</b>${paidIn ? ` <span class="${held >= paidIn ? 'ex-up' : 'ex-down'}">(${signed(held - paidIn)} on what you paid)</span>` : ''}</span></p>
+    <p class="ex-summary ex-sticky"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>Your shares are worth <b>${held.toLocaleString()}</b>${paidIn ? ` <span class="${held >= paidIn ? 'ex-up' : 'ex-down'}">(${vsPaid(held - paidIn)})</span>` : ''}</span></p>
     ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
     ${helping('pasion') ? `<p class="ex-note ok">Pasion is waiving your fees for another ${about(scholars.pasion.until - Date.now())}.</p>` : ''}
     ${scholars.thales?.day === dayKey() && scholars.thales.hint ? `<p class="ex-note"><b>Thales\u2019 hint:</b> ${scholars.thales.hint}</p>` : ''}
@@ -470,7 +474,7 @@ function renderExchange(note = '', tone = '') {
         <p class="ex-how"><b>Makes money:</b> ${c.makes} <b>Watch:</b> ${c.watch}</p>
         <p class="ex-facts">${r ? `Last report: profit ${r.e.toFixed(1)} per share, ${Math.abs(Math.round(r.surprise * 100))}% ${r.surprise >= 0 ? 'above' : 'below'} expectations. Paid owners ${r.dividend} per share.` : ''} ${reportsToday ? '' : `The market expects about ${now.expected.toFixed(1)} per share this week.`}</p>
         <form class="ex-trade" data-co="${c.id}">
-          <span class="ex-own">${n ? `You own <b>${n.toLocaleString()}</b> (worth ${(n * p).toLocaleString()}, <span class="${n * p >= (portfolio.cost[c.id] || 0) ? 'ex-up' : 'ex-down'}">${signed(n * p - (portfolio.cost[c.id] || 0))}</span>)${ready < n ? `. ${ready ? `${ready.toLocaleString()} of them` : 'None of them'} will get the next dividend.` : ''}` : 'You own none'}</span>
+          <span class="ex-own">${n ? `You own <b>${n.toLocaleString()}</b> ${n === 1 ? 'share' : 'shares'}, worth ${(n * p).toLocaleString()} (<span class="${n * p >= (portfolio.cost[c.id] || 0) ? 'ex-up' : 'ex-down'}">${vsPaid(n * p - (portfolio.cost[c.id] || 0))}</span>)${ready < n ? `. ${ready ? `${ready.toLocaleString()} of them` : 'None of them'} will get the next dividend.` : ''}` : 'You own none'}</span>
           <input type="text" inputmode="numeric" autocomplete="off" placeholder="Shares" aria-label="Number of ${c.name} shares">
           <button type="submit" class="btn btn-primary btn-sm" value="buy"${closed ? ' disabled' : ''}>Buy</button>
           <button type="submit" class="btn btn-secondary btn-sm" value="sell"${n && !closed ? '' : ' disabled'}>Sell</button>
@@ -783,7 +787,7 @@ const INTERACT = {
       request.taken = true; saveRequest();
       return say(['Socrates here. I seem to have lost a sandal.', 'I tell everyone I do not need it. I would like it back.', spotHint(), `Bring it to me and I will pay you ${todaysRequest().pay.toLocaleString()} coins.`]);
     }
-    await say(['Socrates here. I have both sandals today, for once.', 'I know that I know nothing. I do know the request board by the main road has work, if you want coins.']);
+    await say(['Socrates here. I have both sandals today, for once.', request?.day === dayKey() && request.done ? 'I know that I know nothing. I do know you finished today\u2019s job from the request board. A new one goes up tomorrow.' : 'I know that I know nothing. I do know the request board by the main road has a job today, if you want coins.']);
   },
   async cat() {
     if (await requestTalk('cat')) return;

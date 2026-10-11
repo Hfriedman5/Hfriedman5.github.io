@@ -1,7 +1,9 @@
 // The Machine Room: the translation switchboard, the weather machine, the harbor works, the aviary,
 // the egg incubator, and the factory reset lever. Every setting lives in this visitor's localStorage; the other pages read them.
-import { renderWorld, buildGrid, spriteCanvas, boatCanvas, creatureCanvas, CREATURES, NPCS, ERRANDS, ERRAND_HOURS, ERRAND_PAY } from './world.js?v=20261011o';
-import { WEATHER, createWeather } from './weather.js?v=20261011o';
+import { renderWorld, buildGrid, spriteCanvas, boatCanvas, creatureCanvas, CREATURES, NPCS, ERRANDS, ERRAND_HOURS, ERRAND_PAY } from './world.js?v=20261011p';
+import { WEATHER, createWeather } from './weather.js?v=20261011p';
+import { checkSeal, guardedSet } from './seal.js?v=20261011p';
+checkSeal();
 
 const $ = (s, r = document) => r.querySelector(s);
 const root = document.documentElement;
@@ -9,7 +11,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const HF = () => window.HF;
 const store = {
   get: (k, d) => HF()?.store?.get(k, d) ?? d,
-  set: (k, v) => HF()?.store?.set(k, v),
+  set: (k, v) => { try { guardedSet(k, JSON.stringify(v)); } catch (e) { /* private mode */ } }, // coins and errands stay sealed
 };
 // The homepage's first line, exactly as index.html writes it, so the preview can look up its translation.
 const LEDE = 'MIT computer science, economics and data science. I build models for <strong>hedge funds</strong>, <strong>prediction markets</strong>, and <strong>NBA referees</strong>.';
@@ -99,7 +101,7 @@ function init() {
         clear: 'Set to Clear. Sunny over the Aegean, as usual.',
         rain: 'Set to Rain. Athens gets wet the next time you visit.',
         snow: 'Set to Snow. Rare in Athens, but it does happen every few years.',
-        fog: 'Set to Fog. Good luck finding the sandal.',
+        fog: 'Set to Fog. Good luck finding anything.',
         ominous: 'Set to Mildly ominous. Nothing bad will happen. Probably.',
       }[id];
     }

@@ -2,7 +2,8 @@
 // Everything the site saves in the browser starts with "hf-", and that whole set is the save. The sign-in itself lives
 // under "sb-" keys, so backup files never include it and restoring a backup never signs anyone out.
 // The server keeps each player's save, and it decides what the leaderboard believes (see the part A SQL).
-import { SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261011o';
+import { SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261011p';
+import { checkSeal, sealTrusted } from './seal.js?v=20261011p';
 
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } };
@@ -117,6 +118,7 @@ function useSave(data) { // replace everything this browser has saved with this 
   try {
     Object.keys(localSave()).forEach((k) => localStorage.removeItem(k));
     Object.entries(data || {}).forEach(([k, v]) => { if (k.startsWith('hf-') && typeof v === 'string') localStorage.setItem(k, v); });
+    sealTrusted();
   } catch (e) { return; }
   location.reload();
 }
@@ -127,6 +129,7 @@ const before = new Set(); // things to do just before each upload (the game writ
 export const beforeSave = (fn) => before.add(fn);
 let busy = false;
 async function upload({ force = false, keepalive = false } = {}) {
+  checkSeal(); // any change made outside the game since the last save gets counted, and the server hears about it
   before.forEach((fn) => { try { fn(); } catch (e) { /* keep going */ } });
   const s = session(), sync = lsGet('sb-sync', {}), data = localSave(), print = fingerprint(data);
   if (!s) return;

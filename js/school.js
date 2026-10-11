@@ -1,6 +1,6 @@
 // The School of Athens, after Raphael (1509 to 1511), redrawn in pixels for the Academy.
 // The painting is a lunette: a rectangle with a semicircular top, 320 by 208 here (the fresco is about 770 by 500 cm).
-import { figureCanvas, avatarCanvas } from './world.js?v=20261011o';
+import { figureCanvas, avatarCanvas } from './world.js?v=20261011p';
 
 export const SW = 320, SH = 208;
 const CX = 160, SPRING = 160, R = 160; // the frame's arch
@@ -17,7 +17,7 @@ export const FIGURES = [
   { id: 'aristotle', name: 'Aristotle', where: 'Center, palm toward the ground', x: 160, y: 116,
     text: 'Plato\'s student for about twenty years, and later his most famous critic. Plato points up at ideas; Aristotle gestures at the world you can actually observe.' },
   { id: 'socrates', name: 'Socrates', where: 'Upper left, in green', x: 74, y: 116,
-    text: 'He never wrote a word down, so most of what we know about him comes from Plato. Here he is counting off arguments on his fingers. Outside, he is still looking for his sandal.' },
+    text: 'He never wrote a word down, so most of what we know about him comes from Plato. Here he is counting off arguments on his fingers. Outside, he loses a sandal every now and then.' },
   { id: 'pythagoras', name: 'Pythagoras', where: 'Lower left, writing in a book', x: 40, y: 168,
     text: 'Yes, that theorem. He taught that numbers sit underneath everything, and his followers famously refused to eat beans.' },
   { id: 'hypatia', name: 'Hypatia', where: 'Lower left, in white', x: 84, y: 162,
