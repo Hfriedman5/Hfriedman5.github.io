@@ -2,8 +2,8 @@
 // Everything the site saves in the browser starts with "hf-", and that whole set is the save. The sign-in itself lives
 // under "sb-" keys, so backup files never include it and restoring a backup never signs anyone out.
 // The server keeps each player's save, and it decides what the leaderboard believes (see the part A SQL).
-import { SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261011r';
-import { checkSeal, sealTrusted } from './seal.js?v=20261011r';
+import { SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261011s';
+import { checkSeal, sealTrusted } from './seal.js?v=20261011s';
 
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } };
@@ -152,6 +152,11 @@ async function checkCloud() {
   try { remote = await fetchCloud(); } catch (e) { return set({ status: e.message === 'signed-out' ? 'signed-out' : 'offline' }); }
   const sync = lsGet('sb-sync', {}), mine = sync.user === s.user.id, data = localSave(), print = fingerprint(data);
   if (!remote) return upload();                                                    // first save for this player
+  const reset = remote.data?.['hf-reset'];                                         // the site manager reset this game: start fresh, no question
+  if (reset && reset !== localStorage.getItem('hf-reset')) {
+    lsSet('sb-sync', { user: s.user.id, version: remote.version, print: fingerprint(remote.data) });
+    return useSave(remote.data);
+  }
   if (mine && sync.version === remote.version) return print === sync.print ? set({ status: 'saved', savedAt: Date.parse(remote.saved_at) }) : upload();
   if (!hasProgress(data) || (mine && print === sync.print)) {                       // a fresh browser, or this one sat idle: take the cloud's
     lsSet('sb-sync', { user: s.user.id, version: remote.version, print: fingerprint(remote.data) });
