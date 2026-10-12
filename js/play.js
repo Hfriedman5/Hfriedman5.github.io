@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011s';
-import { createRace } from './race.js?v=20261011s';
-import { createWeather, currentWeather } from './weather.js?v=20261011s';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011s';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011s';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011s';
-import { checkSeal, guardedSet } from './seal.js?v=20261011s';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261012a';
+import { createRace } from './race.js?v=20261012a';
+import { createWeather, currentWeather } from './weather.js?v=20261012a';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261012a';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261012a';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261012a';
+import { checkSeal, guardedSet } from './seal.js?v=20261012a';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011s';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261012a';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -592,6 +592,15 @@ function netWorth() {
   return wallet.coins + Math.floor(bank.bal) + bonds.reduce((t, b) => t + b.amt, 0) + COMPANIES.reduce((t, c) => t + sharesOf(c.id) * tradePrice(m.companies[c.id].at(-1).price), 0) + farmValue() + shipsValue();
 }
 const boardView = { board: 'net', period: 'month' };
+// When the board shows less than your game (big jumps reach it over a few hours), say so, so it does not look stuck.
+function boardNote() {
+  const b = cloud.board;
+  if (!b) return '';
+  if (b.review) return '<p class="lb-note">Your entry is being reviewed, so it is hidden from the board for now.</p>';
+  const net = netWorth(), bjNow = lsGet('hf-records', {}).bjProfit || 0, behind = net > b.net + 50 || bjNow > b.bj + 50;
+  if (!behind) return '';
+  return `<p class="lb-note">The board shows <b>${b.net.toLocaleString()}</b> for you${bjNow > b.bj + 50 ? ` and <b>${signed(b.bj)}</b> at blackjack` : ''}, while your game has ${net.toLocaleString()}${bjNow > b.bj + 50 ? ` and ${signed(bjNow)}` : ''}. Big jumps reach the board over a few hours (about 3,000 coins an hour), which keeps scores from being faked.</p>`;
+}
 async function openBoard() {
   openModal('#board'); renderBoard(null);
   if (signedIn()) { await syncNow(); await refreshInitials(); } // post the latest scores before showing the board
@@ -617,7 +626,7 @@ async function renderBoard(rows) {
     ${!signedIn() ? `<div class="lb-join"><h3>Put your initials on the board</h3>
       <p class="lb-privacy">${old?.initials ? `You joined as <b>${escHtml(old.initials)}</b> before sign-ins. Sign in to keep your spot and your scores.` : 'First, sign in with a code sent to your email. Signing in also saves your game to the cloud.'}</p>
       <button type="button" class="btn btn-primary btn-sm" data-lb="signin">Sign in</button></div>`
-    : `${mine ? `<p class="lb-you">You are on the board as <b>${mine}</b>. Your scores update as you play. <button type="button" class="lb-link" data-lb="edit">Change initials</button> · <button type="button" class="lb-link" data-lb="leave">Leave the leaderboard</button></p>` : ''}
+    : `${mine ? `<p class="lb-you">You are on the board as <b>${mine}</b>. Your scores update as you play. <button type="button" class="lb-link" data-lb="edit">Change initials</button> · <button type="button" class="lb-link" data-lb="leave">Leave the leaderboard</button></p>${boardNote()}` : ''}
     <form class="lb-join" novalidate${mine ? ' hidden' : ''}>
       <h3>${mine ? 'Change your initials' : 'Put your initials on the board'}</h3>
       <label>Initials (three letters or numbers) <input name="initials" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC" value="${mine || ''}"></label>

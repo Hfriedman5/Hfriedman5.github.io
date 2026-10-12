@@ -2,8 +2,8 @@
 // Everything the site saves in the browser starts with "hf-", and that whole set is the save. The sign-in itself lives
 // under "sb-" keys, so backup files never include it and restoring a backup never signs anyone out.
 // The server keeps each player's save, and it decides what the leaderboard believes (see the part A SQL).
-import { SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261011s';
-import { checkSeal, sealTrusted } from './seal.js?v=20261011s';
+import { SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261012a';
+import { checkSeal, sealTrusted } from './seal.js?v=20261012a';
 
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } };
@@ -13,7 +13,7 @@ const SYNC_EVERY = 30e3;
 
 /* ---------------- State the Save panel shows ---------------- */
 // status: 'signed-out', 'syncing', 'saved', 'conflict' (this browser and the cloud both changed), 'offline'
-export const cloud = { status: 'signed-out', savedAt: null, conflict: null, initials: null, error: '' };
+export const cloud = { status: 'signed-out', savedAt: null, conflict: null, initials: null, error: '', board: lsGet('sb-board', null) }; // board: what the leaderboard believes
 const listeners = new Set();
 export const onCloudChange = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 const emit = () => listeners.forEach((fn) => { try { fn(cloud); } catch (e) { /* a listener's problem */ } });
@@ -69,7 +69,7 @@ export async function verifyCode(email, code) {
 }
 export async function signOut() {
   const t = session()?.access_token;
-  lsSet('sb-session', null); lsSet('sb-sync', null);
+  lsSet('sb-session', null); lsSet('sb-sync', null); lsSet('sb-board', null);
   set({ status: 'signed-out', savedAt: null, conflict: null, initials: null });
   if (t) fetch(api('/auth/v1/logout'), { method: 'POST', headers: { ...JSON_HEADERS, Authorization: `Bearer ${t}` } }).catch(() => {});
 }
@@ -137,7 +137,8 @@ async function upload({ force = false, keepalive = false } = {}) {
   try {
     const res = await rpc('save_game', { p_data: data, p_base: force ? cloud.conflict?.cloud?.version ?? base : base, p_force: force }, { keepalive });
     lsSet('sb-sync', { user: s.user.id, version: res.version, print });
-    set({ status: 'saved', savedAt: Date.now(), conflict: null, error: '' });
+    const board = { net: res.net, bj: res.bj, review: !!res.review }; lsSet('sb-board', board);
+    set({ status: 'saved', savedAt: Date.now(), conflict: null, error: '', board });
   } catch (e) {
     if (e.message === 'conflict') return checkCloud();
     set({ status: e.message === 'signed-out' ? 'signed-out' : 'offline' });
