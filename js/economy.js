@@ -11,9 +11,9 @@ const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 
 /* ---------------- The sea report ---------------- */
 // Every day each route gets its own sea and its own market, so the best voyage changes from day to day.
 export const ROUTES = [
-  { id: 'aegina', name: 'Aegina', hours: 2, gain: .1, risk: 0, cargo: 'pistachios' },
-  { id: 'crete', name: 'Crete', hours: 4, gain: .5, risk: .2, cargo: 'olive oil' },
-  { id: 'egypt', name: 'Egypt', hours: 8, gain: 1, risk: .35, cargo: 'grain' },
+  { id: 'aegina', name: 'Aegina', hours: 2, gain: .1, risk: .05, cargo: 'pistachios' },
+  { id: 'crete', name: 'Crete', hours: 4, gain: .5, risk: .25, cargo: 'olive oil' },
+  { id: 'egypt', name: 'Egypt', hours: 8, gain: 1, risk: .42, cargo: 'grain' },
 ];
 const SEAS = [['calm seas', .5, .3], ['choppy seas', 1, .45], ['storms at sea', 1.6, .25]];   // effect on sinking risk, how often
 const MARKETS = [['low', .6, .25], ['normal', 1, .5], ['high', 1.4, .25]];                     // effect on profit, how often
@@ -21,7 +21,7 @@ const MARKETS = [['low', .6, .25], ['normal', 1, .5], ['high', 1.4, .25]];      
 export function seaFor(rt, date) {
   const key = dayKeyOf(date);
   const sea = pickBy(SEAS, seeded(`${key}:${rt.id}:sea`)), market = pickBy(MARKETS, seeded(`${key}:${rt.id}:market`));
-  return { sea: sea[0], storm: sea[1] > 1, calm: sea[1] < 1, demand: market[0], gain: Math.round(rt.gain * market[1] * 100) / 100, risk: rt.risk ? rt.risk * sea[1] : sea[1] > 1 ? .08 : 0 };
+  return { sea: sea[0], storm: sea[1] > 1, calm: sea[1] < 1, demand: market[0], gain: Math.round(rt.gain * market[1] * 100) / 100, risk: rt.risk * sea[1] };
 }
 const route = (id) => ROUTES.find((r) => r.id === id);
 const demandScore = (s) => (s.demand === 'high' ? 1 : s.demand === 'low' ? -1 : 0);
@@ -67,31 +67,31 @@ export function seasonLines(d = new Date()) {
 }
 
 export const COMPANIES = [
-  { id: 'olive', name: 'Athena Olive Press', day: 1, e0: 4, M: 9, payout: .72,
+  { id: 'olive', name: 'Athena Olive Press', day: 1, e0: 4, M: 9, payout: .94, oldPayout: .72,
     makes: 'Presses olives and ships the oil.', watch: 'Demand for olive oil on the Crete route in the captain\'s sea report, and the olive harvest (October to December).',
     news: (d, s) => .04 * demandScore(s.crete) + seasonal('olive', d),
     good: 'A second olive press opens at Athena Olive Press.', bad: 'A cracked millstone halts the Athena Olive Press.' },
-  { id: 'ship', name: 'Piraeus Shipyard', day: 2, e0: 5.5, M: 9, payout: .6,
+  { id: 'ship', name: 'Piraeus Shipyard', day: 2, e0: 5.5, M: 9, payout: .8, oldPayout: .6,
     makes: 'Builds and repairs ships.', watch: 'Storms in the sea report. Storms are good for business: damaged and sunk ships need replacing.',
     news: (d, s) => ROUTES.reduce((t, r) => t + (s[r.id].storm ? .025 : s[r.id].calm ? -.005 : 0), 0),
     good: 'The navy orders new triremes from Piraeus Shipyard.', bad: 'A timber shortage slows work at Piraeus Shipyard.' },
-  { id: 'pottery', name: 'Agora Pottery', day: 3, e0: 2.5, M: 8, payout: .6,
+  { id: 'pottery', name: 'Agora Pottery', day: 3, e0: 2.5, M: 8, payout: .8, oldPayout: .6,
     makes: 'Makes amphorae, the jars that oil and grain ship in.', watch: 'Last week\'s demand for olive oil and grain. Orders for jars come a week after the cargo does.',
     news: (d, s, past) => .03 * (demandScore(past.crete) + demandScore(past.egypt)),
     good: 'Agora Pottery wins a contract for new temple vases.', bad: 'A kiln fire damages the Agora Pottery workshop.' },
-  { id: 'pistachio', name: 'Aegina Pistachio Growers', day: 4, e0: 3, M: 8.5, payout: .66,
+  { id: 'pistachio', name: 'Aegina Pistachio Growers', day: 4, e0: 3, M: 8.5, payout: .86, oldPayout: .66,
     makes: 'Grows pistachios on Aegina and ships them to Athens.', watch: 'Demand for pistachios on the Aegina route, and storms there that hold the boats in port.',
     news: (d, s) => .05 * demandScore(s.aegina) - (s.aegina.storm ? .02 : 0),
     good: 'Aegina\'s pistachio harvest is the biggest in years.', bad: 'Pests hit the pistachio orchards on Aegina.' },
-  { id: 'grain', name: 'Nile Grain Traders', day: 5, e0: 4.5, M: 9, payout: .72,
+  { id: 'grain', name: 'Nile Grain Traders', day: 5, e0: 4.5, M: 9, payout: .94, oldPayout: .72,
     makes: 'Buys grain in Egypt and ships it to Athens.', watch: 'Demand for grain on the Egypt route, and storms there that sink cargo.',
     news: (d, s) => .04 * demandScore(s.egypt) - (s.egypt.storm ? .03 : 0),
     good: 'The Nile floods right on schedule, promising a big grain harvest.', bad: 'A low Nile means a thin grain harvest this year.' },
-  { id: 'silver', name: 'Laurion Silver Mines', day: 6, e0: 6, M: 11, payout: .92, events: .3,
-    makes: 'Mines the silver that Athens turns into coins.', watch: 'Only the headlines. The mines ignore the sea, so news from Laurion is the whole story. It pays the biggest share of its profit out to owners.',
+  { id: 'silver', name: 'Laurion Silver Mines', day: 6, e0: 6, M: 11, payout: 1, oldPayout: .92, events: .3,
+    makes: 'Mines the silver that Athens turns into coins.', watch: 'Only the headlines. The mines ignore the sea, so news from Laurion is the whole story. It pays all of its profit out to owners.',
     news: () => 0,
     good: 'Miners strike a rich new silver vein at Laurion.', bad: 'Flooding closes a shaft at the Laurion mines.' },
-  { id: 'tours', name: 'Acropolis Tours', day: 0, e0: 3.5, M: 8, payout: .55,
+  { id: 'tours', name: 'Acropolis Tours', day: 0, e0: 3.5, M: 8, payout: .74, oldPayout: .55,
     makes: 'Guides visitors around the Acropolis.', watch: 'Calm seas, since visitors arrive by boat, and the season: busy in summer, quiet in winter.',
     news: (d, s) => ROUTES.reduce((t, r) => t + (s[r.id].calm ? .02 : s[r.id].storm ? -.02 : 0), 0) + seasonal('tours', d),
     good: 'A famous poet will perform at the Acropolis this week.', bad: 'Rumors of pirates keep visitors away from Athens.' },
@@ -100,6 +100,11 @@ export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'
 export const coById = (id) => COMPANIES.find((c) => c.id === id);
 const EPOCH = new Date(2026, 6, 1); // the market's first day; its history is replayed from here
 const BELIEF = .35;                 // how much of the week's news the price takes in before the report
+// From this day on, companies pay out more of their profit and grow faster, so owning shares pays better. Days before it
+// replay exactly as they did, so no price or past dividend changes.
+const RAISE = new Date(2026, 9, 12);
+const weeksBetween = (a, b) => Math.max(0, (b - a) / 6048e5);
+const growth = (d) => Math.pow(1.003, weeksBetween(EPOCH, d < RAISE ? d : RAISE)) * Math.pow(1.01, weeksBetween(RAISE, d)); // 0.3% a week, then 1%
 
 // Replays every day from EPOCH to `today` and returns each company's price history, reports, and the news.
 let cached = null;
@@ -135,10 +140,10 @@ export function market(today = new Date()) {
       if (d.getDay() === c.day || st.owed) {
         st.owed = false;
         // This week's profit: the company's normal level (growing slowly), pushed up or down by the week's signs, plus some luck.
-        const base = c.e0 * Math.pow(1.003, (d - EPOCH) / 6048e5), luck = (seeded(`${k}:${c.id}:luck`) - .5) * .12;
+        const base = c.e0 * growth(d), luck = (seeded(`${k}:${c.id}:luck`) - .5) * .12;
         const e = base * (1 + st.sum) * (1 + luck);
         const expected = st.F * (1 + BELIEF * st.sum);
-        report = { e, expected, surprise: e / expected - 1, dividend: Math.max(0, Math.round(c.payout * e * 10) / 10) };
+        report = { e, expected, surprise: e / expected - 1, dividend: Math.max(0, Math.round((d < RAISE ? c.oldPayout : c.payout) * e * 10) / 10) };
         st.F = .6 * e + .4 * st.F; st.sum = 0; st.last = report; // the market's next guess leans on this week's number
         headlines.push({ co: c.id, report: true, good: report.surprise >= 0, text: `${c.name} reports a profit of ${report.e.toFixed(1)} per share, ${Math.abs(Math.round(report.surprise * 100))}% ${report.surprise >= 0 ? 'above' : 'below'} what the market expected.` });
       }

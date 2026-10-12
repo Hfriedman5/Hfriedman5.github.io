@@ -918,6 +918,13 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .chip[data-chip="100"] { --c: #1b2233; }
 .chip[data-chip="500"] { --c: #6b3fa0; }
 .chip[data-chip="1000"] { --c: #c99a2e; font-size: .74rem; letter-spacing: -.02em; }
+.bj-leave { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px; background: rgb(11 20 36 / .5); }
+.bj-leave[hidden] { display: none; }
+.bj-leave-box { width: min(380px, 100%); background: var(--bg); color: var(--ink); border-radius: var(--r-xl); box-shadow: var(--shadow-3); padding: 20px; }
+.bj-leave-box h3 { font-size: 1.05rem; margin: 0 0 6px; }
+.bj-leave-box p { margin: 0 0 16px; color: var(--ink-2); }
+.bj-leave-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.bj-leave-actions .btn { flex: 1 1 auto; }
 @media (max-width: 600px) { .chip[data-chip="1000"] { font-size: .6rem; } }
 .chip.chip-all { width: auto; padding: 0 14px; border-radius: 26px; background: var(--accent); color: var(--on-accent); box-shadow: 0 2px 0 rgba(0, 0, 0, .2); }
 .chip:active { transform: translateY(1px); }

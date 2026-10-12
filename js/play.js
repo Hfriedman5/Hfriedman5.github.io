@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261012i';
-import { createRace } from './race.js?v=20261012i';
-import { createWeather, currentWeather } from './weather.js?v=20261012i';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261012i';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261012i';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261012i';
-import { checkSeal, guardedSet } from './seal.js?v=20261012i';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261012k';
+import { createRace } from './race.js?v=20261012k';
+import { createWeather, currentWeather } from './weather.js?v=20261012k';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261012k';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261012k';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261012k';
+import { checkSeal, guardedSet } from './seal.js?v=20261012k';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261012i';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261012k';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -660,10 +660,10 @@ async function renderBoard(rows) {
 // adds risk on top for this visitor. Whether a ship sinks is settled when it sails.
 const stormy = () => ['rain', 'ominous'].includes(weatherKind) ? .1 : ['fog', 'snow'].includes(weatherKind) ? .05 : 0;
 function seaReport(rt) {
-  const s = seaFor(rt, new Date()), risk = Math.min(.9, s.risk + (rt.risk ? stormy() : stormy() / 2));
+  const s = seaFor(rt, new Date()), risk = Math.min(.9, s.risk + stormy());
   return { ...s, risk: scholars.pytheas?.ready ? Math.round(risk * 50) / 100 : risk }; // Pytheas aboard halves it
 }
-const VOYAGE_MAX = 1000; // the most one voyage can carry
+const VOYAGE_MAX = 3000; // the most one voyage can carry (the server's part D rules allow the same)
 const SHIP_PRICE = 2500;  // a second ship, so two voyages can be at sea at once
 const shipCount = () => (lsGet('hf-ships', 1) >= 2 ? 2 : 1);
 const voyages = () => { // ships at sea; older saves kept a single voyage under hf-voyage
@@ -933,7 +933,7 @@ const INTERACT = {
     if (wallet.coins < 100) return say('A voyage takes at least 100 coins. Come back when your purse is heavier.');
     const most = Math.min(VOYAGE_MAX, wallet.coins);
     const stake = await say([`${route.name} it is. Home in ${route.hours} hours. If it makes it, you get your coins back plus ${Math.round(route.gain * 100)}%. ${route.risk ? `There is a ${Math.round(route.risk * 100)}% chance it sinks.` : 'It will not sink.'}`, `How much will you put in? Pick an amount or type your own, from 100 to ${most.toLocaleString()}. You have ${wallet.coins.toLocaleString()} coins.`],
-      [...[100, 250, 500, 1000].filter((n) => n <= most).map((n) => ({ label: n.toLocaleString(), value: n })), { label: 'Other amount', amount: { min: 100, max: most } }, { label: 'Never mind', value: null }]);
+      [...[100, 500, 1000, 2000, 3000].filter((n) => n <= most).map((n) => ({ label: n.toLocaleString(), value: n })), { label: 'Other amount', amount: { min: 100, max: most } }, { label: 'Never mind', value: null }]);
     if (!stake) return;
     if (!Number.isInteger(stake) || stake < 100 || stake > Math.min(VOYAGE_MAX, wallet.coins)) return say('The captain counts your coins twice and frowns. That amount does not work. Try again.');
     if (voyages().filter((v) => Date.now() < v.back).length >= shipCount()) return say('Every ship you own is already at sea.');
@@ -1307,7 +1307,7 @@ $('#ms-new').addEventListener('click', newMines);
 const SCHOLARS = [
   { id: 'theophrastus', name: 'Theophrastus', price: 600, who: 'Aristotle’s student, who wrote the first books about plants.', does: 'Your crops grow twice as fast for 24 hours, on top of watering.' },
   { id: 'pasion', name: 'Pasion', price: 100, who: 'The richest banker in Athens. He started out as a slave working at a bank and ended up owning it.', does: 'No fees on the Athenian Exchange for 24 hours.' },
-  { id: 'pytheas', name: 'Pytheas', price: 300, who: 'An explorer from Massalia who sailed to Britain and far beyond.', does: 'He sails with your next ship, whenever you send it, and halves its chance of sinking.' },
+  { id: 'pytheas', name: 'Pytheas', price: 600, who: 'An explorer from Massalia who sailed to Britain and far beyond.', does: 'He sails with your next ship, whenever you send it, and halves its chance of sinking.' },
   { id: 'thales', name: 'Thales', price: 400, who: 'The thinker who saw a big olive harvest coming and rented every olive press before anyone else.', does: 'One hint about the next company report on the Exchange: will it beat or miss what the market expects?' },
 ];
 const DAY_MS = 24 * 3600e3;
@@ -1743,6 +1743,7 @@ const SUITS = [['♠', 'black'], ['♥', 'red'], ['♦', 'red'], ['♣', 'black'
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 // bj.bet is everything on the table; each hand also tracks its own share so splits and doubles settle separately.
 const bj = { shoe: [], dealer: [], hands: [], active: 0, bet: 0, baseBet: 0, lastBet: 0, phase: 'bet', msg: 'Pick your chips, then deal.' };
+const noteOpenHand = (bet) => bumpRecord('bjOpen', () => bet || undefined); // the bet riding on the hand in play, if any
 function newShoe() {
   bj.shoe = [];
   for (let d = 0; d < 6; d++) for (const [s, color] of SUITS) for (const r of RANKS) bj.shoe.push({ r, s, color });
@@ -1843,7 +1844,7 @@ function payout(results) {
       bust: () => (h.doubled ? `Doubled and bust at ${total(h.cards)}. Bold. Wrong, but bold.` : `Bust at ${total(h.cards)}. Icarus also went a little too high.`),
     }[r]();
   }
-  bj.lastBet = bj.baseBet; bj.bet = 0; bj.phase = 'done';
+  bj.lastBet = bj.baseBet; bj.bet = 0; bj.phase = 'done'; noteOpenHand(0);
 }
 function finishRound() {
   revealDealer();
@@ -1873,7 +1874,7 @@ function bjDeal() {
   bj.hands = [{ cards: [draw(), draw()], bet: bj.bet }];
   bj.active = 0;
   bj.dealer = [draw(), draw(true)];
-  bj.phase = 'player';
+  bj.phase = 'player'; noteOpenHand(bj.bet);
   const dealerBJ = isBlackjack(bj.dealer), playerBJ = isBlackjack(bj.hands[0].cards);
   if (playerBJ || dealerBJ) { revealDealer(); payout([playerBJ && dealerBJ ? 'push' : playerBJ ? 'blackjack' : 'lose']); return bjRender(); }
   bjAdvance();
@@ -1895,22 +1896,49 @@ $('#bj-stand').addEventListener('click', () => { const h = current(); if (!h) re
 $('#bj-double').addEventListener('click', () => {
   if (!canDouble()) return;
   const h = current();
-  wallet.coins = wallet.coins - h.bet; bj.bet += h.bet; h.bet *= 2; h.doubled = true;
+  wallet.coins = wallet.coins - h.bet; bj.bet += h.bet; h.bet *= 2; h.doubled = true; noteOpenHand(bj.bet);
   h.cards.push(draw());
   bjAdvance();
 });
 $('#bj-split').addEventListener('click', () => {
   if (!canSplit()) return;
   const h = current(), [a, b] = h.cards, aces = a.r === 'A';
-  wallet.coins = wallet.coins - h.bet; bj.bet += h.bet;
+  wallet.coins = wallet.coins - h.bet; bj.bet += h.bet; noteOpenHand(bj.bet);
   bj.hands.splice(bj.active, 1, { cards: [a], bet: h.bet, splitAces: aces }, { cards: [b], bet: h.bet, splitAces: aces });
   bjAdvance();
 });
-// Closing mid-hand returns the stake rather than silently losing it.
-$('#blackjack').addEventListener('close', () => {
-  if (bj.phase === 'player') { wallet.coins = wallet.coins + bj.bet; bj.bet = 0; bj.phase = 'bet'; bj.hands = []; bj.dealer = []; bj.msg = 'Pick your chips, then deal.'; }
-  else if (bj.phase === 'bet' && bj.bet) bjClear();
+// Once the cards are dealt, the bet stays on the table: leaving mid-hand loses it (otherwise you could peek at a bad
+// hand and walk away for free). Closing the window asks first; Esc, the X, and clicking outside all lead to the question.
+const bjDialog = $('#blackjack'), midHand = () => bj.phase === 'player';
+function askLeave() { $('#bj-leave-bet').textContent = bj.bet.toLocaleString(); $('#bj-leave').hidden = false; $('#bj-stay').focus(); }
+const hideLeave = () => { $('#bj-leave').hidden = true; };
+function bjForfeit() {
+  const lost = bj.bet;
+  bumpRecord('bjProfit', (v = 0) => v - lost); noteOpenHand(0);
+  bj.lastBet = bj.baseBet; bj.bet = 0; bj.phase = 'done'; bj.hands = []; bj.dealer = [];
+  bj.msg = `You left in the middle of the last hand and lost your ${lost.toLocaleString()} coin bet.`;
+}
+document.addEventListener('click', (e) => { // runs before the shared close handlers in script.js
+  if (!bjDialog.open || !midHand() || !(e.target === bjDialog || e.target.closest?.('#blackjack [data-close]'))) return;
+  e.stopPropagation(); e.preventDefault(); askLeave();
+}, true);
+window.addEventListener('keydown', (e) => { // Esc asks, and a second Esc means "never mind, finish the hand"
+  if (e.key !== 'Escape' || !bjDialog.open || !midHand()) return;
+  e.preventDefault(); e.stopPropagation();
+  $('#bj-leave').hidden ? askLeave() : hideLeave();
+}, true);
+bjDialog.addEventListener('cancel', (e) => { if (midHand()) e.preventDefault(); });
+$('#bj-stay').addEventListener('click', () => { hideLeave(); $('#bj-hit').focus(); });
+$('#bj-forfeit').addEventListener('click', () => bjDialog.close());
+bjDialog.addEventListener('close', () => {
+  hideLeave();
+  if (midHand()) bjForfeit();                     // "Leave anyway", or anything else that closed the window mid-hand
+  else if (bj.phase === 'bet' && bj.bet) bjClear(); // chips that were never dealt go back to the purse
 });
+// Leaving the page with chips placed but not dealt gives them back too. A hand in play is noted in the records, so if
+// the page closes mid-hand, the next visit counts that bet as lost at blackjack (it already left the purse).
+addEventListener('pagehide', () => { if (bj.phase === 'bet' && bj.bet) { wallet.coins = wallet.coins + bj.bet; bj.bet = 0; } });
+{ const open = lsGet('hf-records', {}).bjOpen; if (open > 0) { bumpRecord('bjProfit', (v = 0) => v - open); noteOpenHand(0); } }
 newShoe();
 
 /* ---------------- Agora market (shop) ---------------- */

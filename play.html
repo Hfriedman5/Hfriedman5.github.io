@@ -15,7 +15,7 @@
 <meta name="theme-color" content="#0b1424" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/pixelify.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=20261012i">
+<link rel="stylesheet" href="style.css?v=20261012k">
 <script>try { const r = document.documentElement; if (localStorage.getItem('hf-hannah-mode') === '1') r.classList.add('hannah-mode'); } catch (e) {}</script>
 </head>
 <body class="play-page">
@@ -188,6 +188,16 @@
   <div class="modal-head">
     <h2 id="bj-h">Gaming Hall: Blackjack</h2>
     <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="bj-leave" id="bj-leave" role="alertdialog" aria-modal="true" aria-labelledby="bj-leave-h" aria-describedby="bj-leave-p" hidden>
+    <div class="bj-leave-box">
+      <h3 id="bj-leave-h">Leave in the middle of a hand?</h3>
+      <p id="bj-leave-p">Your bet of <b id="bj-leave-bet">0</b> coins is already on the table, so leaving now loses it.</p>
+      <div class="bj-leave-actions">
+        <button type="button" class="btn btn-primary btn-sm" id="bj-stay">Finish hand</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="bj-forfeit">Leave anyway</button>
+      </div>
+    </div>
   </div>
   <div class="modal-body">
     <div class="bj-rail">
@@ -378,7 +388,7 @@
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="script.js?v=20261012i" defer></script>
-<script type="module" src="js/play.js?v=20261012i"></script>
+<script src="script.js?v=20261012k" defer></script>
+<script type="module" src="js/play.js?v=20261012k"></script>
 </body>
 </html>
