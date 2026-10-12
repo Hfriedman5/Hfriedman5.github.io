@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011p';
-import { createRace } from './race.js?v=20261011p';
-import { createWeather, currentWeather } from './weather.js?v=20261011p';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011p';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011p';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011p';
-import { checkSeal, guardedSet } from './seal.js?v=20261011p';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261011r';
+import { createRace } from './race.js?v=20261011r';
+import { createWeather, currentWeather } from './weather.js?v=20261011r';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261011r';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261011r';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261011r';
+import { checkSeal, guardedSet } from './seal.js?v=20261011r';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011p';
+import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261011r';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -787,7 +787,7 @@ const INTERACT = {
       request.taken = true; saveRequest();
       return say(['Socrates here. I seem to have lost a sandal.', 'I tell everyone I do not need it. I would like it back.', spotHint(), `Bring it to me and I will pay you ${todaysRequest().pay.toLocaleString()} coins.`]);
     }
-    await say(['Socrates here. I have both sandals today, for once.', request?.day === dayKey() && request.done ? 'I know that I know nothing. I do know you finished today\u2019s job from the request board. A new one goes up tomorrow.' : 'I know that I know nothing. I do know the request board by the main road has a job today, if you want coins.']);
+    await say(checkIn());
   },
   async cat() {
     if (await requestTalk('cat')) return;
@@ -1630,6 +1630,41 @@ $('#lib-body')?.addEventListener('click', (e) => {
 });
 
 INTERACT.farmer = farmerTalk;
+
+/* ---------------- Socrates' daily check-in: what is ready now, and what comes next ---------------- */
+function checkIn() {
+  const now = Date.now(), readyNow = [], later = [];
+  todaysRequest(); // make sure the request is today's
+  if (!request.done) readyNow.push(request.taken || request.carrying ? 'Your job from the request board is still waiting to be finished.' : 'The request board has a job for you today.');
+  for (const [key, yes, name] of [['cat', 'The cat will see you.', 'The cat'], ['plato', 'Plato will quiz you.', 'Plato’s quiz'], ['olives', 'The olive trees are full again.', 'The olive trees'],
+    ['stadion', 'The runner will race you for coins.', 'A race for coins'], ['mines', 'The Minesweeper board will pay again.', 'The Minesweeper prize']]) {
+    if (ready(key, COOLDOWN[key])) readyNow.push(yes); else later.push([leftOf(key), name]);
+  }
+  // the farm and the workshop
+  const pls = Object.values(farm.plots), ripe = [...new Set(pls.filter((pl) => grownAt(pl, now) >= 1).map((pl) => lower(cropById(pl.crop))))];
+  if (ripe.length) readyNow.push(`Your ${listOf(ripe)} ${ripe.length === 1 && !/s$/.test(ripe[0]) ? 'is' : 'are'} ready to harvest.`);
+  const dry = pls.filter((pl) => needsWater(pl, now)).length;
+  if (dry) readyNow.push(`${dry === 1 ? 'One of your crops needs' : `${dry} of your crops need`} water.`);
+  const growing = pls.filter((pl) => grownAt(pl, now) < 1).map((pl) => [msLeft(pl, now), `Your ${lower(cropById(pl.crop))}`]);
+  if (growing.length) later.push(growing.sort((a, b) => a[0] - b[0])[0]);
+  for (const s of STATIONS) {
+    const st = stationState(s.id, now), good = lower(produceById(s.makes));
+    if (st === 'done') readyNow.push(`Your ${good} ${good === 'bread' ? 'is out of the oven' : 'is ready at the workshop'}.`);
+    if (st === 'working') later.push([farm.works[s.id].done - now, `Your ${good}`]);
+  }
+  // the harbor, the bank, the incubator
+  for (const v of voyages()) {
+    const rt = ROUTES.find((x) => x.id === v.route);
+    if (rt && v.back <= now) readyNow.push(`Your ship from ${rt.name} is home.`); else if (rt) later.push([v.back - now, `Your ship from ${rt.name}`]);
+  }
+  if (bonds.some((b) => b.due <= now)) readyNow.push('A city bond has matured. The banker has your coins.');
+  if (lsGet('hf-machine-key', false) && Object.values(lsGet('hf-errands', {})).some((e) => e?.back <= now)) readyNow.push('Your hatchlings are back from their errands. They are waiting in the Machine Room.');
+  const soon = later.sort((a, b) => a[0] - b[0]).slice(0, 4).map(([ms, name]) => `${name}: in ${about(ms)}`);
+  return ['Socrates here. People say I ask too many questions, so today I will answer one: what is waiting for you?',
+    ...(readyNow.length ? Array.from({ length: Math.ceil(readyNow.length / 4) }, (_, i) => `${i ? 'Also ready:' : 'Ready now:'}\n${readyNow.slice(i * 4, i * 4 + 4).join('\n')}`) : ['Nothing is ready right now. Even the cat is resting.']),
+    ...(soon.length ? [`Coming up:\n${soon.join('\n')}`] : []),
+    'That is everything I know. Which, as you know, is nothing.'];
+}
 
 /* ---------------- The Stadium: stadion race ---------------- */
 const RACE_STAKE = 200;
