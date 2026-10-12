@@ -19,7 +19,7 @@
   const EGGS = [
     { id: 'gryffindor', title: 'The house password', hint: 'Press the ` key to open the terminal. The password is a Hogwarts house.', touch: 'Tap Terminal at the bottom of the page. The password is a Hogwarts house.', done: 'Hannah Mode unlocked. Ten points to Gryffindor.' },
     { id: 'console', title: 'Developer instincts', hint: 'Open your browser console. Someone left you a note.', touch: 'Phones have no console, so tap Terminal at the bottom of the page and type hannah() there.', done: 'You called hannah(). Hi.' },
-    { id: 'konami', title: 'Cheat code', hint: 'Up, up, down, down, left, right, left, right, B, A. Anywhere on the site.', touch: 'In Little Athens, push the joystick up, up, down, down, left, right, left, right, then tap B, then A.', done: 'Thirty extra lives. Spend them wisely.' },
+    { id: 'konami', title: 'Cheat code', hint: 'Up, up, down, down, left, right, left, right, B, A. Anywhere on the site.', touch: 'In Little Athens, push the joystick up, up, down, down, left, right, left, right, then tap B, then A.', done: 'You found the opening crawl.' },
     { id: 'vienna', title: 'Slow down, you crazy child', hint: 'Drop the needle on the best song.', done: 'You played "Vienna". Correct choice.' },
     { id: 'cups', title: 'Four straight', hint: 'The Islanders won four Stanley Cups in a row. Click their fact that many times.', done: '1980, 1981, 1982, 1983. We remember.' },
     { id: 'crash', title: 'Market crash', hint: 'Rerun the Monte Carlo until a path falls below $60.', done: 'A simulated crash. No real money was harmed.' },
@@ -47,7 +47,7 @@
       const got = found.has(e.id);
       return `<li class="${got ? 'found' : ''}">
         <span class="badge">${icon(got ? 'check' : 'lock-simple')}</span>
-        <div><h3>${got ? esc(e.title) : esc(e.title)}<span class="sr-only">${got ? ', found' : ', not found yet'}</span></h3><p>${esc(got ? e.done : hintOf(e))}</p></div>
+        <div><h3>${got ? esc(e.title) : esc(e.title)}<span class="sr-only">${got ? ', found' : ', not found yet'}</span></h3><p>${esc(got ? e.done : hintOf(e))}${got && e.id === 'konami' ? ' <button type="button" class="egg-replay" data-crawl>Watch it again</button>' : ''}</p></div>
       </li>`;
     }).join('');
   }
@@ -384,6 +384,87 @@
   const savedTheme = store.get('hf-theme', null);
   if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.dataset.theme = savedTheme;
 
+  /* ---------------- The opening crawl: what the cheat code plays ---------------- */
+  // An homage to the famous opening crawl: original text, this site's own fonts, and a public-domain recording of
+  // Holst's "Jupiter" by the U.S. Air Force Band. No film logos, lettering, or music.
+  const CRAWL_TEXT = [
+    'It was supposed to be a simple resume website.',
+    'Armed with a laptop and the dangerous words “one more feature,” HANNAH FRIEDMAN began building. A tiny Athens appeared, complete with a stock exchange. Easter eggs multiplied. The resume was finished several features ago.',
+    'Now, one curious visitor has entered a mysterious sequence of keystrokes and triggered an opening crawl of entirely unnecessary proportions.',
+    'Their mission: discover what Hannah actually does.',
+    'Her mission: resist adding another feature.',
+    'Only one of these missions is likely to succeed....',
+  ];
+  let crawlOpen = false;
+  function playCrawl() {
+    if (crawlOpen) return;
+    crawlOpen = true;
+    const base = /\/blog\//.test(location.pathname) ? '../' : '';
+    document.querySelectorAll('dialog[open]').forEach((dlg) => dlg.close());
+    const stars = Array.from({ length: 260 }, () => `${(Math.random() * 100).toFixed(2)}vw ${(Math.random() * 100).toFixed(2)}vh 0 ${Math.random() < .1 ? 1 : 0}px rgba(255,255,255,${(.35 + Math.random() * .65).toFixed(2)})`).join(',');
+    const d = document.createElement('dialog');
+    d.className = `crawl${reduceMotion ? ' crawl-still' : ''}`;
+    d.setAttribute('aria-label', 'Opening crawl');
+    d.innerHTML = `<div class="crawl-stars" aria-hidden="true" style="box-shadow:${stars}"></div>
+      <p class="crawl-intro">A short time ago, in a browser not very far away....</p>
+      <h2 class="crawl-title"><span>HANNAH</span> <span>FRIEDMAN</span></h2>
+      <div class="crawl-view"><div class="crawl-plane"><div class="crawl-text">
+        <p class="crawl-episode">EPISODE IV</p><h3 class="crawl-sub">A NEW FEATURE</h3>
+        ${CRAWL_TEXT.map((t) => `<p>${t}</p>`).join('')}
+      </div></div></div>
+      <div class="crawl-end" hidden>
+        <p class="crawl-end-k">Mission accomplished</p>
+        <div class="crawl-end-actions">
+          <a class="crawl-cta" href="${base}HannahFriedman_Resume.pdf" download>Download resume</a>
+          <a class="crawl-cta crawl-ghost" href="${base}index.html#contact" data-act="contact">Get in touch</a>
+          <button type="button" class="crawl-cta crawl-ghost" data-act="close">Back to the site</button>
+        </div>
+        <p class="crawl-credit">Music: Holst, “Jupiter” from The Planets, played by the U.S. Air Force Band (public domain).</p>
+      </div>
+      <div class="crawl-controls"><button type="button" class="crawl-btn" data-act="mute" aria-pressed="false">Mute</button><button type="button" class="crawl-btn" data-act="skip" autofocus>Skip</button></div>`;
+    document.body.appendChild(d);
+    d.showModal();
+    // Start the music inside the keypress or tap (so browsers allow sound), then pause it until the title appears.
+    const music = new Audio(`${base}assets/music/jupiter-crawl.mp3`);
+    music.preload = 'auto'; music.volume = .85;
+    if (!reduceMotion) { music.muted = true; music.play().then(() => { music.pause(); music.currentTime = 0; music.muted = false; }).catch(() => {}); }
+    const timers = [];
+    const showEnd = () => {
+      d.classList.add('crawl-done');
+      d.querySelector('.crawl-end').hidden = false;
+      d.querySelector('[data-act="skip"]').hidden = true;
+      d.querySelector('.crawl-end .crawl-cta')?.focus({ preventScroll: true });
+    };
+    const fadeOut = () => { const step = setInterval(() => { music.volume = Math.max(0, music.volume - .06); if (music.volume <= 0) { clearInterval(step); music.pause(); } }, 90); };
+    if (reduceMotion) { showEnd(); d.querySelector('[data-act="mute"]').textContent = 'Sound on'; d.querySelector('[data-act="mute"]').setAttribute('aria-pressed', 'true'); }
+    else {
+      timers.push(setTimeout(() => music.play().catch(() => {}), 5200)); // the brass hits as the title appears
+      timers.push(setTimeout(showEnd, 45000));
+    }
+    const finish = () => { // closing in any way: stop everything, and count the egg (shown once the crawl is gone)
+      timers.forEach(clearTimeout); music.pause(); d.remove(); crawlOpen = false;
+      removeEventListener('pagehide', finish);
+      if (foundEgg('konami')) confetti();
+    };
+    addEventListener('pagehide', finish);
+    d.addEventListener('close', finish);
+    d.addEventListener('click', (e) => {
+      const act = e.target.closest('[data-act]')?.dataset.act;
+      if (act === 'mute') {
+        if (reduceMotion && music.paused) { music.muted = false; music.play().catch(() => {}); } // the still version starts quiet
+        else music.muted = !music.muted;
+        const off = music.muted || music.paused;
+        e.target.textContent = off ? 'Sound on' : 'Mute'; e.target.setAttribute('aria-pressed', String(off));
+        return;
+      }
+      if (act === 'skip') { showEnd(); fadeOut(); return; }
+      if (act === 'close') return d.close();
+      if (act === 'contact') { d.close(); return; } // let the link take you to the contact section
+      if (!e.target.closest('a, button') && !d.classList.contains('crawl-done')) { showEnd(); fadeOut(); } // a click anywhere skips ahead
+    });
+  }
+  $('#egg-list')?.addEventListener('click', (e) => { if (e.target.closest('[data-crawl]')) playCrawl(); });
+
   /* ---------------- Konami + confetti ---------------- */
   const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
   let k = 0;
@@ -393,7 +474,7 @@
     else if (key !== KONAMI[0]) k = 0;
     else if (k !== 2) k = 1;
     if (k < KONAMI.length) return false;
-    k = 0; confetti(); foundEgg('konami');
+    k = 0; playCrawl();
     return true;
   }
   // On touchscreens the arrows are swipes and B, A are two taps. Taps before the arrows are done are ignored

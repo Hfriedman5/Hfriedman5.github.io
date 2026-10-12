@@ -1044,3 +1044,45 @@ html.birds-heavy { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 .egg-btn, .factory-note, .house-points { direction: ltr; unicode-bidi: isolate; }
 html[lang="grc"] :is(main, .nav, footer) :is(h1, h2, h3, h4, p, li, a, span, button, dt, dd, b, strong, figcaption, summary) { font-family: "Noto Serif", "Gentium Plus", "GFS Didot", "Palatino Linotype", Palatino, "Times New Roman", serif; }
 html[lang="grc"] .hero h1 { letter-spacing: -.01em; font-weight: 700; }
+
+/* ---------- The opening crawl (the cheat code) ---------- */
+.crawl { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: #000; color: #ffe81f; overflow: hidden; }
+.crawl::backdrop { background: #000; }
+.crawl-stars { position: absolute; left: 0; top: 0; width: 1px; height: 1px; border-radius: 50%; background: transparent; }
+.crawl-intro { position: absolute; inset: 0; margin: auto; height: fit-content; max-width: 22em; padding: 0 24px; color: #4bd5ee; font-size: clamp(1.1rem, 2.6vw, 1.75rem); line-height: 1.5; opacity: 0; animation: crawl-intro 5s ease-in-out forwards; }
+.crawl-title { position: absolute; inset: 0; margin: auto; height: fit-content; text-align: center; font-family: var(--font-display); font-weight: 800; font-size: clamp(3.2rem, 13vw, 10rem); line-height: .9; letter-spacing: .02em; color: transparent; -webkit-text-stroke: 3px #ffe81f; opacity: 0; animation: crawl-title 6s cubic-bezier(.25, .55, .45, 1) 5.2s forwards; }
+.crawl-title span { display: block; }
+.crawl-view { position: absolute; inset: 0; perspective: 520px; perspective-origin: 50% 0%; -webkit-mask-image: linear-gradient(to top, #000 72%, transparent 98%); mask-image: linear-gradient(to top, #000 72%, transparent 98%); }
+/* a long tilted surface standing on the bottom of the screen; the text slides up along it into the distance */
+.crawl-plane { position: absolute; left: 50%; bottom: 0; width: min(19.5em, 94vw); height: 190vh; overflow: hidden; transform-origin: 50% 100%; transform: translateX(-50%) rotateX(22deg); font-size: clamp(24px, 4.3vw, 60px); }
+.crawl-text { font-family: var(--font-body); font-weight: 700; line-height: 1.4; text-align: justify; hyphens: manual; transform: translateY(190vh); animation: crawl-up 40s linear 7.6s forwards; }
+.crawl-text p { margin: 0 0 1.1em; }
+.crawl-episode { text-align: center; letter-spacing: .06em; margin-bottom: .2em !important; }
+.crawl-sub { margin: 0 0 1.2em; text-align: center; font-family: var(--font-display); font-size: 1.6em; letter-spacing: .04em; color: #ffe81f; }
+.crawl-done .crawl-intro, .crawl-done .crawl-title, .crawl-done .crawl-view { display: none; }
+.crawl-end { position: absolute; inset: 0; margin: auto; height: fit-content; max-width: 34em; padding: 0 24px; text-align: center; color: #fff; animation: crawl-fade .8s ease forwards; }
+.crawl-end-k { margin: 0; color: #ffe81f; font-family: var(--font-display); font-weight: 800; font-size: clamp(1.6rem, 4vw, 2.6rem); letter-spacing: .02em; }
+.crawl-end-what { margin: 12px 0 0; font-size: clamp(1.05rem, 2.2vw, 1.3rem); line-height: 1.5; color: #f3f4f6; }
+.crawl-end-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 26px; }
+.crawl-cta { display: inline-flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 999px; background: #ffe81f; color: #000; border: 1px solid #ffe81f; font: 600 .98rem/1 var(--font-body); text-decoration: none; cursor: pointer; }
+.crawl-cta.crawl-ghost { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .45); }
+.crawl-cta:hover { filter: brightness(1.08); } .crawl-cta.crawl-ghost:hover { border-color: #fff; }
+.crawl-cta:focus-visible, .crawl-btn:focus-visible { outline: 2px solid #4bd5ee; outline-offset: 2px; }
+.crawl-credit { margin: 26px 0 0; font-size: .78rem; color: rgba(255, 255, 255, .55); }
+.crawl-controls { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 14px; display: flex; gap: 8px; }
+.crawl-btn { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .35); background: rgba(0, 0, 0, .45); color: #fff; font: 600 .85rem/1 var(--font-body); cursor: pointer; }
+.crawl-btn:hover { border-color: #fff; }
+.crawl-btn[hidden] { display: none; }
+@keyframes crawl-intro { 0% { opacity: 0; } 14% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes crawl-title { 0% { opacity: 1; transform: scale(2.4); } 85% { opacity: 1; } 100% { opacity: 0; transform: scale(.04); } }
+@keyframes crawl-up { from { transform: translateY(190vh); } to { transform: translateY(-100%); } }
+@keyframes crawl-fade { from { opacity: 0; } to { opacity: 1; } }
+/* the still version, for anyone who asked their device for less motion: the words, without the movement */
+.crawl-still { overflow-y: auto; }
+.crawl-still .crawl-intro, .crawl-still .crawl-title { display: none; }
+.crawl-still.crawl-done .crawl-view { display: block; position: static; perspective: none; -webkit-mask-image: none; mask-image: none; padding: 64px 24px 0; }
+.crawl-still .crawl-plane { position: static; transform: none; height: auto; width: min(34em, 100%); margin: 0 auto; overflow: visible; font-size: clamp(1rem, 2.4vw, 1.3rem); }
+.crawl-still .crawl-text { transform: none; animation: none; }
+.crawl-still .crawl-end { position: static; margin: 28px auto 56px; }
+.egg-replay { margin-left: 4px; padding: 0; border: 0; background: none; color: var(--accent-ink); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
