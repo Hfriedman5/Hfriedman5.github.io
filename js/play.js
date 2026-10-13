@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261013d';
-import { createRace } from './race.js?v=20261013d';
-import { createWeather, currentWeather } from './weather.js?v=20261013d';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261013d';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261013d';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261013d';
-import { checkSeal, guardedSet } from './seal.js?v=20261013d';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261013e';
+import { createRace } from './race.js?v=20261013e';
+import { createWeather, currentWeather } from './weather.js?v=20261013e';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261013e';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261013e';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261013e';
+import { checkSeal, guardedSet } from './seal.js?v=20261013e';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261013d';
+import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261013e';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -590,6 +590,12 @@ function nextMove() {
   const h = (Date.now() - nyStart(marketToday())) / 3600e3, step = 24 / TICKS, j = Math.floor(h / step) + 1;
   return j >= TICKS ? `Prices next move at midnight, in about ${about((24 - h) * 3600e3)}.` : `Prices next move at ${TICK_NAMES[j]}, in about ${about((j * step - h) * 3600e3)}.`;
 }
+// The purse line pins to the top of the Exchange as you scroll. Only once it is pinned does it get a band of background
+// around it, to hide the list sliding underneath; before that, the band would cover the lines next to it.
+$('#ex-body')?.addEventListener('scroll', (e) => {
+  const bar = e.currentTarget.querySelector('.ex-sticky');
+  if (bar) bar.classList.toggle('stuck', bar.getBoundingClientRect().top <= e.currentTarget.getBoundingClientRect().top + 1);
+}, { passive: true });
 function trade(c, side, raw, msg) {
   const say = (t) => { msg.textContent = t; msg.className = 'ex-msg bad'; };
   const fest = closedOn(marketToday());
