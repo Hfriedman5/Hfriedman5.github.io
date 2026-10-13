@@ -61,7 +61,7 @@ export const RINK = { x: 14, y: 15, w: 9, h: 5 };
 export const MAP_PLACES = [
   { id: 'parthenon', name: 'The Parthenon', desc: "Hannah's resume, carved in marble, and her blog.", at: [18, 2.4], go: [17, 8, 'up'] },
   { id: 'gaming', name: 'Gaming Hall', desc: 'Blackjack and Minesweeper.', at: [6, 3.4], go: [5, 8, 'up'] },
-  { id: 'academy', name: 'The Academy', desc: "Raphael's School of Athens, in pixels.", at: [31, 3.4], go: [30, 8, 'up'] },
+  { id: 'academy', name: 'The Academy', desc: "Courses with Plato, and Raphael's School of Athens in pixels.", at: [31, 3.4], go: [30, 8, 'up'] },
   { id: 'market', name: 'Agora market', desc: 'Outfits and gadgets, paid in coins.', at: [23.5, 10.2], go: [23, 13, 'up'] },
   { id: 'library', name: 'Library', desc: 'Hire a scholar: faster crops, no fees, safer seas, or a market hint.', at: [6, 15.4], go: [5, 20, 'up'] },
   { id: 'bank', name: 'The Bank', desc: 'Coins left with the banker grow 0.5% a day.', at: [31, 15.4], go: [30, 20, 'up'] },
@@ -70,6 +70,7 @@ export const MAP_PLACES = [
   { id: 'farm', name: 'The farm', desc: 'Buy a plot, plant seeds, and sell what you grow.', at: [41.5, 1.4], go: [37, 13, 'up'] },
   { id: 'workshop', name: 'The workshop', desc: 'Turn crops into bread, wine, and olive oil.', at: [43, 14.6], go: [42, 19, 'up'] },
   { id: 'shore', name: 'The Aegean Sea', desc: 'Sand, sea, and a captain with ships for hire.', at: [18, 22.6], go: [18, 21, 'down'] },
+  { id: 'orders', name: 'Harbor order board', desc: 'Merchants pay 50% more than Demetrios for goods, if you bring the whole order.', at: [26.5, 22.6], go: [26, 20, 'down'] },
 ];
 export const STALL = { x: 22, y: 11, w: 3, h: 1 };
 // The farm, east of town: Demetrios' stall at the entrance, twelve plots for sale, and a well.
@@ -93,6 +94,7 @@ export const SIGNS = [
   { x: 39, y: 12, farm: true, text: 'The farm.\nWalk up to a plot to buy it. Demetrios sells seeds and buys whatever you grow.' },
   { x: 38, y: 15, text: 'The workshop.\nTurn your harvest into bread, wine, and olive oil, which sell for more than the crops do. The door faces the sea.' },
   { x: 14, y: 21, text: 'The Aegean Sea.\nHomer called it wine-dark. It looks blue to you.' },
+  { x: 26, y: 21, orders: true, text: 'Harbor order board.' },
 ];
 
 export const NPCS = [
@@ -410,6 +412,25 @@ export function plotCanvas(key) { // 'wild', 'soil', or `${crop}:${stage}` (stag
     }
   }
   plotCache.set(key, cv);
+  return cv;
+}
+
+// Beehives for students of Course 7: straw skeps on little wooden stands, in a column down the east edge of the farm.
+// Bees buzz around a hive that has honey ready.
+export const HIVE_SPOTS = [[46, 11], [46, 12], [46, 13]]; // one square of grass between them and the plots
+const hiveCache = new Map();
+export function hiveCanvas(full) {
+  const key = full ? 'full' : 'quiet';
+  if (hiveCache.has(key)) return hiveCache.get(key);
+  const cv = document.createElement('canvas'); cv.width = cv.height = 16;
+  const c = cv.getContext('2d'), straw = '#d9a441', band = '#a8762a', shine = '#efc76a';
+  px(c, 2, 13, 12, 1, K.wood); px(c, 2, 13, 12, 1, K.woodHi); px(c, 3, 14, 1, 2, K.wood); px(c, 12, 14, 1, 2, K.wood); // the stand
+  for (const [y, x0, w] of [[3, 6, 4], [4, 5, 6], [5, 5, 6], [6, 4, 8], [7, 4, 8], [8, 3, 10], [9, 3, 10], [10, 3, 10], [11, 3, 10], [12, 3, 10]]) {
+    px(c, x0, y, w, 1, [5, 7, 9, 11].includes(y) ? band : straw); px(c, x0, y, 1, 1, shine);
+  }
+  px(c, 7, 10, 2, 2, '#3a2a1c'); // the entrance
+  if (full) { for (const [x, y] of [[1, 5], [13, 3], [12, 8], [2, 10]]) { px(c, x, y, 2, 1, '#f2c230'); px(c, x + 1, y, 1, 1, '#2a2f3d'); } px(c, 8, 12, 1, 1, '#e3a12a'); }
+  hiveCache.set(key, cv);
   return cv;
 }
 

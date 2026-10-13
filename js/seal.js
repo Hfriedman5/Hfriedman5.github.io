@@ -2,12 +2,15 @@
 // The game updates the seal each time it changes one of these. A change made any other way (typing a new coin count
 // into the browser console, say) breaks the seal; the game counts it in hf-edited, and the next cloud save tells the
 // server, which marks the player for review. It is a speed bump, not a lock: anyone who studies this file can get past it.
-const KEYS = ['hf-coins', 'hf-bank', 'hf-bonds', 'hf-stocks', 'hf-farm', 'hf-ships', 'hf-voyages', 'hf-records', 'hf-net', 'hf-cooldowns', 'hf-scholars', 'hf-errands', 'hf-edited'];
-const SALT = 'little-athens/olive-press/1';
+// The October 2026 update added courses, harbor orders, and the war tax. A save sealed the old way is resealed the new way
+// the first time the new game sees it, so nobody is counted as an outside edit just for updating.
+const KEYS_BEFORE = ['hf-coins', 'hf-bank', 'hf-bonds', 'hf-stocks', 'hf-farm', 'hf-ships', 'hf-voyages', 'hf-records', 'hf-net', 'hf-cooldowns', 'hf-scholars', 'hf-errands', 'hf-edited'];
+const KEYS = [...KEYS_BEFORE, 'hf-courses', 'hf-orders', 'hf-war'];
+const SALT_BEFORE = 'little-athens/olive-press/1', SALT = 'little-athens/olive-press/2';
 
-function sealOf() {
+function sealOf(keys = KEYS, salt = SALT) {
   let a = 0x811c9dc5, b = 0x01000193;
-  const text = SALT + KEYS.map((k) => `${k}\u0001${localStorage.getItem(k) ?? ''}`).join('\u0002');
+  const text = salt + keys.map((k) => `${k}\u0001${localStorage.getItem(k) ?? ''}`).join('\u0002');
   for (let i = 0; i < text.length; i++) {
     const c = text.charCodeAt(i);
     a = Math.imul(a ^ c, 16777619);
@@ -15,7 +18,12 @@ function sealOf() {
   }
   return `${(a >>> 0).toString(36)}.${(b >>> 0).toString(36)}`;
 }
-const intact = () => { const s = localStorage.getItem('hf-seal'); return s === null || s === sealOf(); }; // no seal yet: a save from before seals
+const intact = () => {
+  const s = localStorage.getItem('hf-seal');
+  if (s === null || s === sealOf()) return true; // no seal yet (a save from before seals), or sealed and untouched
+  if (s === sealOf(KEYS_BEFORE, SALT_BEFORE)) { localStorage.setItem('hf-seal', sealOf()); return true; } // sealed before the update
+  return false;
+};
 const sealNow = () => localStorage.setItem('hf-seal', sealOf());
 const noteEdit = () => localStorage.setItem('hf-edited', String((Number(localStorage.getItem('hf-edited')) || 0) + 1));
 

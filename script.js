@@ -30,7 +30,10 @@
   // The diary egg was retired in October 2026. Anyone who found it, or hatched it, keeps that through the stadion egg.
   ['hf-eggs', 'hf-hatched'].forEach((key) => { const ids = store.get(key, []); if (Array.isArray(ids) && ids.includes('diary')) store.set(key, [...new Set(ids.map((id) => (id === 'diary' ? 'stadion' : id)))]); });
   const errandsSaved = store.get('hf-errands', {});
-  if (errandsSaved?.diary) { errandsSaved.stadion = errandsSaved.diary; delete errandsSaved.diary; store.set('hf-errands', errandsSaved); }
+  if (errandsSaved?.diary) { // hf-errands is sealed (js/seal.js), so write it the way the game does, or it looks like an outside edit
+    errandsSaved.stadion = errandsSaved.diary; delete errandsSaved.diary;
+    import('./js/seal.js?v=20261013b').then(({ guardedSet }) => guardedSet('hf-errands', JSON.stringify(errandsSaved))).catch(() => store.set('hf-errands', errandsSaved));
+  }
   let found = new Set(store.get('hf-eggs', []).filter((id) => EGGS.some((e) => e.id === id)));
   // Phones have no backtick key, console, or arrow keys, so those eggs get touch versions and touch hints.
   const touchy = matchMedia('(hover: none) and (pointer: coarse)').matches;
@@ -905,7 +908,7 @@
     new IntersectionObserver(([e], obs) => {
       if (!e.isIntersecting) return;
       obs.disconnect();
-      import('./js/world.js').then((m) => m.drawPreview(preview)).catch(() => {});
+      import('./js/world.js?v=20261013b').then((m) => m.drawPreview(preview)).catch(() => {});
     }, { rootMargin: '300px' }).observe(preview);
   }
 

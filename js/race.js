@@ -120,7 +120,7 @@ export function createRace({ dialog, avatar, runner, onFinish, getBest, setBest,
     result(`<p class="race-verdict">${verdict}</p><dl class="race-stats">${
       stat('Your time', gaveUp ? 'Did not finish' : `${y.toFixed(2)} s`) + stat('Runner', `${h.toFixed(2)} s`)
       + stat('Reaction', st.react == null ? 'No start' : `${st.react.toFixed(2)} s`) + stat('Your best win', newBest == null ? 'None yet' : `${newBest.toFixed(2)} s`)
-    }</dl>${onFinish({ won, staked: st.staked, time: y, margin: h - y }) || ''}`);
+    }</dl>${onFinish({ won, staked: st.staked, time: y, margin: h - y, react: st.react }) || ''}`);
     $('#race-stakes').textContent = stakes().text;
   }
   function result(html) { $('#race-result').innerHTML = html; $('#race-result').hidden = false; }

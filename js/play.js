@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261012k';
-import { createRace } from './race.js?v=20261012k';
-import { createWeather, currentWeather } from './weather.js?v=20261012k';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, festivalOn, nextReport, nextOpen, dateText } from './economy.js?v=20261012k';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem } from './leaderboard.js?v=20261012k';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261012k';
-import { checkSeal, guardedSet } from './seal.js?v=20261012k';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261013b';
+import { createRace } from './race.js?v=20261013b';
+import { createWeather, currentWeather } from './weather.js?v=20261013b';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261013b';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261013b';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261013b';
+import { checkSeal, guardedSet } from './seal.js?v=20261013b';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261012k';
+import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261013b';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -359,10 +359,30 @@ async function pickUpLost() {
 }
 // Personal records, read back by the record keeper by the Gaming Hall.
 const bumpRecord = (key, fn) => { const r = lsGet('hf-records', {}); r[key] = fn(r[key]); lsSet('hf-records', r); };
+// Best times for the leaderboard, kept by New York month (the board's months): this month's and last month's.
+const nyMonth = () => { const d = marketToday(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+function recordBest(key, entry) {
+  let better = false;
+  bumpRecord(key, (all = {}) => {
+    const m = nyMonth(), old = all[m];
+    better = !old || entry.t < old.t;
+    const keep = Object.fromEntries(Object.entries(all).filter(([k]) => k !== m).sort(([a], [b]) => (a < b ? 1 : -1)).slice(0, 1));
+    return { ...keep, [m]: better ? entry : old };
+  });
+  return better;
+}
+// The Persian invasion's saved state (see the war section): taxes paid, protection bought, wars settled, what burned.
+const WAR_TAX = .15, HALL_FEE = 1000, PROTECT_PRICE = { walls: 500, guards: 500, harbor: 2000 };
+const warBook = Object.assign({ paid: {}, extra: {}, protect: {}, resolved: [], hallClosed: false, lostShips: 0, lostBenches: [] }, lsGet('hf-war', {}));
+const saveWar = () => lsSet('hf-war', warBook);
+const pendingTax = () => [warBook.paid, warBook.extra].reduce((sum, book) => sum + Object.entries(book).filter(([id]) => !warBook.resolved.includes(Number(id))).reduce((t, [, a]) => t + a, 0), 0);
+// When you last played before this visit: only players who played in the week before an attack can lose things to it.
+const SESSION_START = Date.now(), PLAYED_BEFORE = lsGet('hf-records', {}).lastPlayed || 0;
+bumpRecord('lastPlayed', () => SESSION_START);
 async function finishRequest(r) {
   request.done = true; request.carrying = false; saveRequest();
   bumpRecord('requests', (n = 0) => n + 1);
-  const n = earn(r.pay, '', Infinity); // the day's one big job, so it may pay more than a single game does
+  const n = earn(requestPay(r), '', Infinity); // the day's one big job, so it may pay more than a single game does
   await say([...r.thanks, `Request complete. You earned ${n.toLocaleString()} coins. A new request goes up on the board tomorrow.`]);
 }
 // Called before anyone's usual conversation. Returns true when the request board's job took over the moment.
@@ -388,7 +408,7 @@ async function readBoard() {
   if (r.kind === 'deliver') status = request.carrying ? `You have the ${r.thing}. Bring it to ${NAMES[r.to]}.` : `Start with ${NAMES[r.from]}.`;
   if (r.kind === 'olives') status = request.carrying ? `You have the olives. Bring them to ${NAMES[r.to]}.` : 'Any olive tree will do.';
   if (r.kind === 'visit') status = `So far: ${request.seen.length} of ${r.stops.length}.`;
-  await say(['Town request board. One request a day.', r.post, `${status} Reward: ${r.pay.toLocaleString()} coins.`]);
+  await say(['Town request board. One request a day.', r.post, `${status} Reward: ${requestPay(r).toLocaleString()} coins${requestPay(r) > r.pay ? ', with 20% more as an Acropolis Tours owner' : ''}.`]);
 }
 
 /* ---------------- The bank: coins left here grow 0.5% a day ---------------- */
@@ -416,8 +436,31 @@ const savePortfolio = () => lsSet('hf-stocks', portfolio);
 const sharesOf = (id) => (portfolio.lots[id] || []).reduce((t, l) => t + l.n, 0);
 // A dividend goes to shares owned for at least a full week before the report, like a real company's record date.
 // That keeps "buy the day before, collect, sell" from being free money.
-const dayIndex = (m, key) => { const i = m.news.findIndex((n) => n.key === key); return i < 0 ? 0 : i; };
+const dayIndex = (m, key) => { const i = m.news.findIndex((n) => n.key === key); return i < 0 ? m.news.length : i; }; // a day the market has not reached yet counts as the newest
 const eligibleOn = (m, id, reportIdx) => (portfolio.lots[id] || []).filter((l) => dayIndex(m, l.day) <= reportIdx - 7).reduce((t, l) => t + l.n, 0);
+// Owner perks: hold enough shares of a company for a full week (the same rule as dividends) and it helps you elsewhere
+// in town. Each line is about 2,000 coins of shares at October 2026 prices. Selling below the line ends the perk at once.
+const PERKS = {
+  olive: { shares: 50, text: 'Your olives and olive oil sell for 15% more to Demetrios.' },
+  ship: { shares: 30, text: 'Your voyages can carry up to 4,500 coins instead of 3,000.' },
+  pottery: { shares: 100, text: 'Your bread, wine, and olive oil sell for 10% more to Demetrios, packed in Agora jars.' },
+  pistachio: { shares: 70, text: 'Your Aegina voyages pay +15% instead of +10%.' },
+  grain: { shares: 50, text: 'Your Egypt voyages pay +110% instead of +100%.' },
+  silver: { shares: 30, text: 'Your new city bonds pay 30% instead of 25%, and after a Persian invasion you rebuild at half price.' },
+  tours: { shares: 75, text: 'The request board pays you 20% more.' },
+};
+const hasPerk = (id, m = market()) => eligibleOn(m, id, m.news.length - 1) >= PERKS[id].shares;
+function perkStatus(c, m) {
+  const need = PERKS[c.id].shares, n = sharesOf(c.id), today = m.news.length - 1;
+  if (hasPerk(c.id, m)) return '<span class="ex-up">You have this perk.</span>';
+  if (n < need) return `Own ${need} shares for a week to get it.${n ? ` You own ${n}.` : ''}`;
+  let got = 0; // enough shares, not all a week old yet: when does the line get crossed?
+  for (const l of [...portfolio.lots[c.id]].sort((a, b) => dayIndex(m, a.day) - dayIndex(m, b.day))) { got += l.n; if (got >= need) { const left = dayIndex(m, l.day) + 7 - today; return `Your shares qualify ${left <= 1 ? 'tomorrow' : `in ${left} days`}.`; } }
+  return '';
+}
+// What Demetrios pays you for one of something today, with any owner perks.
+const sellPrice = (c) => Math.round(cropPrice(c).price * (['olives', 'oil'].includes(c.id) && hasPerk('olive') ? 1.15 : 1) * (GOODS.some((g) => g.id === c.id) && hasPerk('pottery') ? 1.1 : 1));
+const requestPay = (r) => Math.round(r.pay * (hasPerk('tours') ? 1.2 : 1));
 const signed = (n) => `${n >= 0 ? '+' : '−'}${Math.abs(Math.round(n)).toLocaleString()}`;
 // Owners are paid on each report day. Shares only change at the banker's table, so whatever someone owns now is what
 // they owned on every report day since their last visit.
@@ -432,11 +475,60 @@ function payDividends(m) {
   if (total) { wallet.coins = wallet.coins + total; bumpRecord('dividends', (v = 0) => v + total); }
   return total;
 }
-function openExchange() {
-  const m = market(), paid = payDividends(m);
-  renderExchange(paid ? `Dividends paid since your last visit: ${paid.toLocaleString()} coins, added to your purse.` : '', 'ok');
-  openModal('#exchange');
+// Short selling (Course 15 at the Academy). You put down the shares' value as a deposit. Closing gives back the deposit
+// plus however much the price fell, or minus however much it rose. If the price doubles, the deposit is gone and the
+// short closes itself. While you are short, the dividends owners get come out of your deposit, as with a real short.
+// A position: n shares, price (what you shorted at), at (the same, less dividends paid from the deposit), paid (deposit + fees).
+portfolio.shorts ||= {};
+const shortOf = (id) => portfolio.shorts[id];
+const shortValue = (sh, price) => Math.max(0, Math.round(sh.n * (2 * sh.at - price)));
+const shortsValue = (m = market()) => COMPANIES.reduce((t, c) => t + (shortOf(c.id) ? shortValue(shortOf(c.id), tradePrice(m.companies[c.id].at(-1).price)) : 0), 0);
+function settleShorts(m) {
+  const today = m.news.length - 1, from = m.news.findIndex((n) => n.key === portfolio.shortsThrough), lines = [];
+  for (const c of COMPANIES) {
+    const sh = shortOf(c.id);
+    if (!sh) continue;
+    let owed = 0;
+    if (from >= 0) for (let i = from + 1; i <= today; i++) { const d = m.companies[c.id][i].report?.dividend; if (d) { owed += d * sh.n; sh.at -= d / 2; } }
+    if (owed >= 1) lines.push(`${Math.round(owed).toLocaleString()} coins of ${c.name} dividends came out of your short deposit.`);
+    if (shortValue(sh, tradePrice(m.companies[c.id].at(-1).price)) <= 0) { bumpRecord('stockGains', (v = 0) => v - sh.paid); delete portfolio.shorts[c.id]; lines.push(`Your ${c.name} short closed itself: the price doubled, and the deposit is gone.`); }
+  }
+  portfolio.shortsThrough = m.news[today].key; savePortfolio();
+  return lines.join(' ');
 }
+function openExchange() {
+  const m = market(), paid = payDividends(m), shorts = settleShorts(m);
+  renderExchange([paid ? `Dividends paid since your last visit: ${paid.toLocaleString()} coins, added to your purse.` : '', shorts].filter(Boolean).join(' '), 'ok');
+  openModal('#exchange');
+  if (m.waiting) loadSeeds();
+}
+// The market's numbers from the server, four a day (see economy.js). They are kept in this browser under mk-seeds (not part
+// of the saved game) so the Exchange opens at once next time, and fetched again whenever a new moment needs one: only the
+// days this browser does not have yet.
+const SEED_CACHE = 'mk-seeds';
+let seedBook = {};
+try { seedBook = JSON.parse(localStorage.getItem(SEED_CACHE)) || {}; useSeeds(seedBook); } catch (e) { /* none yet */ }
+let seedsLoading = null;
+function loadSeeds() {
+  return (seedsLoading ||= (async () => {
+    try {
+      const days = Object.keys(seedBook).filter((k) => !k.includes('#')).map((k) => { const [y, mo, d] = k.split('-').map(Number); return new Date(y, mo - 1, d); }).sort((a, b) => a - b);
+      const from = days.length ? days.at(-1) : null; // ask from the newest day we have (its later moments may be new)
+      const body = from ? { p_from: `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}-${String(from.getDate()).padStart(2, '0')}` } : {};
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/market_seeds`, { method: 'POST', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!r.ok) return false;
+      const got = Object.fromEntries((await r.json()).map((x) => { const [y, mo, d] = x.for_day.split('-').map(Number), day = `${y}-${mo}-${d}`; return [x.slot ? `${day}#${x.slot}` : day, x.seed_hex]; }));
+      seedBook = { ...seedBook, ...got };
+      useSeeds(got);
+      try { localStorage.setItem(SEED_CACHE, JSON.stringify(seedBook)); } catch (e) { /* private mode */ }
+      if ($('#exchange')?.open) { payDividends(market()); renderExchange(); }
+      showCrisis();
+      return true;
+    } catch (e) { return false; } finally { seedsLoading = null; }
+  })());
+}
+if (market().waiting) loadSeeds();
+setInterval(() => { if (market().waiting) loadSeeds(); }, 60e3); // prices move four times a day: fetch each new moment's number
 function spark(prices) {
   const w = 120, h = 32, lo = Math.min(...prices), hi = Math.max(...prices), span = hi - lo || 1;
   const pts = prices.map((p, i) => `${(i / (prices.length - 1)) * w},${h - 3 - ((p - lo) / span) * (h - 6)}`).join(' ');
@@ -445,20 +537,23 @@ function spark(prices) {
 // "6 less than you paid", "40 more than you paid": gains and losses in words.
 const vsPaid = (d) => (d === 0 ? 'the same as you paid' : `${Math.abs(d).toLocaleString()} ${d > 0 ? 'more' : 'less'} than you paid`);
 function renderExchange(note = '', tone = '') {
-  const m = market(), dayNow = new Date().getDay(), body = $('#ex-body'), closed = festivalOn(new Date());
+  const m = market(), today = marketToday(), body = $('#ex-body'), closed = closedOn(today), shut = !!closed || m.waiting, student = courseDone('15');
   const price = (c) => tradePrice(m.companies[c.id].at(-1).price);
   const held = COMPANIES.reduce((t, c) => t + sharesOf(c.id) * price(c), 0);
   const paidIn = COMPANIES.reduce((t, c) => t + (portfolio.cost[c.id] || 0), 0);
   const order = [...COMPANIES].sort((a, b) => (m.companies[b.id].at(-1).report ? 1 : 0) - (m.companies[a.id].at(-1).report ? 1 : 0) || nextReport(a, m).days - nextReport(b, m).days); // today's reports first, then whoever reports soonest
   const week = m.news.slice(-7, -1).reverse().filter((d) => d.headlines.length);
-  const item = (h) => `<li class="${h.good === true ? 'ex-good' : h.good === false ? 'ex-bad' : ''}">${h.text}</li>`;
+  const item = (h) => `<li class="${h.good === true ? 'ex-good' : h.good === false ? 'ex-bad' : ''}">${h.at ? `<b>${TICK_NAMES[h.at][0].toUpperCase() + TICK_NAMES[h.at].slice(1)}:</b> ` : ''}${h.text}</li>`;
   body.innerHTML = `
-    <p class="ex-intro">Seven businesses, one report a day. On its day, each company reports its profit for the week. Beat what the market expected and the price usually jumps; miss and it usually falls. Owners get part of the profit each report day, on shares they have owned for at least a week. Every trade costs a 1% fee, and you can hold up to ${STOCK_CAP.toLocaleString()} coins in any one company.</p>
+    <p class="ex-when">Market day: ${DAY_NAMES[today.getDay()]}, ${dateText(today)} (New York time).${closed ? '' : ` ${nextMove()}`}</p>
+    <details class="ex-about"><summary>How the Exchange works</summary><p class="ex-intro">Seven businesses. Prices move four times a day, at midnight, 6am, noon, and 6pm New York time, as the news comes in. One company reports each day, two on Sundays since the Exchange closes on Saturdays. On its day, each company reports its profit for the week. Beat what the market expected and the price usually jumps; miss and it usually falls. Owners get part of the profit each report day, on shares they have owned for at least a week, and enough shares held for a week earn an owner perk elsewhere in town. Every trade costs a 1% fee, and you can hold up to ${STOCK_CAP.toLocaleString()} coins in any one company.</p></details>
+    ${student ? `<p class="ex-note">Course 15 taught you to short: put down the shares\u2019 value as a deposit and profit if the price falls. If the price doubles, the deposit is gone. While you are short, owners\u2019 dividends come out of your deposit. Up to ${STOCK_CAP.toLocaleString()} coins per company.</p>` : ''}
     <p class="ex-summary ex-sticky"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>Your shares are worth <b>${held.toLocaleString()}</b>${paidIn ? ` <span class="${held >= paidIn ? 'ex-up' : 'ex-down'}">(${vsPaid(held - paidIn)})</span>` : ''}</span></p>
     ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
     ${helping('pasion') ? `<p class="ex-note ok">Pasion is waiving your fees for another ${about(scholars.pasion.until - Date.now())}.</p>` : ''}
     ${scholars.thales?.day === dayKey() && scholars.thales.hint ? `<p class="ex-note"><b>Thales\u2019 hint:</b> ${scholars.thales.hint}</p>` : ''}
-    ${closed ? `<p class="ex-note ex-closed">Closed today for the ${closed.name}, ${closed.about}. You can look around, but buying and selling wait until it reopens on ${dateText(nextOpen(new Date()))}. Any report due today moves to then.</p>` : ''}
+    ${m.waiting ? '<p class="ex-note">Waiting for the latest news from the harbor. Trading opens again as soon as it arrives.</p>' : ''}
+    ${closed ? `<p class="ex-note ex-closed">${closed.weekly ? 'Closed today: the Exchange closes every Saturday.' : `Closed today for the ${closed.name}, ${closed.about}.`} You can look around, but buying and selling wait until it reopens on ${dateText(nextOpen(today))}.${closed.weekly ? '' : ' Any report due today moves to then.'}</p>` : ''}
     ${stormy() ? '<p class="ex-note">The weather dial in the Machine Room does not move these prices. The real sea is bigger than your lever.</p>' : ''}
     <section class="ex-season"><h3>Season</h3>${(() => { const s = seasonLines(); return [...s.now, ...s.soon].map((t) => `<p>${t}</p>`).join(''); })()}</section>
     <section class="ex-news"><h3>Today's news</h3><ul>${m.news.at(-1).headlines.map(item).join('') || '<li>A quiet day in Athens.</li>'}</ul>
@@ -469,15 +564,18 @@ function renderExchange(note = '', tone = '') {
       const next = nextReport(c, m), nextIdx = m.news.length - 1 + next.days, ready = eligibleOn(m, c.id, nextIdx);
       const reportsToday = !!now.report, tomorrow = next.days === 1;
       return `<article class="ex-co${reportsToday ? ' today' : ''}" data-co="${c.id}">
-        <div class="ex-top"><h3>${c.name}</h3><span class="ex-day">${reportsToday ? 'Reported today' : next.moved ? `Report moved to ${tomorrow ? 'tomorrow' : DAY_NAMES[next.date.getDay()]} for the ${next.moved}` : tomorrow ? 'Reports tomorrow' : `Reports ${DAY_NAMES[c.day]}s`}</span></div>
+        <div class="ex-top"><h3>${c.name}</h3><span class="ex-day">${reportsToday ? 'Reported today' : next.moved ? `Report moved to ${tomorrow ? 'tomorrow' : DAY_NAMES[next.date.getDay()]} for the ${next.moved}` : tomorrow ? 'Reports tomorrow' : `Reports ${DAY_NAMES[reportDay(c, today)]}s`}</span></div>
         <div class="ex-price"><b>${p.toLocaleString()}</b>${closed ? '<span class="ex-chart-note">Closed today</span>' : `<span class="${change >= 0 ? 'ex-up' : 'ex-down'}">${change >= 0 ? '▲' : '▼'} ${Math.abs(change * 100).toFixed(1)}% today</span>`}${spark(days.slice(-14).map((d) => d.price))}<span class="ex-chart-note">last 2 weeks</span></div>
         <p class="ex-how"><b>Makes money:</b> ${c.makes} <b>Watch:</b> ${c.watch}</p>
+        <p class="ex-perk"><b>Owner perk:</b> ${PERKS[c.id].text} ${perkStatus(c, m)}</p>
         <p class="ex-facts">${r ? `Last report: profit ${r.e.toFixed(1)} per share, ${Math.abs(Math.round(r.surprise * 100))}% ${r.surprise >= 0 ? 'above' : 'below'} expectations. Paid owners ${r.dividend} per share.` : ''} ${reportsToday ? '' : `The market expects about ${now.expected.toFixed(1)} per share this week.`}</p>
         <form class="ex-trade" data-co="${c.id}">
           <span class="ex-own">${n ? `You own <b>${n.toLocaleString()}</b> ${n === 1 ? 'share' : 'shares'}, worth ${(n * p).toLocaleString()} (<span class="${n * p >= (portfolio.cost[c.id] || 0) ? 'ex-up' : 'ex-down'}">${vsPaid(n * p - (portfolio.cost[c.id] || 0))}</span>)${ready < n ? `. ${ready ? `${ready.toLocaleString()} of them` : 'None of them'} will get the next dividend.` : ''}` : 'You own none'}</span>
           <input type="text" inputmode="numeric" autocomplete="off" placeholder="Shares" aria-label="Number of ${c.name} shares">
-          <button type="submit" class="btn btn-primary btn-sm" value="buy"${closed ? ' disabled' : ''}>Buy</button>
-          <button type="submit" class="btn btn-secondary btn-sm" value="sell"${n && !closed ? '' : ' disabled'}>Sell</button>
+          <button type="submit" class="btn btn-primary btn-sm" value="buy"${shut ? ' disabled' : ''}>Buy</button>
+          <button type="submit" class="btn btn-secondary btn-sm" value="sell"${n && !shut ? '' : ' disabled'}>Sell</button>
+          ${student ? `<button type="submit" class="btn btn-secondary btn-sm" value="short"${shut ? ' disabled' : ''}>Short</button><button type="submit" class="btn btn-secondary btn-sm" value="cover"${shortOf(c.id) && !shut ? '' : ' disabled'}>Close short</button>` : ''}
+          ${shortOf(c.id) ? (() => { const sh = shortOf(c.id), v = shortValue(sh, p); return `<span class="ex-own ex-short">You are short <b>${sh.n.toLocaleString()}</b> shares at ${sh.price}. Closing now returns ${v.toLocaleString()} (<span class="${v >= sh.paid ? 'ex-up' : 'ex-down'}">${vsPaid(v - sh.paid)}</span>). It closes itself if the price reaches ${Math.ceil(2 * sh.at).toLocaleString()}.</span>`; })() : ''}
           <span class="ex-msg" role="status"></span>
         </form>
       </article>`;
@@ -487,21 +585,28 @@ function renderExchange(note = '', tone = '') {
     trade(coById(f.dataset.co), e.submitter?.value || 'buy', f.querySelector('input').value, f.querySelector('.ex-msg'));
   }));
 }
+// When prices move next on the Exchange, in words.
+function nextMove() {
+  const h = (Date.now() - nyStart(marketToday())) / 3600e3, step = 24 / TICKS, j = Math.floor(h / step) + 1;
+  return j >= TICKS ? `Prices next move at midnight, in about ${about((24 - h) * 3600e3)}.` : `Prices next move at ${TICK_NAMES[j]}, in about ${about((j * step - h) * 3600e3)}.`;
+}
 function trade(c, side, raw, msg) {
   const say = (t) => { msg.textContent = t; msg.className = 'ex-msg bad'; };
-  const fest = festivalOn(new Date());
-  if (fest) return say(`The Exchange is closed today for the ${fest.name}.`);
+  const fest = closedOn(marketToday());
+  if (fest) return say(fest.weekly ? 'The Exchange is closed on Saturdays.' : `The Exchange is closed today for the ${fest.name}.`);
+  if (market().waiting) return say('Trading opens as soon as today\u2019s news arrives.');
   const text = String(raw).trim().replace(/,/g, '');
   if (!/^\d{1,7}$/.test(text) || Number(text) < 1) return say('Enter a whole number of shares, like 5.');
   const qty = Number(text), p = tradePrice(market().companies[c.id].at(-1).price), n = sharesOf(c.id);
   const fee = helping('pasion') ? 0 : Math.max(1, Math.ceil(qty * p * FEE)); // Pasion waives fees while he is hired
+  if (side === 'short' || side === 'cover') return shortTrade(c, side, qty, p, fee, say);
   if (side === 'buy') {
     const cost = qty * p + fee;
     if (cost > wallet.coins) return say(`That costs ${cost.toLocaleString()} coins${fee ? ' with the fee' : ''}. You have ${wallet.coins.toLocaleString()}.`);
     if ((n + qty) * p > STOCK_CAP) return say(`That would put more than ${STOCK_CAP.toLocaleString()} coins in one company. You can buy up to ${Math.max(0, Math.floor(STOCK_CAP / p) - n).toLocaleString()} more.`);
     wallet.coins = wallet.coins - cost;
-    const lots = (portfolio.lots[c.id] ||= []), todayLot = lots.find((l) => l.day === dayKey());
-    if (todayLot) todayLot.n += qty; else lots.push({ n: qty, day: dayKey() });
+    const day = dayKeyOf(marketToday()), lots = (portfolio.lots[c.id] ||= []), todayLot = lots.find((l) => l.day === day);
+    if (todayLot) todayLot.n += qty; else lots.push({ n: qty, day });
     portfolio.cost[c.id] = (portfolio.cost[c.id] || 0) + cost; savePortfolio();
     return renderExchange(`Bought ${qty.toLocaleString()} ${c.name} shares at ${p} each${fee ? `, plus a fee of ${fee} coins` : ', with no fee, thanks to Pasion'}.`, 'ok');
   }
@@ -517,6 +622,29 @@ function trade(c, side, raw, msg) {
   renderExchange(`Sold ${qty.toLocaleString()} ${c.name} shares at ${p} each${fee ? `, less a fee of ${fee} coins` : ', with no fee, thanks to Pasion'}. That is ${signed(proceeds - basis)} coins compared with what you paid.`, proceeds >= basis ? 'ok' : '');
 }
 
+function shortTrade(c, side, qty, p, fee, say) {
+  if (!courseDone('15')) return say('Plato teaches short selling in Course 15.');
+  const sh = shortOf(c.id);
+  if (side === 'short') {
+    const deposit = qty * p, cost = deposit + fee, already = sh ? sh.n * sh.price : 0;
+    if (already + deposit > STOCK_CAP) return say(`You can short up to ${STOCK_CAP.toLocaleString()} coins of one company. You can short ${Math.max(0, Math.floor((STOCK_CAP - already) / p)).toLocaleString()} more.`);
+    if (cost > wallet.coins) return say(`The deposit is ${deposit.toLocaleString()} coins${fee ? `, plus a fee of ${fee}` : ''}. You have ${wallet.coins.toLocaleString()}.`);
+    wallet.coins = wallet.coins - cost;
+    if (sh) { const n = sh.n + qty; Object.assign(sh, { n, price: Math.round((sh.n * sh.price + qty * p) / n), at: (sh.n * sh.at + qty * p) / n, paid: sh.paid + cost }); }
+    else portfolio.shorts[c.id] = { n: qty, price: p, at: p, paid: cost, day: dayKeyOf(marketToday()) };
+    savePortfolio();
+    return renderExchange(`You short ${qty.toLocaleString()} ${c.name} shares at ${p}, with a deposit of ${deposit.toLocaleString()} coins${fee ? ` and a fee of ${fee}` : ''}. If the price falls, you keep the difference.`, 'ok');
+  }
+  if (!sh) return say(`You are not short any ${c.name} shares.`);
+  if (qty > sh.n) return say(`You are short ${sh.n.toLocaleString()} ${c.name} shares.`);
+  const back = Math.max(0, Math.round(qty * (2 * sh.at - p)) - fee), basis = sh.paid * (qty / sh.n);
+  sh.n -= qty; sh.paid -= basis;
+  if (!sh.n) delete portfolio.shorts[c.id];
+  savePortfolio(); wallet.coins = wallet.coins + back;
+  bumpRecord('stockGains', (v = 0) => v + (back - basis));
+  renderExchange(`You close ${qty.toLocaleString()} short ${c.name} shares at ${p}${fee ? `, less a fee of ${fee}` : ''}. ${back.toLocaleString()} coins come back to your purse: ${signed(back - basis)} compared with what you put in.`, back >= basis ? 'ok' : '');
+}
+
 /* ---------------- City bonds, sold at the banker's table ---------------- */
 // Lend coins to the city for 30 days and get them back with a fixed 25% on top, guaranteed. The catch: the coins are
 // locked away. Cashing out early returns only what you lent. Up to three bonds at a time, 10,000 coins each.
@@ -524,36 +652,38 @@ const BOND_RATE = .25, BOND_DAYS = 30, BOND_MAX = 10000, BOND_SLOTS = 3;
 let bonds = lsGet('hf-bonds', []);
 const saveBonds = () => lsSet('hf-bonds', bonds);
 const onDate = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-const bondLine = (b) => `${b.amt.toLocaleString()} coins, paying ${Math.round(b.amt * (1 + BOND_RATE)).toLocaleString()} on ${onDate(b.due)}`;
+const bondRate = (b) => b.rate ?? BOND_RATE; // set when the bond is bought: 30% for Laurion Silver owners
+const bondLine = (b) => `${b.amt.toLocaleString()} coins, paying ${Math.round(b.amt * (1 + bondRate(b))).toLocaleString()} on ${onDate(b.due)}`;
 // Bonds that have come due are paid as soon as you walk into the bank.
 function payBonds() {
   const due = bonds.filter((b) => b.due <= Date.now());
   if (!due.length) return '';
   bonds = bonds.filter((b) => b.due > Date.now()); saveBonds();
-  const back = due.reduce((t, b) => t + Math.round(b.amt * (1 + BOND_RATE)), 0), bonus = due.reduce((t, b) => t + Math.round(b.amt * BOND_RATE), 0);
+  const back = due.reduce((t, b) => t + Math.round(b.amt * (1 + bondRate(b))), 0), bonus = due.reduce((t, b) => t + Math.round(b.amt * bondRate(b)), 0);
   wallet.coins = wallet.coins + back; bumpRecord('bonds', (v = 0) => v + bonus);
   return `${due.length > 1 ? `${due.length} of your bonds came due` : 'Your bond came due'}. The city paid back ${back.toLocaleString()} coins, ${bonus.toLocaleString()} more than you lent. It is in your purse.`;
 }
 async function bondDesk() {
-  const v = await say([`City bonds: lend the city coins for ${BOND_DAYS} days and get them back with ${Math.round(BOND_RATE * 100)}% on top, guaranteed. The coins stay locked until then; cash out early and you only get back what you lent.`,
+  const rate = hasPerk('silver') ? .3 : BOND_RATE, pct = `${Math.round(rate * 100)}%`;
+  const v = await say([`City bonds: lend the city coins for ${BOND_DAYS} days and get them back with ${pct} on top, guaranteed${rate > BOND_RATE ? ' (30% instead of 25%, as a Laurion Silver owner)' : ''}. The coins stay locked until then; cash out early and you only get back what you lent.`,
     bonds.length ? `Your bonds:\n${bonds.map(bondLine).join('\n')}` : `You have no bonds yet. You can hold up to ${BOND_SLOTS} at a time, up to ${BOND_MAX.toLocaleString()} coins each.`],
     [...(bonds.length < BOND_SLOTS ? [{ label: 'Buy a bond', value: 'buy' }] : []), ...(bonds.length ? [{ label: 'Cash one out early', value: 'cash' }] : []), { label: 'Back', value: null }]);
   if (v === 'buy') {
     const most = Math.min(BOND_MAX, wallet.coins);
     if (most < 100) return say('A bond takes at least 100 coins.');
-    const amt = await say(`How much will you lend the city? From 100 to ${most.toLocaleString()}. In ${BOND_DAYS} days it pays back ${Math.round(BOND_RATE * 100)}% more.`,
+    const amt = await say(`How much will you lend the city? From 100 to ${most.toLocaleString()}. In ${BOND_DAYS} days it pays back ${pct} more.`,
       [...[100, 500, 1000, 5000].filter((n) => n <= most).map((n) => ({ label: n.toLocaleString(), value: n })), { label: 'Other amount', amount: { min: 100, max: most } }, { label: 'Never mind', value: null }]);
     if (!amt) return;
     if (!Number.isInteger(amt) || amt < 100 || amt > Math.min(BOND_MAX, wallet.coins) || bonds.length >= BOND_SLOTS) return say('The banker checks your purse twice. That amount does not work.');
     wallet.coins = wallet.coins - amt;
-    const b = { amt, bought: Date.now(), due: Date.now() + BOND_DAYS * 864e5 }; bonds.push(b); saveBonds();
-    return say(`Done. You lent the city ${amt.toLocaleString()} coins. On ${onDate(b.due)} it pays you back ${Math.round(amt * (1 + BOND_RATE)).toLocaleString()}. Collect it here.`);
+    const b = { amt, bought: Date.now(), due: Date.now() + BOND_DAYS * 864e5, rate }; bonds.push(b); saveBonds();
+    return say(`Done. You lent the city ${amt.toLocaleString()} coins. On ${onDate(b.due)} it pays you back ${Math.round(amt * (1 + rate)).toLocaleString()}. Collect it here.`);
   }
   if (v === 'cash') {
     const i = bonds.length === 1 ? 0 : await say('Which bond?', [...bonds.map((b, j) => ({ label: bondLine(b), value: j })), { label: 'Never mind', value: null }]);
     if (i == null) return;
     const b = bonds[i];
-    const ok = await say(`Cash out early and you get back ${b.amt.toLocaleString()} coins, with no bonus. Wait until ${onDate(b.due)} and you get ${Math.round(b.amt * (1 + BOND_RATE)).toLocaleString()}.`, [{ label: 'Cash it out', value: 'yes' }, { label: 'Keep it', value: null }]);
+    const ok = await say(`Cash out early and you get back ${b.amt.toLocaleString()} coins, with no bonus. Wait until ${onDate(b.due)} and you get ${Math.round(b.amt * (1 + bondRate(b))).toLocaleString()}.`, [{ label: 'Cash it out', value: 'yes' }, { label: 'Keep it', value: null }]);
     if (ok !== 'yes') return;
     bonds.splice(i, 1); saveBonds(); wallet.coins = wallet.coins + b.amt;
     return say(`The city returns your ${b.amt.toLocaleString()} coins.`);
@@ -562,15 +692,17 @@ async function bondDesk() {
 
 /* ---------------- Your money: everything in one place ---------------- */
 function openMoney() {
-  const m = market(), paid = payDividends(m); settleBank();
+  const m = market(), paid = payDividends(m); settleShorts(m); settleBank();
   const price = (c) => tradePrice(m.companies[c.id].at(-1).price);
   const owned = COMPANIES.filter((c) => sharesOf(c.id)).map((c) => ({ c, n: sharesOf(c.id), value: sharesOf(c.id) * price(c), cost: portfolio.cost[c.id] || 0 }));
   const sharesValue = owned.reduce((t, o) => t + o.value, 0), lent = bonds.reduce((t, b) => t + b.amt, 0);
   const parts = [
     { id: 'purse', label: 'Purse', value: wallet.coins, note: 'Ready to spend.' },
     { id: 'bank', label: 'Bank', value: Math.floor(bank.bal), note: `Grows ${+(BANK_RATE * 100).toFixed(2)}% a day. Take it out anytime.` },
-    { id: 'bonds', label: 'Bonds', value: lent, note: lent ? `Pays back ${Math.round(lent * (1 + BOND_RATE)).toLocaleString()} in all. Next on ${onDate(Math.min(...bonds.map((b) => b.due)))}.` : 'None right now.' },
+    { id: 'bonds', label: 'Bonds', value: lent, note: lent ? `Pays back ${bonds.reduce((t, b) => t + Math.round(b.amt * (1 + bondRate(b))), 0).toLocaleString()} in all. Next on ${onDate(Math.min(...bonds.map((b) => b.due)))}.` : 'None right now.' },
     { id: 'shares', label: 'Shares', value: sharesValue, note: sharesValue ? `${signed(sharesValue - owned.reduce((t, o) => t + o.cost, 0))} compared with what you paid.` : 'None right now.' },
+    ...(Object.keys(portfolio.shorts).length ? [{ id: 'shorts', label: 'Short deposits', value: shortsValue(m), note: 'What closing every short would return right now.' }] : []),
+    ...(pendingTax() ? [{ id: 'war', label: 'War tax', value: pendingTax(), note: 'Paid toward the war: back with 15% if Athens holds, less 15% if it falls.' }] : []),
     { id: 'ships', label: 'Ships', value: shipsValue(), note: (() => { const n = voyages().filter((v) => Date.now() < v.back).length; return `${shipCount() === 2 ? 'Your second ship at what you paid' : 'The captain\u2019s ship'}${n ? `, plus coins on ${plural(n, 'voyage')} at sea` : ''}.`; })() },
     { id: 'farm', label: 'Farm', value: farmValue(), note: farm.owned.length ? `${plural(farm.owned.length, 'plot')} at what you paid, plus seeds and your harvest at today's price.` : 'No plots yet.' },
   ];
@@ -589,7 +721,7 @@ function openMoney() {
 // Everything a player owns: purse, bank, bonds (what they lent), shares at today's price, the farm, and ships.
 function netWorth() {
   const m = market();
-  return wallet.coins + Math.floor(bank.bal) + bonds.reduce((t, b) => t + b.amt, 0) + COMPANIES.reduce((t, c) => t + sharesOf(c.id) * tradePrice(m.companies[c.id].at(-1).price), 0) + farmValue() + shipsValue();
+  return wallet.coins + Math.floor(bank.bal) + bonds.reduce((t, b) => t + b.amt, 0) + COMPANIES.reduce((t, c) => t + sharesOf(c.id) * tradePrice(m.companies[c.id].at(-1).price), 0) + shortsValue(m) + farmValue() + shipsValue() + pendingTax();
 }
 const boardView = { board: 'net', period: 'month' };
 // When the board shows less than your game (big jumps reach it over a few hours), say so, so it does not look stuck.
@@ -609,17 +741,18 @@ async function openBoard() {
 async function renderBoard(rows) {
   const body = $('#board-body'), mine = signedIn() ? cloud.initials : null, old = lbPlayer(), { board, period } = boardView;
   const tab = (key, label, group) => `<button type="button" role="tab" aria-selected="${boardView[group] === key}" data-${group}="${key}">${label}</button>`;
-  const what = board === 'net' ? 'Everything a player owns: purse, bank, bonds, shares, farm, and ships.' : 'Blackjack winnings minus losses.';
+  const what = { net: 'Everything a player owns: purse, bank, bonds, shares, farm, and ships.', bj: 'Blackjack winnings minus losses.', ms: 'The fastest clear of the Minesweeper board in the Gaming Hall.', lap: 'The fastest winning lap of the stadion, racing the runner.' }[board];
+  const shown = (v) => (board === 'bj' ? signed(v) : board === 'ms' || board === 'lap' ? `${Number(v).toFixed(2)} s` : v.toLocaleString());
   let list = '<p class="lb-empty">Loading the board…</p>';
   if (rows !== null) {
     try {
       const top = await lbTop(board, period, mine);
-      list = top.length ? `<ol class="lb-list">${top.map((r, i) => `<li class="${r.me ? 'lb-me' : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-name">${r.initials}${r.me ? ' (you)' : ''}</span><span class="lb-val">${board === 'bj' ? signed(r.value) : r.value.toLocaleString()}</span></li>`).join('')}</ol>`
+      list = top.length ? `<ol class="lb-list">${top.map((r, i) => `<li class="${r.me ? 'lb-me' : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-name">${r.initials}${r.me ? ' (you)' : ''}</span><span class="lb-val">${shown(r.value)}</span></li>`).join('')}</ol>`
         : `<p class="lb-empty">Nobody is on this board yet${period === 'month' ? ' this month' : ''}. It could be you.</p>`;
     } catch (e) { list = '<p class="lb-empty">The leaderboard could not be reached right now. Try again in a bit.</p>'; }
   }
   body.innerHTML = `
-    <div class="lb-tabs" role="tablist" aria-label="Board">${tab('net', 'Richest in Athens', 'board')}${tab('bj', 'Blackjack profits', 'board')}</div>
+    <div class="lb-tabs" role="tablist" aria-label="Board">${tab('net', 'Richest in Athens', 'board')}${tab('bj', 'Blackjack profits', 'board')}${tab('ms', 'Fastest Minesweeper', 'board')}${tab('lap', 'Fastest lap', 'board')}</div>
     <div class="lb-period" role="tablist" aria-label="Time">${tab('month', 'This month', 'period')}${tab('all', 'All time', 'period')}</div>
     <p class="lb-what">${what}</p>
     ${list}
@@ -659,13 +792,21 @@ async function renderBoard(rows) {
 // The routes and the daily sea come from economy.js, which the Exchange shares. Stormy weather from the Machine Room
 // adds risk on top for this visitor. Whether a ship sinks is settled when it sails.
 const stormy = () => ['rain', 'ominous'].includes(weatherKind) ? .1 : ['fog', 'snow'].includes(weatherKind) ? .05 : 0;
-function seaReport(rt) {
-  const s = seaFor(rt, new Date()), risk = Math.min(.9, s.risk + stormy());
-  return { ...s, risk: scholars.pytheas?.ready ? Math.round(risk * 50) / 100 : risk }; // Pytheas aboard halves it
+function seaReport(rt, escort = false) {
+  const s = seaFor(rt, marketToday());
+  if (!s) return null; // today's sea has not arrived from the server yet
+  const c = crisisNow(), pirates = c?.type === 'pirates' && c.target === rt.id; // pirates: riskier unless escorted, but pays more
+  const risk = Math.min(.9, s.risk + stormy() + (pirates && !escort ? PIRATE_RISK : 0));
+  const boost = (rt.id === 'aegina' && hasPerk('pistachio') ? 1.5 : rt.id === 'egypt' && hasPerk('grain') ? 1.1 : 1) * (pirates ? PIRATE_PAY : 1); // owner perks
+  return { ...s, pirates, gain: Math.round(s.gain * boost * 100) / 100, risk: scholars.pytheas?.ready ? Math.round(risk * 50) / 100 : risk }; // Pytheas aboard halves it
 }
-const VOYAGE_MAX = 3000; // the most one voyage can carry (the server's part D rules allow the same)
+const routeById = (id) => [...ROUTES, SYRACUSE].find((r) => r.id === id);
+const sailable = () => [...ROUTES, ...(courseDone('12') ? [SYRACUSE] : [])]; // Syracuse is for students of Course 12
+const VOYAGE_MAX = 3000; // the most one voyage can carry (the server's rules allow the same)
+const voyageMax = () => (hasPerk('ship') ? 4500 : VOYAGE_MAX); // Piraeus Shipyard owners sail bigger ships
 const SHIP_PRICE = 2500;  // a second ship, so two voyages can be at sea at once
-const shipCount = () => (lsGet('hf-ships', 1) >= 2 ? 2 : 1);
+const shipCount = () => Math.max(0, Math.min(2, Number(lsGet('hf-ships', 1)) || 0)); // the Persians can burn them all
+const shipPrice = () => Math.round(SHIP_PRICE * (warBook.lostShips > 0 && hasPerk('silver') ? .5 : 1)); // Laurion Silver owners rebuild at half price
 const voyages = () => { // ships at sea; older saves kept a single voyage under hf-voyage
   const old = lsGet('hf-voyage', null);
   if (old) { lsSet('hf-voyages', [...lsGet('hf-voyages', []), old]); try { localStorage.removeItem('hf-voyage'); } catch (e) { /* fine */ } }
@@ -673,7 +814,7 @@ const voyages = () => { // ships at sea; older saves kept a single voyage under 
 };
 const saveVoyages = (list) => lsSet('hf-voyages', list);
 // On the leaderboard: the second ship at what it cost, plus coins out on voyages.
-const shipsValue = () => (shipCount() === 2 ? SHIP_PRICE : 0) + voyages().reduce((t, v) => t + v.stake, 0);
+const shipsValue = () => Math.max(0, shipCount() - 1) * SHIP_PRICE + voyages().reduce((t, v) => t + v.stake, 0);
 const sinkRisk = (risk) => (risk ? `${Math.round(risk * 100)}% sink risk` : 'no risk');
 // History, science, math, economics, and plenty of Greece. Answers are shown in a fixed order; the right one moves around.
 const PLATO_QUIZ = [
@@ -826,6 +967,12 @@ const INTERACT = {
     if (v === 'blog') location.href = 'blog.html';
   },
   async gaming() {
+    if (warBook.hallClosed) {
+      const v = await say(['The Gaming Hall is a burned shell. The Persians did this.', `The owners are rebuilding, and getting back in costs ${HALL_FEE.toLocaleString()} coins.`], [{ label: `Pay ${HALL_FEE.toLocaleString()}`, value: 'pay' }, { label: 'Not now', value: null }]);
+      if (v !== 'pay') return;
+      if (wallet.coins < HALL_FEE) return say(`It costs ${HALL_FEE.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+      wallet.coins = wallet.coins - HALL_FEE; warBook.hallClosed = false; saveWar();
+    }
     const v = await say(['The Gaming Hall. The Greeks played petteia in here. Today it is Minesweeper and blackjack.', `You have ${wallet.coins.toLocaleString()} coins.`], [{ label: 'Blackjack', value: 'bj' }, { label: 'Minesweeper', value: 'ms' }, ...(leaderboardReady() ? [{ label: 'Leaderboard', value: 'board' }] : []), { label: 'Leave', value: null }]);
     if (v === 'ms') { openModal('#arcade'); newMines(); }
     if (v === 'bj') { openModal('#blackjack'); bjRender(); }
@@ -833,7 +980,11 @@ const INTERACT = {
   },
   async academy() {
     if (await requestTalk('academy')) return;
-    await say(['Plato\'s Academy. Carved over the door: "Let no one ignorant of geometry enter."', 'Inside, someone has painted the entire school across one wall. Raphael got there first, in 1511.']); openSchool();
+    finishStudies();
+    const cur = studies.current && courseById(studies.current.id);
+    const v = await say(['Plato\'s Academy. Carved over the door: "Let no one ignorant of geometry enter."', cur ? `You are studying ${cur.name}. You finish in about ${about(studies.current.done - Date.now())}.` : 'Plato teaches courses here, one at a time, and each one opens something new in Athens. Inside, someone has painted the entire school across one wall. Raphael got there first, in 1511.'],
+      [{ label: 'Courses', value: 'courses' }, { label: 'Look at the painting', value: 'painting' }, { label: 'Leave', value: null }]);
+    if (v === 'courses') openAcademy(); else if (v === 'painting') openSchool();
   },
   async library() {
     if (await requestTalk('library')) return;
@@ -903,12 +1054,13 @@ const INTERACT = {
   async captain() {
     if (await requestTalk('captain')) return;
     const now = Date.now(), fleet = voyages(), away = fleet.filter((v) => now < v.back), home = fleet.filter((v) => now >= v.back);
-    const routeOf = (v) => ROUTES.find((r) => r.id === v.route);
+    const routeOf = (v) => routeById(v.route);
     if (home.length) { // ships back since your last visit: pay out, or break the bad news
       saveVoyages(away);
       await say(home.map((vy) => {
         const rt = routeOf(vy);
         bumpRecord(vy.sank ? 'sunk' : 'home', (n = 0) => n + 1);
+        if (vy.sank && vy.insured) { wallet.coins = wallet.coins + vy.stake; return `Bad news. Your ship to ${rt.name} sank. The crew made it home, and your insurance pays back your ${vy.stake.toLocaleString()} coins. The captain found you another ship.`; }
         if (vy.sank) return `Bad news. Your ship to ${rt.name} met a storm and sank, and your ${vy.stake.toLocaleString()} coins went down with it. The crew made it home, and the captain found you another ship. The sea gives, and the sea takes.`;
         wallet.coins = wallet.coins + vy.stake;
         const n = earn(Math.round(vy.stake * (vy.gain ?? rt.gain)), '', Infinity);
@@ -916,40 +1068,68 @@ const INTERACT = {
       }));
     }
     const ships = shipCount(), atSea = away.map((v) => `${routeOf(v).name}, home in ${inTime(v.back - now)}`);
+    if (!ships) {
+      const v = await say(['Captain here. The Persians burned your ships, so you have nothing to sail.', `I can have a new one built for ${shipPrice().toLocaleString()} coins.`], [{ label: `Build one for ${shipPrice().toLocaleString()}`, value: 'ship' }, { label: 'Not now', value: null }]);
+      return v === 'ship' ? buyShip() : undefined;
+    }
     if (away.length >= ships) {
       if (ships === 2) return say(`Captain here. Both your ships are at sea: ${atSea.join('; ')}.`);
       const v = await say([`Captain here. Your ship to ${atSea[0]}.`, `Want a second ship, so two voyages can be at sea at once? It costs ${SHIP_PRICE.toLocaleString()} coins.`], [{ label: `Buy a second ship for ${SHIP_PRICE.toLocaleString()}`, value: 'ship' }, { label: 'Not now', value: null }]);
       return v === 'ship' ? buyShip() : undefined;
     }
-    const report = ROUTES.map((r) => ({ ...r, ...seaReport(r) }));
+    if (sailable().some((r) => !seaReport(r))) { loadSeeds(); return say('Captain here. The harbor master has not posted today\u2019s sea report yet. Give it a moment and ask me again.'); }
+    const report = sailable().map((r) => ({ ...r, ...seaReport(r) }));
     const storm = [...(stormy() ? ['Somebody has been turning the weather dials in the Machine Room, so every route is riskier than usual.'] : []), ...(scholars.pytheas?.ready ? ['Pytheas the explorer is sailing with your next ship, so every route is half as likely to sink.'] : [])];
     const fleetLine = ships === 2 ? [away.length ? `One of your ships is at sea (${atSea[0]}). The other is ready to sail.` : 'Both of your ships are in port, ready to sail.'] : [];
     const pick = await say([...(home.length ? [] : ['Captain here. Pay for a voyage and you share the profit when the ship comes home. Not every ship comes home.']), ...fleetLine, ...storm,
       `Today's sea report:\n${report.map((r) => `${r.name}: ${r.sea}, ${r.demand} demand for ${r.cargo}.`).join('\n')}`],
-      [...report.map((r) => ({ label: `${r.name}: ${r.hours} hours, +${Math.round(r.gain * 100)}% profit, ${sinkRisk(r.risk)}`, value: r.id })), ...(ships === 1 ? [{ label: `Buy a second ship for ${SHIP_PRICE.toLocaleString()}`, value: 'ship' }] : []), { label: 'Not today', value: null }]);
+      [...report.map((r) => ({ label: `${r.name}: ${r.hours} hours, +${Math.round(r.gain * 100)}% profit, ${sinkRisk(r.risk)}${r.pirates ? ', pirates' : ''}`, value: r.id })), ...(ships === 1 ? [{ label: `Buy a second ship for ${shipPrice().toLocaleString()}`, value: 'ship' }] : []), { label: 'Not today', value: null }]);
     if (pick === 'ship') return buyShip();
     const route = report.find((r) => r.id === pick);
     if (!route) return;
     if (wallet.coins < 100) return say('A voyage takes at least 100 coins. Come back when your purse is heavier.');
-    const most = Math.min(VOYAGE_MAX, wallet.coins);
-    const stake = await say([`${route.name} it is. Home in ${route.hours} hours. If it makes it, you get your coins back plus ${Math.round(route.gain * 100)}%. ${route.risk ? `There is a ${Math.round(route.risk * 100)}% chance it sinks.` : 'It will not sink.'}`, `How much will you put in? Pick an amount or type your own, from 100 to ${most.toLocaleString()}. You have ${wallet.coins.toLocaleString()} coins.`],
-      [...[100, 500, 1000, 2000, 3000].filter((n) => n <= most).map((n) => ({ label: n.toLocaleString(), value: n })), { label: 'Other amount', amount: { min: 100, max: most } }, { label: 'Never mind', value: null }]);
+    const most = Math.min(voyageMax(), wallet.coins);
+    const stake = await say([`${route.name} it is. Home in ${route.hours} hours. If it makes it, you get your coins back plus ${Math.round(route.gain * 100)}%. ${route.risk ? `There is ${aPct(Math.round(route.risk * 100))} chance it sinks.` : 'It will not sink.'}`, `How much will you put in? Pick an amount or type your own, from 100 to ${most.toLocaleString()}. You have ${wallet.coins.toLocaleString()} coins.`],
+      [...[100, 500, 1000, 2000, 3000, ...(voyageMax() > VOYAGE_MAX ? [voyageMax()] : [])].filter((n) => n <= most).map((n) => ({ label: n.toLocaleString(), value: n })), { label: 'Other amount', amount: { min: 100, max: most } }, { label: 'Never mind', value: null }]);
     if (!stake) return;
-    if (!Number.isInteger(stake) || stake < 100 || stake > Math.min(VOYAGE_MAX, wallet.coins)) return say('The captain counts your coins twice and frowns. That amount does not work. Try again.');
+    if (!Number.isInteger(stake) || stake < 100 || stake > Math.min(voyageMax(), wallet.coins)) return say('The captain counts your coins twice and frowns. That amount does not work. Try again.');
     if (voyages().filter((v) => Date.now() < v.back).length >= shipCount()) return say('Every ship you own is already at sea.');
-    wallet.coins = wallet.coins - stake;
-    saveVoyages([...voyages(), { route: route.id, stake, back: Date.now() + route.hours * 3600e3, sank: Math.random() < route.risk, gain: route.gain }]);
+    // A strike, pirates, and insurance: each a choice with a price.
+    let sailing = route, extra = 0;
+    const crisis = crisisNow(), pct = (r) => `${Math.round(r * 100)}%`;
+    if (crisis?.type === 'strike') {
+      const fee = Math.ceil(stake * PORT_FEE);
+      if (await say(`The dockworkers are on strike. Sailing today costs a port fee of ${fee} coins, ${PORT_FEE * 100}% of what you put aboard. Or wait until tomorrow.`, [{ label: `Pay ${fee} and sail`, value: 'pay' }, { label: 'Wait for the strike to end', value: null }]) !== 'pay') return;
+      extra += fee;
+    }
+    if (route.pirates) {
+      const fee = Math.ceil(stake * ESCORT), safer = { ...route, ...seaReport(route, true) };
+      const v = await say([`Pirates have been seen on the ${route.name} route. Without an escort, the chance of sinking is ${pct(route.risk)}. With one, it is ${pct(safer.risk)}. Ships that get through earn ${Math.round((PIRATE_PAY - 1) * 100)}% more.`, `An escort costs ${fee} coins.`],
+        [{ label: `Hire an escort for ${fee}`, value: 'escort' }, { label: 'Sail without one', value: 'alone' }, { label: 'Never mind', value: null }]);
+      if (!v) return;
+      if (v === 'escort') { extra += fee; sailing = safer; }
+    }
+    const premium = Math.max(1, Math.round(stake * sailing.risk * INSURE_MARKUP));
+    const insure = await say(`Insure the voyage? If the ship sinks, insurance pays back your ${stake.toLocaleString()} coins. With ${aPct(Math.round(sailing.risk * 100))} chance of sinking, it costs ${premium.toLocaleString()} coins.`,
+      [{ label: `Insure it for ${premium.toLocaleString()}`, value: 'yes' }, { label: 'Sail without insurance', value: 'no' }, { label: 'Never mind', value: null }]);
+    if (!insure) return;
+    if (insure === 'yes') extra += premium;
+    if (stake + extra > wallet.coins) return say(`With the fees, that comes to ${(stake + extra).toLocaleString()} coins. You have ${wallet.coins.toLocaleString()}.`);
+    wallet.coins = wallet.coins - stake - extra;
+    saveVoyages([...voyages(), { route: route.id, stake, back: Date.now() + route.hours * 3600e3, sank: Math.random() < sailing.risk, gain: sailing.gain, ...(insure === 'yes' ? { insured: true } : {}) }]);
     if (scholars.pytheas?.ready) { scholars.pytheas.ready = false; saveScholars(); }
     await say(`The ship sails for ${route.name} with your ${stake.toLocaleString()} coins aboard. Come back in ${route.hours} hours.`);
   },
 };
 async function buyShip() {
-  const v = await say([`A second ship costs ${SHIP_PRICE.toLocaleString()} coins. With two, you can have two voyages at sea at once.`, 'If a ship sinks, you lose the coins on that voyage, never the ship itself.'], [{ label: `Buy it for ${SHIP_PRICE.toLocaleString()}`, value: 'buy' }, { label: 'Not now', value: null }]);
+  const have = shipCount(), price = shipPrice(), which = have ? 'A second ship' : 'A new ship';
+  const v = await say([`${which} costs ${price.toLocaleString()} coins${price < SHIP_PRICE ? ', half price for a Laurion Silver owner rebuilding after the Persians' : ''}. ${have ? 'With two, you can have two voyages at sea at once.' : 'You need one to send a voyage.'}`, 'If a ship sinks, you lose the coins on that voyage, never the ship itself.'], [{ label: `Buy it for ${price.toLocaleString()}`, value: 'buy' }, { label: 'Not now', value: null }]);
   if (v !== 'buy') return;
   if (shipCount() >= 2) return say('You already own two ships.');
-  if (wallet.coins < SHIP_PRICE) return say(`A second ship costs ${SHIP_PRICE.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
-  wallet.coins = wallet.coins - SHIP_PRICE; lsSet('hf-ships', 2);
-  return say('The captain shakes your hand. You own two ships now, so two voyages can be at sea at once.');
+  if (wallet.coins < price) return say(`${which} costs ${price.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+  wallet.coins = wallet.coins - price; lsSet('hf-ships', have + 1);
+  if (warBook.lostShips > 0) { warBook.lostShips--; saveWar(); }
+  return say(have ? 'The captain shakes your hand. You own two ships now, so two voyages can be at sea at once.' : 'The shipwrights launch your new ship. You can send voyages again.');
 }
 async function boardBoat() {
   const v = await say(['A little sailboat is tied up at the dock. Someone in the Machine Room launched it.', 'Take it out for a short sail along the coast?'], [{ label: 'Set sail', value: 'sail' }, { label: 'Not now', value: null }]);
@@ -966,11 +1146,12 @@ function pressA() {
   const npc = npcs.find((n) => n.tx === fx && n.ty === fy);
   if (npc) { if (!npc.still) npc.dir = opposite(player.dir); return npc.creature ? say(CREATURES[npc.creature].line) : INTERACT[npc.id](); }
   const sign = SIGNS.find((s) => s.x === fx && s.y === fy);
-  if (sign) return sign.board ? readBoard() : sign.farm ? farmLedger(sign) : say(sign.text);
+  if (sign) return sign.board ? readBoard() : sign.farm ? farmLedger(sign) : sign.orders ? openOrders() : say(sign.text);
   const b = doorAt(fx, fy);
   if (b) return INTERACT[b.id]();
   if (plotAt(fx, fy) >= 0) return plotTalk(plotAt(fx, fy));
   if (fx === WELL.x && fy === WELL.y) return wellTalk();
+  if (hiveAt(fx, fy) >= 0 && (hiveOn(hiveAt(fx, fy)) || courseDone('7'))) return hiveTalk(hiveAt(fx, fy));
   if (fy === FARM_STALL.y && fx >= FARM_STALL.x && fx < FARM_STALL.x + FARM_STALL.w) return farmerTalk();
   if (harbor.boat && fy === DOCK.y && Math.abs(fx - DOCK.x) <= 1) return boardBoat();
   if (lostAt(fx, fy)) return pickUpLost();
@@ -1052,7 +1233,7 @@ function drawHarbor(camX, camY, now) {
 
 /* ---------------- Movement ---------------- */
 function occupied(x, y, self) {
-  if (isSolid(grid, x, y)) return true;
+  if (isSolid(grid, x, y) || hiveOn(hiveAt(x, y))) return true;
   if (self !== player && player.tx === x && player.ty === y) return true;
   return npcs.some((n) => n !== self && n.tx === x && n.ty === y);
 }
@@ -1155,6 +1336,7 @@ function render(now) {
     const sx = p.x * TILE - camX, sy = p.y * TILE - camY;
     if (sx > -2 * TILE && sx < canvas.width && sy > -2 * TILE && sy < canvas.height) ctx.drawImage(plotCanvas(plotKey(i)), sx, sy);
   });
+  hives().forEach((h) => { const [x, y] = HIVE_SPOTS[h.spot]; ctx.drawImage(hiveCanvas(jarsIn(h) > 0), x * TILE - camX, y * TILE - camY); });
   const lost = lostItem(); if (lost) ctx.drawImage(spriteCanvas(lost.sprite), lost.x * TILE - camX, lost.y * TILE - camY);
   drawHarbor(camX, camY, now);
   sailTick(now);
@@ -1196,6 +1378,11 @@ function loop(now) {
 requestAnimationFrame(loop);
 setTimeout(updatePlace); // after the whole file has run, since the farm note reads farm state set up further down
 setTimeout(() => screen.focus({ preventScroll: true }), 50);
+// What's new: shown once to each returning player after an update (new players get the welcome instead). Remembered in
+// the save, so it does not show again on another device. Also under the ? button.
+const NEWS = '2026-10';
+if (lsGet('hf-news', null) !== NEWS) { lsSet('hf-news', NEWS); if (HF().store?.get?.('hf-play-welcomed', false)) setTimeout(() => openModal('#news'), 600); }
+document.querySelectorAll('[data-open-news]').forEach((b) => b.addEventListener('click', () => { $('#help')?.close(); openModal('#news'); }));
 if (!HF().store?.get?.('hf-play-welcomed', false)) {
   HF().store?.set?.('hf-play-welcomed', true);
   setTimeout(() => say(['Welcome to Little Athens.', 'Hannah set her world here because she loves history, and she is trying to learn Ancient Greek.', 'Walk up to people, signs, and doors, and press Space (or A) to talk. Some of the easter eggs are hiding here.']), 400);
@@ -1263,7 +1450,20 @@ const nbrs = (i) => { const r = Math.floor(i / MS.C), c = i % MS.C, out = []; fo
 function plant(safe) {
   const avoid = new Set([safe, ...nbrs(safe)]); ms.mines = new Set();
   while (ms.mines.size < MS.M) { const i = (Math.random() * MS.R * MS.C) | 0; if (!avoid.has(i)) ms.mines.add(i); }
+  ms.start = performance.now(); ms.clicks = minClicks();
   ms.timer = setInterval(() => { ms.time++; $('#ms-time').textContent = ms.time; }, 1000);
+}
+// The fewest clicks this board can be cleared in (its "3BV"): one for each empty region, plus one for each numbered cell
+// no empty region reaches. The leaderboard uses it to rule out times faster than a person can click.
+function minClicks() {
+  const safe = [...Array(MS.R * MS.C).keys()].filter((i) => !ms.mines.has(i)), seen = new Set();
+  let n = 0;
+  for (const i of safe) {
+    if (count(i) || seen.has(i)) continue;
+    n++; const stack = [i];
+    while (stack.length) { const j = stack.pop(); if (seen.has(j)) continue; seen.add(j); if (!count(j)) nbrs(j).forEach((k) => !seen.has(k) && stack.push(k)); }
+  }
+  return n + safe.filter((i) => !seen.has(i)).length;
 }
 function count(i) { return nbrs(i).filter((j) => ms.mines.has(j)).length; }
 function cell(i) { return $('#ms-grid').children[i]; }
@@ -1290,7 +1490,8 @@ function reveal(i) {
     let pay = '';
     if (ready('mines', COOLDOWN.mines)) { used('mines'); pay = ` You win ${earn(MINES_PAY)} coins.`; }
     else pay = ` The minefield pays out again in ${inTime(leftOf('mines'))}.`;
-    $('#ms-note').textContent = `Cleared in ${ms.time} seconds. Not a single explosion.${pay}`;
+    const t = Math.round((performance.now() - ms.start) / 10) / 100, best = recordBest('msTimes', { t, clicks: ms.clicks });
+    $('#ms-note').textContent = `Cleared in ${t.toFixed(2)} seconds. Not a single explosion.${best ? ' Your best this month!' : ''}${pay}`;
     HF().foundEgg('mines');
   }
 }
@@ -1308,7 +1509,7 @@ const SCHOLARS = [
   { id: 'theophrastus', name: 'Theophrastus', price: 600, who: 'Aristotle’s student, who wrote the first books about plants.', does: 'Your crops grow twice as fast for 24 hours, on top of watering.' },
   { id: 'pasion', name: 'Pasion', price: 100, who: 'The richest banker in Athens. He started out as a slave working at a bank and ended up owning it.', does: 'No fees on the Athenian Exchange for 24 hours.' },
   { id: 'pytheas', name: 'Pytheas', price: 600, who: 'An explorer from Massalia who sailed to Britain and far beyond.', does: 'He sails with your next ship, whenever you send it, and halves its chance of sinking.' },
-  { id: 'thales', name: 'Thales', price: 400, who: 'The thinker who saw a big olive harvest coming and rented every olive press before anyone else.', does: 'One hint about the next company report on the Exchange: will it beat or miss what the market expects?' },
+  { id: 'thales', name: 'Thales', price: 400, who: 'The thinker who saw a big olive harvest coming and rented every olive press before anyone else.', does: 'Reads the week\u2019s news about the next company to report on the Exchange: is its profit likely to beat or miss what the market expects?' },
 ];
 const DAY_MS = 24 * 3600e3;
 const scholars = lsGet('hf-scholars', {}); // { id: { day, until (Theophrastus, Pasion), ready (Pytheas), hint (Thales) } }
@@ -1322,6 +1523,8 @@ const WATER_HOURS = 24, SEED_MAX = 99, BATCH_MAX = 10;
 const savedFarm = lsGet('hf-farm', null);
 const farm = { owned: [], plots: {}, seeds: {}, basket: {}, works: {}, ...savedFarm, v: 2 }; // works: the workshop stations you have built
 const saveFarm = () => lsSet('hf-farm', farm);
+const HIVE_PRICE = 1000, HIVE_EVERY = 12 * 3600e3, HIVE_HOLDS = 2; // beehives (Course 7), see below
+const hives = () => (farm.hives ||= []);
 const plotPriceAt = (n) => Math.round((100 * 1.6 ** n) / 50) * 50; // 100, 150, 250, 400, 650, 1,050, 1,700, 2,700, 4,300 (11,300 for all nine)
 const plotPrice = () => plotPriceAt(farm.owned.length);
 if (savedFarm && savedFarm.v !== 2) { // the first farm had 12 small plots; keep what people bought on the 9 bigger ones, and refund any extra
@@ -1335,7 +1538,7 @@ if (savedFarm && savedFarm.v !== 2) { // the first farm had 12 small plots; keep
 // What the plots actually cost, since prices have changed. Saves from before this was tracked count at these prices.
 if (farm.plotsPaid == null) { farm.plotsPaid = farm.owned.reduce((t, _, n) => t + Math.round((100 * 1.6 ** n) / 50) * 50, 0); saveFarm(); }
 // What the farm is worth on the leaderboard: plots and workshop at what they cost, seeds at cost, and goods at today's price.
-const farmValue = () => farm.plotsPaid
+const farmValue = () => farm.plotsPaid + (farm.hives?.length || 0) * HIVE_PRICE
   + CROPS.reduce((t, c) => t + (farm.seeds[c.id] || 0) * c.cost, 0)
   + STATIONS.reduce((t, s) => t + (farm.works[s.id] ? s.cost + (farm.works[s.id].n || 0) * cropPrice(produceById(s.makes)).price : 0), 0)
   + Object.entries(farm.basket).reduce((t, [id, n]) => t + (produceById(id) ? n * cropPrice(produceById(id)).price : 0), 0);
@@ -1344,10 +1547,16 @@ const isWet = (pl, now = Date.now()) => weatherKind === 'rain' || (pl.wetUntil |
 // How fast a crop grows at moment t, as a multiple of its watered speed: dry soil halves it, Theophrastus doubles it.
 function speedAt(pl, t) {
   const b = scholars.theophrastus?.until || 0;
-  return (weatherKind === 'rain' || t < (pl.wetUntil || 0) ? 1 : .5) * (t >= b - DAY_MS && t < b ? 2 : 1);
+  return (weatherKind === 'rain' || t < (pl.wetUntil || 0) ? 1 : .5) * (t >= b - DAY_MS && t < b ? 2 : 1) * pestSpeed(pl, t);
 }
-// The moments between `from` and `to` when that speed changes: the soil drying out, Theophrastus arriving or leaving.
-const speedChanges = (pl, from, to) => { const b = scholars.theophrastus?.until || 0; return [pl.wetUntil || 0, b - DAY_MS, b].filter((x) => x > from && x < to).sort((p, q) => p - q); };
+// Pests (a crisis) halve the growth of their crop while they last, unless that plot was treated.
+const pestWindows = (crop) => crisisOn().all.filter((c) => c.type === 'pests' && c.target === crop);
+const pestSpeed = (pl, t) => (pestWindows(pl.crop).some((c) => t >= c.from && t < c.to && pl.treated !== c.id) ? .5 : 1);
+// The moments between `from` and `to` when that speed changes: the soil drying out, Theophrastus arriving or leaving, pests.
+const speedChanges = (pl, from, to) => { const b = scholars.theophrastus?.until || 0; return [pl.wetUntil || 0, b - DAY_MS, b, ...pestWindows(pl.crop).flatMap((c) => [c.from, c.to])].filter((x) => x > from && x < to).sort((p, q) => p - q); };
+// A drought (a crisis) dries the soil out twice as fast.
+const droughtAt = (t) => crisisOn().all.some((c) => c.type === 'drought' && t >= c.from && t < c.to);
+const waterHours = (t = Date.now()) => (droughtAt(t) ? WATER_HOURS / 2 : WATER_HOURS);
 // How grown a crop is, from 0 to 1, adding up each stretch of time at its own speed.
 function grownAt(pl, now = Date.now()) {
   const full = fullSpeed(cropById(pl.crop));
@@ -1366,7 +1575,7 @@ function msLeft(pl, now = Date.now()) {
   return t - now + left / (full * speedAt(pl, t));
 }
 const settlePlots = (now = Date.now()) => { Object.values(farm.plots).forEach((pl) => { pl.grown = grownAt(pl, now); pl.at = now; }); saveFarm(); };
-function waterPlot(pl, now = Date.now()) { pl.grown = grownAt(pl, now); pl.at = now; pl.wetUntil = now + WATER_HOURS * 3600e3; }
+function waterPlot(pl, now = Date.now()) { pl.grown = grownAt(pl, now); pl.at = now; pl.wetUntil = now + waterHours(now) * 3600e3; }
 const ifWatered = (pl) => { const copy = { ...pl }; waterPlot(copy); return msLeft(copy); }; // time left if watered right now
 // Time left if it is watered again every time the soil dries, all the way to harvest (only olives outlast one watering).
 const ifKeptWatered = (pl, now = Date.now()) => msLeft({ ...pl, grown: grownAt(pl, now), at: now, wetUntil: Infinity }, now);
@@ -1412,6 +1621,18 @@ async function plotTalk(i) {
     return plantTalk(i, [`You harvest the ${lower(crop)}. ${basketLine()}`, `Sell ${crop.id === 'wheat' ? 'it' : 'them'} at Demetrios's stall by the gate${next ? `, or make ${lower(produceById(next.makes))} at the workshop` : ''}.`]);
   }
   const head = `Your ${lower(crop)}: ${Math.floor(grownAt(pl) * 100)}% grown.`;
+  const pests = crisisNow(), pestHere = pests?.type === 'pests' && pests.target === crop.id && pl.treated !== pests.id;
+  if (pestHere) {
+    const mine = farm.owned.filter((j) => farm.plots[j]?.crop === crop.id && farm.plots[j].treated !== pests.id && grownAt(farm.plots[j]) < 1);
+    const v = await say([`${head} Pests are in the ${FIELDS[crop.id]} through ${lastDayOf(pests)}. Untreated, this plot grows at half speed until they leave.`, `Treating a plot costs ${PEST_FEE} coins.`],
+      [{ label: `Treat this plot for ${PEST_FEE}`, value: 'one' }, ...(mine.length > 1 ? [{ label: `Treat ${mine.length === 2 ? 'both' : `all ${mine.length}`} ${crop.id === 'olives' ? 'olive' : crop.id === 'grapes' ? 'grape' : 'wheat'} plots for ${(PEST_FEE * mine.length).toLocaleString()}`, value: 'all' }] : []), { label: 'Not now', value: null }]);
+    if (!v) return;
+    const which = v === 'all' ? mine : [i], cost = PEST_FEE * which.length;
+    if (wallet.coins < cost) return say(`That costs ${cost.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+    const now = Date.now(); wallet.coins = wallet.coins - cost;
+    which.forEach((j) => { const q = farm.plots[j]; q.grown = grownAt(q, now); q.at = now; q.treated = pests.id; }); saveFarm();
+    return say(`You treat ${which.length === 1 ? 'the plot' : which.length === 2 ? 'both plots' : `all ${which.length} plots`}. The pests move on to somebody else\u2019s field. Ready in about ${about(msLeft(farm.plots[i]))}.`);
+  }
   const snow = [...(weatherKind === 'snow' ? ['Snow from the Machine Room is slowing everything down: crops take twice as long.'] : []), ...(helping('theophrastus') ? [`Theophrastus is helping: crops grow twice as fast for another ${about(scholars.theophrastus.until - Date.now())}.`] : [])];
   if (weatherKind === 'rain') return say([`${head} Ready in about ${about(msLeft(pl))}.`, 'The rain from the Machine Room is watering it for you.']);
   if (isWet(pl)) return say([`${head} Ready in about ${about(msLeft(pl))}.${keepNote(pl, msLeft(pl))}`, ...snow, `It is watered. The soil stays damp for another ${about(pl.wetUntil - Date.now())}.`]);
@@ -1444,8 +1665,110 @@ async function wellTalk() {
     [{ label: dry.length === 1 ? 'Water it' : 'Water them all', value: 'all' }, { label: 'Not now', value: null }]);
   if (v !== 'all') return;
   dry.forEach((pl) => waterPlot(pl, now)); saveFarm();
-  return say(`You haul up bucket after bucket. ${dry.length === 1 ? 'It stays' : 'They stay'} watered for the next ${WATER_HOURS} hours.`);
+  return say(`You haul up bucket after bucket. ${dry.length === 1 ? 'It stays' : 'They stay'} watered for the next ${waterHours()} hours${droughtAt(Date.now()) ? ', since the drought dries everything out twice as fast' : ''}.`);
 }
+/* ---------------- Beehives (Course 7 at the Academy) ---------------- */
+// Up to three hives in a column down the east edge of the farm. Each makes a jar of honey every 12 hours and holds two,
+// so a visit about once a day keeps the bees busy. Demetrios buys the honey.
+const hiveAt = (x, y) => HIVE_SPOTS.findIndex(([hx, hy]) => hx === x && hy === y);
+const hiveOn = (i) => hives().find((h) => h.spot === i);
+const jarsIn = (h, now = Date.now()) => Math.min(HIVE_HOLDS, Math.floor((now - h.since) / HIVE_EVERY));
+async function hiveTalk(i) {
+  const h = hiveOn(i), now = Date.now();
+  if (!h) {
+    const v = await say(['A sunny, sheltered spot by the farm. Bees would like it here.', `Set up a beehive for ${HIVE_PRICE.toLocaleString()} coins? It makes a jar of honey every 12 hours and holds two at a time. You can keep up to ${HIVE_SPOTS.length} hives.`],
+      [{ label: `Set one up for ${HIVE_PRICE.toLocaleString()}`, value: 'buy' }, { label: 'Not now', value: null }]);
+    if (v !== 'buy') return;
+    if (wallet.coins < HIVE_PRICE) return say(`A beehive costs ${HIVE_PRICE.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+    wallet.coins = wallet.coins - HIVE_PRICE; hives().push({ spot: i, since: now }); saveFarm();
+    return say('You set up a straw hive and coax a swarm into it. The first jar of honey will be ready in 12 hours.');
+  }
+  const n = jarsIn(h, now);
+  if (!n) return say(`Your beehive. The bees are busy. The next jar of honey is ready in about ${about(h.since + HIVE_EVERY - now)}.`);
+  const v = await say(`Your beehive. ${n === 1 ? 'A jar of honey is' : `${n} jars of honey are`} ready.${n >= HIVE_HOLDS ? ' The hive is full, so the bees have stopped until you collect it.' : ''}`, [{ label: 'Collect the honey', value: 'take' }, { label: 'Leave it', value: null }]);
+  if (v !== 'take') return;
+  addToBasket(HONEY.id, n); h.since = n >= HIVE_HOLDS ? now : h.since + n * HIVE_EVERY; saveFarm();
+  return say(`You collect ${cropCount(HONEY, n)}, gently. ${basketLine()} Demetrios buys honey at the stall.`);
+}
+
+/* ---------------- Philon, the farmhand ---------------- */
+// While he is paid, Philon comes by every 6 hours: he harvests whatever is ripe into your basket and replants each plot
+// with the crop you chose for it, from your seed sack. For 100 more a day he also waters on every visit. His visits
+// happen whether or not the game is open; they are worked out when you come back.
+const HAND_WAGE = 300, HAND_WATER = 100, HAND_EVERY = 6 * 3600e3, HAND_MAX_DAYS = 7;
+let handWaterPick = null; // the "also water" box before hiring
+const handOn = (t = Date.now()) => !!farm.hand && farm.hand.until > t;
+const handRate = (water) => HAND_WAGE + (water ? HAND_WATER : 0);
+function handVisit(t, did) {
+  const h = farm.hand;
+  for (const i of farm.owned) {
+    let pl = farm.plots[i];
+    if (pl && grownAt(pl, Math.max(t, pl.at)) >= 1) { addToBasket(pl.crop, 1); did.harvested[pl.crop] = (did.harvested[pl.crop] || 0) + 1; delete farm.plots[i]; pl = null; }
+    const want = h.plan?.[i];
+    if (!pl && want) {
+      if (farm.seeds[want] > 0) { farm.seeds[want]--; pl = farm.plots[i] = { crop: want, grown: 0, at: t, wetUntil: 0 }; did.planted[want] = (did.planted[want] || 0) + 1; } else did.noSeeds[want] = true;
+    }
+    if (pl && h.water && grownAt(pl, Math.max(t, pl.at)) < 1 && !isWet(pl, t)) { waterPlot(pl, Math.max(t, pl.at)); did.watered = true; }
+  }
+}
+// Every visit due since the last one, in order. Keeps a short report of what he did for the next time you look.
+function farmhandCatchUp(now = Date.now()) {
+  const h = farm.hand;
+  if (!h || !(h.next <= now && h.next < h.until)) return false;
+  const did = { harvested: {}, planted: {}, noSeeds: {}, watered: false };
+  while (h.next <= now && h.next < h.until) { handVisit(h.next, did); h.next += HAND_EVERY; }
+  const names = (o, f) => Object.entries(o).map(([id, n]) => f(cropById(id), n));
+  const report = [...(Object.keys(did.harvested).length ? [`harvested ${listOf(names(did.harvested, (c, n) => cropCount(c, n)))}`] : []),
+    ...(Object.keys(did.planted).length ? [`planted ${listOf(names(did.planted, (c, n) => `${n} ${n === 1 ? c.seedName.toLowerCase().replace(/s$/, '') : c.seedName.toLowerCase()}`))}`] : []),
+    ...(did.watered ? ['watered everything'] : [])];
+  const short = Object.keys(did.noSeeds).map((id) => cropById(id).seedName.toLowerCase());
+  h.report = { at: now, text: `${report.length ? `Philon ${listOf(report)}.` : 'Philon came by, but nothing needed doing.'}${short.length ? ` He ran out of ${listOf(short)}.` : ''}` };
+  saveFarm();
+  return true;
+}
+function renderFarmhand(note = '', tone = '') {
+  const now = Date.now(), h = farm.hand, on = handOn(now);
+  const cropOpts = (sel) => `<option value="">Leave it alone</option>${CROPS.map((c) => `<option value="${c.id}"${sel === c.id ? ' selected' : ''}>${c.name}</option>`).join('')}`;
+  const plots = farm.owned.slice().sort((a, b) => a - b).map((i) => {
+    const pl = farm.plots[i], now2 = pl ? (grownAt(pl, now) >= 1 ? `${lower(cropById(pl.crop))}, ready` : `${lower(cropById(pl.crop))}, ${Math.floor(grownAt(pl, now) * 100)}% grown`) : 'empty';
+    return `<label class="fh-plot"><span>Plot ${i + 1} <small>(${now2})</small></span><select data-plot="${i}">${cropOpts(h?.plan?.[i] ?? pl?.crop ?? '')}</select></label>`;
+  }).join('');
+  const sack = CROPS.map((c) => `${farm.seeds[c.id] || 0} ${c.seedName.toLowerCase()}`).join(', ');
+  const room = on ? Math.floor((now + HAND_MAX_DAYS * 864e5 - h.until) / 864e5) : HAND_MAX_DAYS;
+  const dayBtns = (water) => [1, 3, 7].filter((d) => d <= room).map((d) => `<button type="submit" class="btn btn-${d === 3 ? 'primary' : 'secondary'} btn-sm" value="${d}">${d} ${d === 1 ? 'day' : 'days'}: ${(d * handRate(water)).toLocaleString()}</button>`).join('');
+  $('#fh-body').innerHTML = `
+    <p class="ex-intro">Philon comes by every 6 hours while you pay him. He harvests whatever is ripe into your basket and replants each plot with the crop you pick below, from your seed sack. He keeps working while you are away. ${HAND_WAGE} coins a day, or ${handRate(true)} if he waters too.</p>
+    <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>${basketLine()}</span></p>
+    ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
+    ${on ? `<p class="ex-note ok">Philon is working for you for another ${about(h.until - now)}${h.water ? ', and watering' : ''}. Next visit in ${about(Math.max(0, h.next - now))}.</p>` : h ? '<p class="ex-note">Philon is not working for you right now. Hire him again below.</p>' : ''}
+    ${h?.report ? `<p class="ex-when">Last visit: ${h.report.text}</p>` : ''}
+    <section class="fh-plan"><h3>What to grow</h3><div class="fh-plots">${plots}</div><p class="ex-when">Seed sack: ${sack}. Demetrios sells more at the stall.</p></section>
+    <form class="ex-trade fh-hire" data-hire-hand>
+      ${on ? `<span class="ex-own">Pay for more days${h.water ? ', with watering' : ''}:</span>${room >= 1 ? dayBtns(h.water) : '<span class="ex-own">He is already paid for a week ahead.</span>'}<button type="button" class="btn btn-secondary btn-sm" data-let-go>Let him go</button>`
+        : `<label class="fh-water"><input type="checkbox" data-water${(handWaterPick ?? !!h?.water) ? ' checked' : ''}> Also water (+${HAND_WATER} a day)</label><span class="ex-own">Hire him for:</span>${dayBtns(handWaterPick ?? !!h?.water)}`}
+    </form>`;
+  const body = $('#fh-body');
+  body.querySelectorAll('select[data-plot]').forEach((sel) => sel.addEventListener('change', () => { farm.hand ||= { until: 0, next: 0, water: false, plan: {} }; (farm.hand.plan ||= {})[sel.dataset.plot] = sel.value || null; saveFarm(); }));
+  body.querySelector('[data-water]')?.addEventListener('change', (e) => { handWaterPick = e.target.checked; renderFarmhand(); body.querySelector('[data-water]')?.focus(); });
+  body.querySelector('[data-let-go]')?.addEventListener('click', () => { farm.hand.until = Date.now(); saveFarm(); renderFarmhand('Philon thanks you and heads home. Days you already paid for are not refunded.'); });
+  body.querySelector('[data-hire-hand]').addEventListener('submit', (e) => { e.preventDefault(); hireHand(Number(e.submitter?.value), on ? farm.hand.water : !!body.querySelector('[data-water]')?.checked); });
+}
+function hireHand(days, water) {
+  const now = Date.now(), on = handOn(now), h = farm.hand;
+  if (![1, 3, 7].includes(days)) return;
+  const start = on ? h.until : now, end = start + days * 864e5, cost = days * handRate(water);
+  if (end > now + HAND_MAX_DAYS * 864e5 + 60e3) return renderFarmhand(`You can pay Philon up to ${HAND_MAX_DAYS} days ahead.`);
+  if (wallet.coins < cost) return renderFarmhand(`That costs ${cost.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+  wallet.coins = wallet.coins - cost;
+  const plan = h?.plan || Object.fromEntries(farm.owned.map((i) => [i, farm.plots[i]?.crop || null]));
+  farm.hand = on ? { ...h, until: end } : { since: now, until: end, next: now, water, plan, report: h?.report };
+  saveFarm(); farmhandCatchUp(now);
+  renderFarmhand(on ? `Paid. Philon works for you for another ${about(end - now)}.` : `Philon picks up a hoe. He works for you for ${plural(days, 'day')}${water ? ', watering as he goes' : ''}.`, 'ok');
+}
+function openFarmhand() { farmhandCatchUp(); renderFarmhand(); openModal('#farmhand'); }
+farmhandCatchUp();
+setInterval(() => { if (farmhandCatchUp() && $('#farmhand')?.open) renderFarmhand(); }, 30e3);
+
 // The farm sign doubles as a status board once you own a plot.
 function farmLedger(sign) {
   if (!farm.owned.length) return say(sign.text);
@@ -1462,6 +1785,8 @@ function farmLedger(sign) {
     return st === 'idle' ? `${s.name}: empty` : st === 'done' ? `${s.name}: ${cropCount(g, w.n)} ready` : `${s.name}: ${cropCount(g, w.n)} ready in ${about(w.done - now)}`;
   });
   if (helping('theophrastus', now)) rows.push(`Theophrastus is helping for another ${about(scholars.theophrastus.until - now)}.`);
+  if (hives().length) { const j = hives().reduce((t, h) => t + jarsIn(h, now), 0); rows.push(`${plural(hives().length, 'beehive')}: ${j ? `${cropCount(HONEY, j)} ready` : 'busy making honey'}`); }
+  if (handOn(now)) rows.push(`Philon is working for you for another ${about(farm.hand.until - now)}. Next visit in ${about(Math.max(0, farm.hand.next - now))}.`);
   return say([`Your farm\n${rows.join('\n')}`, ...(works.length ? [`Your workshop\n${works.join('\n')}`] : []), basketLine()]);
 }
 // A short note when you walk onto the farm: what is ready, and what needs water.
@@ -1472,11 +1797,12 @@ function farmNews(now = Date.now()) {
 }
 async function farmerTalk() {
   const goods = STATIONS.some((s) => farm.works[s.id]) || GOODS.some((g) => farm.basket[g.id] > 0);
-  const prices = [...CROPS, ...(goods ? GOODS : [])].map((c) => ({ c, ...cropPrice(c) }));
+  const prices = [...CROPS, ...(goods ? GOODS : []), ...(hives().length || farm.basket.honey ? [HONEY] : [])].map((c) => ({ c, ...cropPrice(c), price: sellPrice(c), perk: sellPrice(c) > cropPrice(c).price }));
   const has = basketItems().length;
-  const v = await say(['Demetrios here. I sell seeds, and I buy whatever you grow or make.', `Today I pay, with what the seeds cost:\n${prices.map((p) => `${p.c.name}: ${p.price}${p.c.cost ? ` (seeds ${p.c.cost})` : ''}${p.note ? `, ${p.note}` : ''}`).join('\n')}\nMy prices change every day. Seeds always cost the same.`, has ? basketLine() : 'Your basket is empty right now. Bring me anything you harvest or make, and I will buy it at these prices.'], [
+  const v = await say(['Demetrios here. I sell seeds, and I buy whatever you grow or make.', `Today I pay, with what the seeds cost:\n${prices.map((p) => `${p.c.name}: ${p.price}${p.perk ? ' (owner price)' : ''}${p.c.cost ? ` (seeds ${p.c.cost})` : ''}${p.note ? `, ${p.note}` : ''}`).join('\n')}\nMy prices change every day. Seeds always cost the same.`, has ? basketLine() : 'Your basket is empty right now. Bring me anything you harvest or make, and I will buy it at these prices.'], [
     { label: 'Buy seeds', value: 'seeds' },
     ...(has ? [{ label: 'Sell from your basket', value: 'sell' }] : []),
+    ...(farm.owned.length ? [{ label: handOn() ? 'Your farmhand, Philon' : 'Hire a farmhand', value: 'hand' }] : []),
     { label: 'How does farming work?', value: 'how' },
     { label: 'Leave', value: null }]);
   if (v === 'how') {
@@ -1487,6 +1813,7 @@ async function farmerTalk() {
       'My prices change every day. Grapes and wine sell high in the two weeks before the Great Dionysia in March, and olives during the olive harvest, October to December.']);
   }
   if (v === 'sell') return sellTalk();
+  if (v === 'hand') return openFarmhand();
   if (v !== 'seeds') return;
   const pick = await say(`Which seeds? You have ${wallet.coins.toLocaleString()} coins.`, [...CROPS.map((c) => ({ label: `${c.seedName}: ${c.cost} each, ready in ${hoursText(c.hours)} if watered`, value: c.id })), { label: 'Never mind', value: null }]);
   const crop = cropById(pick);
@@ -1502,7 +1829,7 @@ async function farmerTalk() {
 }
 // Sell one kind of thing, or everything, at today's prices. Nothing spoils, so waiting for a better day is fine.
 async function sellTalk() {
-  const items = basketItems().map((id) => { const c = produceById(id), n = farm.basket[id], { price } = cropPrice(c); return { id, c, n, total: n * price }; });
+  const items = basketItems().map((id) => { const c = produceById(id), n = farm.basket[id]; return { id, c, n, total: n * sellPrice(c) }; });
   const all = items.reduce((t, x) => t + x.total, 0);
   const pick = await say('What will you sell? Nothing in your basket spoils, so you can also wait for a better price.', [...items.map((x) => ({ label: `${cropCount(x.c, x.n)} for ${x.total.toLocaleString()}`, value: x.id })), ...(items.length > 1 ? [{ label: `Everything for ${all.toLocaleString()}`, value: 'all' }] : []), { label: 'Never mind', value: null }]);
   const sold = items.filter((x) => pick === 'all' || x.id === pick);
@@ -1513,8 +1840,230 @@ async function sellTalk() {
   return say(`You sell ${listOf(sold.map((x) => cropCount(x.c, x.n)))} for ${n.toLocaleString()} coins.`);
 }
 
+/* ---------------- Crises (see crisisOn in economy.js) ---------------- */
+// What is going wrong in Athens right now, or about to: a notice in the corner of the game, and the rules each crisis changes.
+const PEST_FEE = 20, ESCORT = .1, PORT_FEE = .1, PIRATE_RISK = .15, PIRATE_PAY = 1.3, INSURE_MARKUP = 1.2;
+const crisisNow = () => crisisOn().now;
+const lastDayOf = (c) => DAY_NAMES[new Date(c.end.getFullYear(), c.end.getMonth(), c.end.getDate() - 1).getDay()];
+const FIELDS = { wheat: 'wheat fields', grapes: 'vineyards', olives: 'olive groves' };
+const grows = (crop) => `${crop.name} ${crop.id === 'wheat' ? 'grows' : 'grow'}`;
+function crisisText(c) {
+  const soon = c.start > marketToday(), until = soon ? '' : ` through ${lastDayOf(c)}`;
+  const route = c.type === 'pirates' && ROUTES.find((r) => r.id === c.target), crop = c.type === 'pests' && cropById(c.target);
+  const days = Math.round((c.end - c.start) / 864e5);
+  return {
+    pirates: () => ({ short: `Pirates on the ${route.name} route${until}`, long: [`Pirates have been seen on the ${route.name} route${until}.`, `Ships sailing there are ${PIRATE_RISK * 100} points more likely to sink unless you hire an escort, for ${ESCORT * 100}% of what you put aboard. Ships that get through earn ${Math.round((PIRATE_PAY - 1) * 100)}% more.`] }),
+    strike: () => ({ short: `A strike at the docks${until}`, long: ['The dockworkers are on strike today.', `Sailing costs a port fee of ${PORT_FEE * 100}% of what you put aboard, or you can wait until tomorrow. With the docks shut, bread, wine, and olive oil sell for 20% more.`] }),
+    pests: () => ({ short: `Pests in the ${FIELDS[crop.id]}${until}`, long: [`Pests are in the ${FIELDS[crop.id]}${until}.`, `${grows(crop)} at half speed unless you treat each plot, for ${PEST_FEE} coins a plot (walk up to it). ${crop.name} ${crop.id === 'wheat' ? 'sells' : 'sell'} for 30% more while they last.`] }),
+    drought: () => (soon ? { short: 'A drought starts tomorrow', long: [`A drought starts tomorrow and lasts ${plural(days, 'day')}.`, 'Watering will only last 12 hours instead of 24, and crops will sell for 20% more.'] }
+      : { short: `A drought${until}`, long: [`A drought${until}.`, 'Watering only lasts 12 hours instead of 24, and crops sell for 20% more.'] }),
+  }[c.type]();
+}
+// The notice in the corner: the Persians first (coming, or just been), then any other crisis.
+function showCrisis() {
+  const chip = $('#crisis-chip');
+  if (!chip) return;
+  const w = upcomingWar(), last = lastWar(), news = crisisOn(), c = news.now || news.soon;
+  const recent = last && marketToday() - warDay(last) < 2 * 864e5;
+  chip.dataset.kind = w || recent ? 'war' : c ? 'crisis' : '';
+  chip.hidden = !chip.dataset.kind;
+  chip.textContent = w ? `The Persians reach Athens ${whenText(warDay(w))}` : recent ? (last.won ? 'Athens held against the Persians' : 'The Persians burned Athens') : c ? crisisText(c).short : '';
+}
+$('#crisis-chip')?.addEventListener('click', () => {
+  if ($('#dlg').hidden === false || document.querySelector('dialog[open]')) return;
+  const news = crisisOn(), c = news.now || news.soon;
+  if ($('#crisis-chip').dataset.kind === 'war') openWar(); else if (c) say(crisisText(c).long);
+});
+
+/* ---------------- The Persian invasion (the server runs the war: part E of the cloud SQL) ---------------- */
+// Twice a month the Persians come, announced 3 days ahead. The war tax (15% of what you own; needs sign-in) is a bet on
+// Athens: back with 15% if it holds, less 15% if it falls. Athens's chance is the share of that week's players who paid,
+// at most 90%. Protection keeps your own things safe if Athens falls, and is spent either way. If it falls, players who
+// played in the week before lose what they did not protect: ships, workshop benches, crops in the ground, and their way
+// into the Gaming Hall. Purse, bank, bonds, and shares are never touched.
+let war = (() => { try { return JSON.parse(localStorage.getItem('mk-war')) || { wars: [] }; } catch (e) { return { wars: [] }; } })();
+const upcomingWar = () => war.wars.find((w) => !w.decided) || null;
+const lastWar = () => war.wars.find((w) => w.decided) || null;
+const warDay = (w) => { const [y, m, d] = w.attack_on.split('-').map(Number); return new Date(y, m - 1, d); };
+const whenText = (day) => { const n = Math.round((day - marketToday()) / 864e5); return n <= 1 ? 'tomorrow' : `on ${DAY_NAMES[day.getDay()]}`; };
+const warOdds = (w) => (w.players ? Math.min(90, Math.round((100 * Math.min(w.players, w.payers + (w.extras || 0))) / w.players)) : 0); // extra shares count, never past the players there are
+const aPct = (n) => `${/^(8|1[18](\D|$))/.test(String(n)) ? 'an' : 'a'} ${n}%`; // "an 8%", "an 80%", "an 11%", "a 70%"
+const oddsLine = (w) => `<b>${w.payers} of ${w.players}</b> ${w.players === 1 ? 'player' : 'players'} this week ${w.payers === 1 ? 'has' : 'have'} paid the war tax${w.extras ? `, and ${w.extras} paid an extra share` : ''}: ${aPct(warOdds(w)).replace(/(\d+%)/, '<b>$1</b>')} chance Athens holds.`;
+const warTax = () => Math.max(1, Math.round(WAR_TAX * netWorth()));
+async function loadWar() {
+  try {
+    const res = signedIn() ? await rpc('war_status') : await (await fetch(`${SUPABASE_URL}/rest/v1/rpc/war_status`, { method: 'POST', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' }, body: '{}' })).json();
+    if (!Array.isArray(res?.wars)) return;
+    war = res;
+    try { localStorage.setItem('mk-war', JSON.stringify(res)); } catch (e) { /* private mode */ }
+    showCrisis();
+    if ($('#war')?.open) renderWar();
+    await resolveWars();
+  } catch (e) { /* offline: keep what we had */ }
+}
+function protections() {
+  const now = Date.now();
+  const crops = farm.owned.reduce((t, i) => t + (farm.plots[i] ? cropPrice(cropById(farm.plots[i].crop)).price : 0), 0);
+  const benches = STATIONS.reduce((t, s) => t + (farm.works[s.id] ? s.cost : 0), 0);
+  const fleet = shipCount() * SHIP_PRICE + voyages().filter((v) => now < v.back).reduce((t, v) => t + v.stake, 0);
+  return [
+    { id: 'walls', name: 'Walls around your farm', guards: 'the crops in your fields', value: crops, none: 'You have nothing growing right now.', has: farm.owned.length > 0 },
+    { id: 'guards', name: 'Guards at your workshop', guards: 'your workshop benches and anything on them', value: benches, none: 'You have no workshop benches.', has: benches > 0 },
+    { id: 'harbor', name: 'A hidden harbor', guards: 'your ships, in port and at sea, and the coins aboard', value: fleet, none: 'You have no ships.', has: shipCount() > 0 },
+  ].map((x) => ({ ...x, price: PROTECT_PRICE[x.id] }));
+}
+function renderWar(note = '', tone = '') {
+  const w = upcomingWar(), last = lastWar(), body = $('#war-body');
+  if (!w) {
+    body.innerHTML = `<p class="ex-intro">No Persians in sight. They come twice a month, and word reaches Athens 3 days ahead.</p>${last ? `<p class="ex-when">Last time, on ${dateText(warDay(last))}, ${last.won ? 'Athens held' : 'Athens fell'}. ${last.payers} of ${last.players} players had paid the war tax${last.extras ? `, ${last.extras} with an extra share` : ''}, for ${aPct(Math.round(Number(last.chance) * 100))} chance.</p>` : ''}`;
+    return;
+  }
+  const day = warDay(w), mine = warBook.paid[w.id], tax = warTax(), prot = warBook.protect[w.id] || {};
+  body.innerHTML = `
+    <p class="ex-intro">The Persian fleet has been sighted off Euboea. It reaches Athens on <b>${DAY_NAMES[day.getDay()]}, ${dateText(day)}</b>, as that day begins in New York.</p>
+    <p class="war-odds">${oddsLine(w)}</p>
+    ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
+    <div class="ex-list">
+      <article class="ex-co${mine ? ' today' : ''}">
+        <div class="ex-top"><h3>The war tax</h3><span class="ex-day">15% of what you own</span></div>
+        <p class="ex-how">Pay it and you help Athens hold: the more players pay, the better the odds. If Athens holds, you get it back plus 15%. If it falls, you get back 85%. It counts toward what you own until then.</p>
+        <form class="ex-trade" data-war-tax>${mine ? `<span class="ex-own ex-up">You paid ${mine.toLocaleString()}. You get back ${Math.round(mine * 1.15).toLocaleString()} if Athens holds, or ${Math.round(mine * .85).toLocaleString()} if it falls.</span>${warBook.extra[w.id] ? `<span class="ex-own ex-up">You also paid an extra share of ${warBook.extra[w.id].toLocaleString()}: back in full if Athens holds, ${Math.round(warBook.extra[w.id] * .85).toLocaleString()} if it falls.</span>` : `<span class="ex-own">Want to do more? Pay one extra share of ${mine.toLocaleString()}. It counts as one more player paying, but earns nothing: you get it back in full if Athens holds, or 85% if it falls.</span><button type="button" class="btn btn-secondary btn-sm" data-war-extra>Pay an extra share</button>`}`
+          : !signedIn() ? '<span class="ex-own">The town counts every payment, so paying the war tax needs you to sign in with the Save button.</span>'
+          : `<span class="ex-own">Your tax: <b>${tax.toLocaleString()}</b> coins.</span><button type="submit" class="btn btn-primary btn-sm">Pay ${tax.toLocaleString()}</button>`}</form>
+      </article>
+      ${protections().map((x) => `<article class="ex-co${prot[x.id] ? ' today' : ''}">
+        <div class="ex-top"><h3>${x.name}</h3><span class="ex-day">${x.price.toLocaleString()} coins</span></div>
+        <p class="ex-how">If Athens falls, the Persians leave ${x.guards} alone. The cost is spent either way.</p>
+        <form class="ex-trade" data-protect="${x.id}">${prot[x.id] ? '<span class="ex-own ex-up">Protected.</span>' : x.has ? `<button type="submit" class="btn btn-secondary btn-sm">Protect for ${x.price.toLocaleString()}</button>` : `<span class="ex-own">${x.none}</span>`}</form>
+      </article>`).join('')}
+    </div>
+    <p class="ex-when">If Athens falls, anyone who played in the week before loses what they did not protect: ships at sea and in port, workshop benches, crops in the ground, and their way into the Gaming Hall (${HALL_FEE.toLocaleString()} coins to get back in, free for taxpayers). Your purse, bank, bonds, and shares are never touched.</p>`;
+  body.querySelector('[data-war-tax]')?.addEventListener('submit', (e) => { e.preventDefault(); payWarTax(w); });
+  body.querySelector('[data-war-extra]')?.addEventListener('click', () => payWarExtra(w));
+  body.querySelectorAll('[data-protect]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); buyProtection(w, f.dataset.protect); }));
+}
+async function payWarTax(w) {
+  const tax = warTax();
+  if (warBook.paid[w.id]) return renderWar();
+  if (wallet.coins < tax) return renderWar(`Your tax is ${tax.toLocaleString()} coins, and your purse has ${wallet.coins.toLocaleString()}. Take some out of the bank first.`);
+  renderWar('Sending your tax to the treasury\u2026');
+  try {
+    await syncNow(); // the treasury checks the tax against what your latest save says you own
+    const got = Number(await rpc('pay_war_tax', { p_war: w.id, p_amount: tax }));
+    wallet.coins = wallet.coins - got; warBook.paid[w.id] = got; saveWar();
+    await loadWar();
+    renderWar(`You paid ${got.toLocaleString()} coins. Athens thanks you.`, 'ok');
+  } catch (e) { renderWar(e.message === 'signed-out' ? 'Sign in with the Save button first.' : 'The treasury could not take it right now. Try again in a moment.'); }
+}
+async function payWarExtra(w) {
+  const amt = warBook.paid[w.id];
+  if (!amt || warBook.extra[w.id]) return renderWar();
+  if (wallet.coins < amt) return renderWar(`An extra share is ${amt.toLocaleString()} coins, and your purse has ${wallet.coins.toLocaleString()}.`);
+  try {
+    const got = Number(await rpc('pay_war_extra', { p_war: w.id }));
+    wallet.coins = wallet.coins - got; warBook.extra[w.id] = got; saveWar();
+    await loadWar();
+    renderWar(`You paid an extra share of ${got.toLocaleString()} coins. Athens's odds go up.`, 'ok');
+  } catch (e) { renderWar('The treasury could not take it right now. Try again in a moment.'); }
+}
+function buyProtection(w, id) {
+  const x = protections().find((p) => p.id === id), prot = (warBook.protect[w.id] ||= {});
+  if (!x || prot[id] || !x.has) return renderWar();
+  if (wallet.coins < x.price) return renderWar(`That costs ${x.price.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+  wallet.coins = wallet.coins - x.price; prot[id] = x.price; saveWar();
+  renderWar(`${x.name}: done. If Athens falls, the Persians leave ${x.guards} alone.`, 'ok');
+}
+function openWar() { renderWar(); openModal('#war'); loadWar(); }
+// After the battle: collect the tax, and if Athens fell, lose whatever was not protected (only if you played that week).
+const playedBefore = (attack) => { const t = SESSION_START < attack ? SESSION_START : PLAYED_BEFORE; return t >= attack - 7 * 864e5 && t < attack; };
+function applyLosses(w, attack, taxpayer) {
+  const prot = warBook.protect[w.id] || {}, lost = [];
+  if (!prot.harbor) {
+    const caught = (v) => { const rt = routeById(v.route); return !!rt && v.back > attack && v.back - rt.hours * 3600e3 < attack; }; // at sea when they came
+    const all = voyages(), atSea = all.filter(caught), ships = shipCount();
+    if (ships) { lsSet('hf-ships', 0); warBook.lostShips = ships; lost.push(ships === 2 ? 'both your ships' : 'your ship'); }
+    if (atSea.length) { saveVoyages(all.filter((v) => !caught(v))); lost.push(`the ${atSea.reduce((t, v) => t + v.stake, 0).toLocaleString()} coins aboard`); }
+  }
+  if (!prot.guards) {
+    const built = STATIONS.filter((s) => farm.works[s.id]);
+    if (built.length) { built.forEach((s) => delete farm.works[s.id]); warBook.lostBenches = [...new Set([...warBook.lostBenches, ...built.map((s) => s.id)])]; lost.push(listOf(built.map((s) => `your ${lower(s)}`))); }
+  }
+  if (!prot.walls) { const n = Object.keys(farm.plots).length; if (n) { farm.plots = {}; lost.push(`the crops in ${n === 1 ? 'your field' : `${n} fields`}`); } }
+  saveFarm();
+  if (!taxpayer) { warBook.hallClosed = true; lost.push(`your way into the Gaming Hall (${HALL_FEE.toLocaleString()} coins to get back in)`); }
+  return lost.length ? `They took ${listOf(lost)}. Your purse, bank, bonds, and shares are safe.` : 'Everything of yours was protected.';
+}
+const warNews = [];
+let resolving = false;
+async function resolveWars() {
+  if (resolving) return;
+  resolving = true;
+  try {
+    for (const w of war.wars.filter((x) => x.decided && !warBook.resolved.includes(x.id))) {
+      const attack = nyStart(warDay(w)), paid = warBook.paid[w.id], put = (paid || 0) + (warBook.extra[w.id] || 0), lines = [];
+      const tally = `${w.payers} of ${w.players} players paid the war tax${w.extras ? `, ${w.extras} with an extra share` : ''}, for ${aPct(Math.round(Number(w.chance) * 100))} chance.`;
+      lines.push(w.won ? `Salamis! The Athenian fleet turned the Persians back in the straits, as it did in 480 BC. ${tally}` : `The Persians reached Athens and burned the Acropolis, as they did in 480 BC. Only ${tally}`);
+      if (paid) {
+        if (!signedIn()) break; // collect once signed in again
+        const r = await rpc('claim_war', { p_war: w.id }).catch(() => null);
+        if (!r || r.waiting) break;
+        if (Number(r.payout)) { const got = Number(r.payout); wallet.coins = wallet.coins + got; lines.push(`Your war tax${warBook.extra[w.id] ? ' and extra share come' : ' comes'} back: ${got.toLocaleString()} coins, ${got >= put ? `${(got - put).toLocaleString()} more` : `${(put - got).toLocaleString()} less`} than you paid.`); }
+      }
+      if (!w.won) lines.push(playedBefore(attack) ? applyLosses(w, attack, !!paid) : 'You had not played that week, so the Persians found nothing of yours.');
+      warBook.resolved.push(w.id); warBook.resolved = warBook.resolved.slice(-12); saveWar();
+      warNews.push(lines);
+    }
+  } finally { resolving = false; }
+  showWarNews(); showCrisis();
+}
+function showWarNews() {
+  if (!warNews.length || $('#dlg').hidden === false || document.querySelector('dialog[open]')) return;
+  say(warNews.shift()).then(showWarNews);
+}
+showCrisis(); setInterval(showCrisis, 30e3);
+setTimeout(loadWar, 1500); setInterval(loadWar, 5 * 60e3); setInterval(showWarNews, 5e3);
+
+/* ---------------- The harbor order board ---------------- */
+// The orders on the board (see ordersAt in economy.js). Bring everything an order asks for in your basket and it pays on
+// the spot, 50% more than Demetrios would pay. Each order can be filled once.
+const orderBook = Object.assign({ filled: [] }, lsGet('hf-orders', {}));
+const saveOrderBook = () => { orderBook.filled = orderBook.filled.slice(-12); lsSet('hf-orders', orderBook); };
+const canFill = (o) => !orderBook.filled.includes(o.id) && o.items.every((x) => (farm.basket[x.id] || 0) >= x.n);
+function renderOrders(note = '', tone = '') {
+  const { orders, nextIn } = ordersAt(), body = $('#ord-body');
+  if (!orders.length) { body.innerHTML = '<p class="ex-note">The harbor master has not posted today\u2019s orders yet. Give it a moment.</p>'; loadSeeds().then(() => { if ($('#orders').open && ordersAt().orders.length) renderOrders(); }); return; }
+  body.innerHTML = `
+    <p class="ex-intro">Merchants post orders here for two or three kinds of goods at once. Bring the whole order in your basket and they pay you on the spot, 50% more than Demetrios would pay. A new order goes up every 12 hours, at midnight and noon New York time. Each stays up long enough to grow and make its slowest item from seed, so start right away, or keep a stock. Orders often want the same things, so choose.</p>
+    <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>${basketLine()}</span></p>
+    ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
+    <div class="ex-list">${orders.map((o) => {
+      const done = orderBook.filled.includes(o.id), ready = canFill(o);
+      const items = o.items.map((x) => { const c = produceById(x.id), have = farm.basket[x.id] || 0; return `<li class="${have >= x.n ? 'ex-up' : ''}">${cropCount(c, x.n)} <span class="ord-have">(you have ${have})</span></li>`; }).join('');
+      return `<article class="ex-co${ready ? ' today' : ''}">
+        <div class="ex-top"><h3>${o.buyer}</h3><span class="ex-day">${done ? 'Filled' : `Removed in ${about(o.hoursLeft * 3600e3)}`}</span></div>
+        <ul class="ord-items">${items}</ul>
+        <form class="ex-trade" data-order="${o.id}"><span class="ex-own">Pays <b>${o.pay.toLocaleString()}</b> coins. Demetrios would pay ${o.value.toLocaleString()}.</span>
+          ${done ? '<span class="ex-own ex-up">You filled this one.</span>' : `<button type="submit" class="btn btn-primary btn-sm"${ready ? '' : ' disabled'}>Fill order</button>`}</form>
+      </article>`;
+    }).join('')}</div>
+    <p class="ex-when">The next order goes up in ${about(nextIn * 3600e3)}.</p>`;
+  body.querySelectorAll('form[data-order]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); fillOrder(f.dataset.order); }));
+}
+function fillOrder(id) {
+  const o = ordersAt().orders.find((x) => x.id === id);
+  if (!o) return renderOrders('That order has been removed from the board.');
+  if (!canFill(o)) return renderOrders('You need everything on the order in your basket first.');
+  o.items.forEach((x) => { farm.basket[x.id] -= x.n; if (!farm.basket[x.id]) delete farm.basket[x.id]; }); saveFarm();
+  orderBook.filled.push(o.id); saveOrderBook();
+  const n = earn(o.pay, '', Infinity);
+  bumpRecord('orders', (t = 0) => t + 1);
+  renderOrders(`${o.buyer.split(',')[0]} pays you ${n.toLocaleString()} coins.`, 'ok');
+}
+function openOrders() { renderOrders(); openModal('#orders'); }
+
 /* ---------------- The workshop: one building, one panel. Each bench turns a crop into goods worth about twice as much ---------------- */
 const benchStart = (s, w) => w.start || w.done - s.hours * 3600e3;
+const benchPrice = (s) => Math.round(s.cost * (warBook.lostBenches.includes(s.id) && hasPerk('silver') ? .5 : 1)); // rebuilding after the Persians
 function renderWorkshop(note = '', tone = '') {
   const now = Date.now();
   $('#ws-body').innerHTML = `
@@ -1524,7 +2073,7 @@ function renderWorkshop(note = '', tone = '') {
     <div class="ex-list">${STATIONS.map((s) => {
       const from = produceById(s.from), good = produceById(s.makes), w = farm.works[s.id], state = stationState(s.id, now), have = farm.basket[from.id] || 0;
       let action;
-      if (state === 'unbuilt') action = `<span class="ex-own">Setting up this bench costs <b>${s.cost.toLocaleString()}</b> coins, once.</span><button type="button" class="btn btn-primary btn-sm" data-build="${s.id}">Set up for ${s.cost.toLocaleString()}</button>`;
+      if (state === 'unbuilt') action = `<span class="ex-own">${warBook.lostBenches.includes(s.id) ? 'The Persians burned this bench. Rebuilding' : 'Setting up this bench'} costs <b>${benchPrice(s).toLocaleString()}</b> coins, once${benchPrice(s) < s.cost ? ' (half price for a Laurion Silver owner)' : ''}.</span><button type="button" class="btn btn-primary btn-sm" data-build="${s.id}">Set up for ${benchPrice(s).toLocaleString()}</button>`;
       else if (state === 'idle' && !have) action = `<span class="ex-own">No ${lower(from)} in your basket. Grow some on the farm.</span>`;
       else if (state === 'idle') action = `<span class="ex-own">You have <b>${cropCount(from, have)}</b>.</span><input type="text" inputmode="numeric" autocomplete="off" value="${Math.min(have, BATCH_MAX)}" aria-label="How many ${from.many} to use"><button type="submit" class="btn btn-primary btn-sm">${s.verb[0].toUpperCase() + s.verb.slice(1)}</button>`;
       else if (state === 'working') {
@@ -1559,8 +2108,8 @@ $('#ws-body')?.addEventListener('click', (e) => {
   if (build) {
     const s = STATIONS.find((x) => x.id === build.dataset.build);
     if (farm.works[s.id]) return renderWorkshop();
-    if (wallet.coins < s.cost) return renderWorkshop(`The ${lower(s)} costs ${s.cost.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
-    wallet.coins = wallet.coins - s.cost; farm.works[s.id] = { n: 0, done: 0 }; saveFarm();
+    if (wallet.coins < benchPrice(s)) return renderWorkshop(`The ${lower(s)} costs ${benchPrice(s).toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+    wallet.coins = wallet.coins - benchPrice(s); farm.works[s.id] = { n: 0, done: 0 }; warBook.lostBenches = warBook.lostBenches.filter((id) => id !== s.id); saveWar(); saveFarm();
     return renderWorkshop(`Your ${lower(s)} is set up and ready to use.`, 'ok');
   }
   if (collect) {
@@ -1586,14 +2135,80 @@ $('#ws-body')?.addEventListener('submit', (e) => {
 INTERACT.workshop = openWorkshop;
 
 // Thales reads the signs: the next company to report, and whether it will beat or miss what the market expects.
-function thalesHint(today = new Date()) {
+/* ---------------- Courses at Plato's Academy ---------------- */
+// One course at a time. Each takes days of study and unlocks something new in Athens for good, rather than another
+// boost. Course 18 comes first: "Let no one ignorant of geometry enter." Tuition is spent, like an outfit.
+const COURSES = [
+  { id: '18', name: 'Course 18: Mathematics', tuition: 1500, hours: 18, about: 'Probability, the way Plato likes it: proved, not guessed.', unlocks: 'At the blackjack table, see your chance of going bust before you hit.' },
+  { id: '12', name: 'Course 12: Earth and Planetary Sciences', tuition: 4500, hours: 72, about: 'Winds, currents, and the stars sailors steer by.', unlocks: `A new voyage to Syracuse: ${SYRACUSE.hours} hours, +${SYRACUSE.gain * 100}% profit, a ${SYRACUSE.risk * 100}% chance of sinking.` },
+  { id: '7', name: 'Course 7: Biology', tuition: 4500, hours: 72, about: 'Plants, pollen, and the bees that carry it.', unlocks: 'Beehives down the east edge of the farm. Each makes a jar of honey every 12 hours, and Demetrios buys honey.' },
+  { id: '15', name: 'Course 15: Management', tuition: 7500, hours: 144, about: 'Markets, risk, and the other side of a trade.', unlocks: 'Short selling on the Exchange: profit when a company\u2019s price falls.' },
+];
+const courseById = (id) => COURSES.find((c) => c.id === id);
+const studies = Object.assign({ done: [], current: null }, lsGet('hf-courses', {}));
+const saveStudies = () => lsSet('hf-courses', studies);
+function finishStudies(now = Date.now()) {
+  const c = studies.current;
+  if (!c || c.done > now) return null;
+  studies.done.push(c.id); studies.current = null; saveStudies();
+  return courseById(c.id);
+}
+const courseDone = (id) => { finishStudies(); return studies.done.includes(id); };
+function renderAcademy(note = '', tone = '') {
+  const now = Date.now(); finishStudies(now);
+  const cur = studies.current;
+  $('#acad-body').innerHTML = `
+    <p class="ex-intro">Plato teaches one course at a time. Each takes days of study, and each opens up something new in Athens for good. Tuition is paid up front. Course 18 comes first, as the sign over the door says.</p>
+    <p class="ex-summary"><span><span class="coin" aria-hidden="true"></span><b>${wallet.coins.toLocaleString()}</b> coins in your purse</span><span>${studies.done.length ? `Your transcript: ${listOf(studies.done.map((id) => `Course ${id}`))}` : 'No courses finished yet.'}</span></p>
+    ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
+    <div class="ex-list">${COURSES.map((c) => {
+      const done = studies.done.includes(c.id), studying = cur?.id === c.id;
+      let action;
+      if (done) action = '<span class="ex-own ex-up">Completed.</span>';
+      else if (studying) { const pct = Math.min(100, Math.round(((now - cur.start) / (cur.done - cur.start)) * 100)); action = `<div class="ws-progress" data-start="${cur.start}" data-done="${cur.done}"><div class="ws-bar" role="progressbar" aria-label="${c.name}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div><span class="ex-own">Studying. You finish in about <b class="ws-left">${about(cur.done - now)}</b>.</span></div>`; }
+      else if (c.id !== '18' && !studies.done.includes('18')) action = '<span class="ex-own">Take Course 18 first.</span>';
+      else if (cur) action = `<span class="ex-own">Finish ${courseById(cur.id).name.split(':')[0]} first.</span>`;
+      else action = `<button type="submit" class="btn btn-primary btn-sm">Enroll for ${c.tuition.toLocaleString()}</button>`;
+      return `<article class="ex-co${studying ? ' today' : ''}">
+        <div class="ex-top"><h3>${c.name}</h3><span class="ex-day">${c.tuition.toLocaleString()} coins, ${hoursText(c.hours)}</span></div>
+        <p class="ex-how">${c.about}</p>
+        <p class="ex-perk"><b>Unlocks:</b> ${c.unlocks}</p>
+        <form class="ex-trade" data-course="${c.id}">${action}</form>
+      </article>`;
+    }).join('')}</div>`;
+  $('#acad-body').querySelectorAll('form[data-course]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); enroll(f.dataset.course); }));
+}
+function enroll(id) {
+  const c = courseById(id), now = Date.now();
+  if (!c || studies.current || studies.done.includes(id) || (id !== '18' && !studies.done.includes('18'))) return renderAcademy();
+  if (wallet.coins < c.tuition) return renderAcademy(`Tuition for ${c.name} is ${c.tuition.toLocaleString()} coins, and you have ${wallet.coins.toLocaleString()}.`);
+  wallet.coins = wallet.coins - c.tuition;
+  studies.current = { id, start: now, done: now + c.hours * 3600e3 }; saveStudies();
+  renderAcademy(`You enroll in ${c.name}. Plato hands you a reading list. You finish in ${hoursText(c.hours)}, whether or not the game is open.`, 'ok');
+}
+let acadTimer = null;
+function openAcademy() {
+  renderAcademy(); openModal('#academy');
+  clearInterval(acadTimer);
+  acadTimer = setInterval(() => {
+    if (!$('#academy').open) return clearInterval(acadTimer);
+    const now = Date.now(), el = $('#acad-body .ws-progress');
+    if (!el) return;
+    const start = +el.dataset.start, done = +el.dataset.done;
+    if (now >= done) return renderAcademy(`You finished ${courseById(studies.current?.id)?.name || 'your course'}.`, 'ok');
+    const pct = Math.min(100, Math.round(((now - start) / (done - start)) * 100));
+    el.querySelector('.ws-bar span').style.width = `${pct}%`; el.querySelector('.ws-left').textContent = about(done - now);
+  }, 1000);
+}
+
+// Thales reads the week's news so far for the next company to report. He cannot see the future (nobody can: each day's
+// luck comes from the server that day), so his hint is a strong lean, not a promise. He is right about 9 times in 10.
+function thalesHint(today = marketToday()) {
   const m = market(today);
   const next = COMPANIES.map((c) => ({ c, ...nextReport(c, m, today) })).sort((a, b) => a.days - b.days)[0];
-  const r = market(next.date).companies[next.c.id].at(-1).report;
-  market(today); // put today's market back in the cache
-  const when = next.days === 1 ? 'tomorrow' : `on ${DAY_NAMES[next.date.getDay()]}`;
-  if (!r) return 'The signs are unclear this week. Ask again tomorrow.';
-  return `${next.c.name} reports ${when}. Thales expects the profit to come in ${r.surprise >= 0 ? 'above' : 'below'} what the market expects. Prices usually follow a report like that, but not always.`;
+  const lean = outlook(next.c, m, next.date), when = next.days === 1 ? 'tomorrow' : `on ${DAY_NAMES[next.date.getDay()]}`;
+  if (Math.abs(lean) < .03) return `${next.c.name} reports ${when}. This week\u2019s news is mixed, so Thales would not bet either way.`;
+  return `${next.c.name} reports ${when}. This week\u2019s news points to a profit ${lean > 0 ? 'above' : 'below'} what the market expects, and the price has only taken in part of it. News before the report, and plain luck, can still change it.`;
 }
 const canHire = (s, now = Date.now()) => scholars[s.id]?.day !== dayKey() && !helping(s.id, now) && !(s.id === 'pytheas' && scholars.pytheas?.ready);
 function renderLibrary(note = '', tone = '') {
@@ -1663,10 +2278,18 @@ function checkIn() {
   }
   // the harbor, the bank, the incubator
   for (const v of voyages()) {
-    const rt = ROUTES.find((x) => x.id === v.route);
+    const rt = routeById(v.route);
     if (rt && v.back <= now) readyNow.push(`Your ship from ${rt.name} is home.`); else if (rt) later.push([v.back - now, `Your ship from ${rt.name}`]);
   }
   if (bonds.some((b) => b.due <= now)) readyNow.push('A city bond has matured. The banker has your coins.');
+  const news = crisisOn();
+  if (news.now || news.soon) readyNow.unshift(crisisText(news.now || news.soon).short + '.');
+  const coming = upcomingWar();
+  if (coming) readyNow.unshift(`The Persians reach Athens ${whenText(warDay(coming))}. ${warOdds(coming)}% chance Athens holds so far${warBook.paid[coming.id] ? '. You paid your war tax' : '. You have not paid the war tax'}.`);
+  if (warBook.hallClosed) readyNow.push('The Gaming Hall is still a burned shell for you.');
+  if (ordersAt().orders.some(canFill)) readyNow.push('You have everything for an order on the harbor board.');
+  if (hives().some((h) => jarsIn(h, now) > 0)) readyNow.push(hives().some((h) => jarsIn(h, now) >= HIVE_HOLDS) ? 'One of your beehives is full of honey.' : 'Your bees have honey ready.');
+  if (studies.current) later.push([studies.current.done - now, `Your ${courseById(studies.current.id).name.split(':')[0]} at the Academy`]);
   if (lsGet('hf-machine-key', false) && Object.values(lsGet('hf-errands', {})).some((e) => e?.back <= now)) readyNow.push('Your hatchlings are back from their errands. They are waiting in the Machine Room.');
   const soon = later.sort((a, b) => a[0] - b[0]).slice(0, 4).map(([ms, name]) => `${name}: in ${about(ms)}`);
   return ['Socrates here. People say I ask too many questions, so today I will answer one: what is waiting for you?',
@@ -1689,8 +2312,8 @@ const race = createRace({
     if (wallet.coins < RACE_STAKE) return { staked: false, text: `This race is for glory. You need ${RACE_STAKE} coins to race him for money.` };
     return { staked: true, text: `Stakes: ${RACE_STAKE} coins. Win and he pays you; lose and you pay him.` };
   },
-  onFinish({ won, staked }) {
-    if (won) { HF().confetti(); HF().foundEgg('stadion'); }
+  onFinish({ won, staked, time, react }) {
+    if (won) { HF().confetti(); HF().foundEgg('stadion'); recordBest('lapTimes', { t: Math.round(time * 100) / 100, react: Math.round((react ?? 0) * 1000) / 1000 }); }
     if (!staked) return won ? '<p class="race-prize">You win! Nothing was riding on it, but the crowd saw everything.</p>' : '<p>He does this every day. Line up again whenever you like.</p>';
     if (won) {
       used('stadion');
@@ -1750,6 +2373,13 @@ function newShoe() {
   for (let i = bj.shoe.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bj.shoe[i], bj.shoe[j]] = [bj.shoe[j], bj.shoe[i]]; }
 }
 function draw(faceDown = false) { if (bj.shoe.length < 52) newShoe(); return { ...bj.shoe.pop(), down: faceDown, fresh: true }; }
+// Course 18: the chance one more card busts this hand, counting every rank as equally likely (no card counting).
+function bustChance(cards) {
+  let hard = 0, aces = 0;
+  for (const c of cards) { if (c.r === 'A') { aces++; hard += 1; } else hard += ['J', 'Q', 'K'].includes(c.r) ? 10 : Number(c.r); }
+  if (aces && hard + 10 <= 21) return 0; // a soft hand: the ace can drop to 1
+  return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10].filter((v) => v > 21 - hard).length / 13;
+}
 function total(cards) {
   let t = 0, aces = 0;
   for (const c of cards) { if (c.down) continue; if (c.r === 'A') { aces++; t += 11; } else t += ['J', 'Q', 'K'].includes(c.r) ? 10 : Number(c.r); }
@@ -1816,6 +2446,9 @@ function bjRender() {
   $('#bj-double').disabled = !canDouble();
   $('#bj-split').disabled = !canSplit();
   $('#bj-broke').hidden = !(betting && wallet.coins === 0 && bj.bet === 0);
+  const odds = $('#bj-odds'), h = current();
+  odds.hidden = !(h && courseDone('18'));
+  if (!odds.hidden) { const p = Math.round(bustChance(h.cards) * 100); odds.textContent = p ? `If you hit: ${aPct(p)} chance of going bust.` : 'If you hit: you cannot go bust.'; }
 }
 function revealDealer() { bj.dealer.forEach((c) => { if (c.down) { c.down = false; c.fresh = true; } }); }
 // Pays every hand, then writes one line about the round.

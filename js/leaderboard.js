@@ -9,7 +9,8 @@ export const leaderboardReady = () => !!(SUPABASE_URL && SUPABASE_KEY);
 const headers = () => ({ apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' });
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } };
-export const thisMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+// The board's months keep New York time, like the game's server.
+export const thisMonth = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit' }).format(new Date()).slice(0, 7);
 const randomHex = (bytes) => [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
 const rpc = (name, body) => fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, { method: 'POST', headers: headers(), body: JSON.stringify(body) });
 
@@ -56,12 +57,12 @@ export async function submit({ net, bjTotal }, force = false) {
   } catch (e) { return false; }
 }
 
-// The top ten for one board: 'net' (richest) or 'bj' (blackjack profit), for this month or all time.
-// `mine` is the signed-in player's initials, so their row can be marked.
+// The top ten for one board: 'net' (richest), 'bj' (blackjack profit), or the fastest 'ms' (Minesweeper) and 'lap' (stadion)
+// times, lowest first, for this month or all time. `mine` is the signed-in player's initials, so their row can be marked.
 export async function top(board, period, mine = null) {
-  const col = board === 'net' ? 'net_worth' : 'bj_profit';
+  const col = { net: 'net_worth', bj: 'bj_profit', ms: 'ms_best', lap: 'lap_best' }[board], fastest = board === 'ms' || board === 'lap';
   const month = period === 'all' ? 'all' : thisMonth();
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=player_id,initials,${col}&month=eq.${month}&order=${col}.desc&limit=10`, { headers: headers() });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=player_id,initials,${col}&month=eq.${month}${fastest ? `&${col}=not.is.null&order=${col}.asc` : `&order=${col}.desc`}&limit=10`, { headers: headers() });
   if (!r.ok) throw new Error(`leaderboard ${r.status}`);
   return (await r.json()).map((row) => ({ me: mine ? row.initials === mine : row.player_id === player()?.id, initials: row.initials, value: row[col] }));
 }

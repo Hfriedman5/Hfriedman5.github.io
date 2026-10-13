@@ -15,7 +15,7 @@
 <meta name="theme-color" content="#0b1424" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/pixelify.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=20261012k">
+<link rel="stylesheet" href="style.css?v=20261013b">
 <script>try { const r = document.documentElement; if (localStorage.getItem('hf-hannah-mode') === '1') r.classList.add('hannah-mode'); } catch (e) {}</script>
 </head>
 <body class="play-page">
@@ -100,6 +100,7 @@
         <svg class="dlg-more icon" id="dlg-more" aria-hidden="true"><use href="#i-caret-down"/></svg>
       </div>
       <div class="place" id="place" aria-hidden="true"></div>
+      <button type="button" class="crisis-chip" id="crisis-chip" hidden></button>
       <div class="hud">
         <button type="button" class="hud-btn" id="backup-btn" aria-label="Save your game"><svg class="icon" aria-hidden="true"><use href="#i-cloud"/></svg><span class="hud-label">Save</span></button>
         <button type="button" class="hud-btn" id="map-btn" aria-keyshortcuts="M"><svg class="icon" aria-hidden="true"><use href="#i-map-trifold"/></svg>Map</button>
@@ -230,6 +231,7 @@
         <button type="button" class="chip chip-all" data-chip="all">All in</button>
         <button type="button" class="btn btn-ghost btn-sm" id="bj-clear">Clear</button>
       </div>
+      <p class="bj-odds" id="bj-odds" hidden></p>
       <div class="bj-actions">
         <button type="button" class="btn btn-primary btn-sm" id="bj-deal">Deal</button>
         <button type="button" class="btn btn-secondary btn-sm" id="bj-hit">Hit</button>
@@ -252,12 +254,35 @@
   <div class="modal-body" id="board-body"></div>
 </dialog>
 
+<dialog class="modal" id="news" aria-labelledby="news-h">
+  <div class="modal-head">
+    <h2 id="news-h">What’s new in Little Athens</h2>
+    <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="modal-body">
+    <p class="ex-intro">A big update. Here is what changed:</p>
+    <ul class="news-list">
+      <li><b>A livelier Exchange.</b> Prices now move four times a day: at midnight, 6am, noon, and 6pm New York time. The Exchange closes on Saturdays.</li>
+      <li><b>Owner perks.</b> Hold enough shares of a company for a week and you get a perk elsewhere in town, like bigger ships, better prices, or bonds that pay 30%.</li>
+      <li><b>The harbor order board.</b> Merchants post orders for several goods at once and pay 50% more than Demetrios. A new order goes up every 12 hours.</li>
+      <li><b>Philon, the farmhand.</b> Hire him through Demetrios. He harvests and replants every 6 hours, and waters too for a little more.</li>
+      <li><b>Courses at Plato’s Academy.</b> Four courses, one at a time, each opening something new: blackjack odds, a voyage to Syracuse, beehives, and short selling.</li>
+      <li><b>Crises.</b> About once a week: pirates, a dock strike, pests, or a drought. A notice in the corner of the game says what is happening. You can also insure any voyage now.</li>
+      <li><b>The Persian invasion.</b> Twice a month, with 3 days’ warning. Pay the war tax to raise Athens’s odds, and protect your belongings in case it falls.</li>
+      <li><b>Two new leaderboards.</b> Fastest Minesweeper and fastest stadion lap.</li>
+    </ul>
+    <p class="ex-when">You can find this again under the ? button.</p>
+    <button type="button" class="btn btn-primary btn-sm" data-close autofocus>Got it</button>
+  </div>
+</dialog>
+
 <dialog class="modal" id="help" aria-labelledby="help-h">
   <div class="modal-head">
     <h2 id="help-h">What to do in Little Athens</h2>
     <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
   </div>
   <div class="modal-body help-body">
+    <p class="help-new"><button type="button" class="lb-link" data-open-news>See what’s new in the latest update</button></p>
     <dl>
       <dt>Earn coins</dt>
       <dd>Pick olives, pet the cat, answer Plato's questions, race the runner at the Stadium, clear the Minesweeper board, and do the daily job on the request board. Hatchlings from the Machine Room can run errands for coins too.</dd>
@@ -266,9 +291,15 @@
       <dt>Workshop</dt>
       <dd>Set up an oven, a wine press, and an olive press in the workshop building on the farm. Bread, wine, and olive oil sell for about twice as much as the crops they come from. Demetrios buys everything, at prices that change every day.</dd>
       <dt>Bank</dt>
-      <dd>A savings account that grows every day, city bonds that pay 25% after 30 days, and the Athenian Exchange, where you buy shares in town businesses. Ask the banker for "Your money" to see everything you own.</dd>
+      <dd>A savings account that grows every day, city bonds that pay 25% after 30 days, and the Athenian Exchange, where you buy shares in town businesses. The Exchange keeps New York time and closes on Saturdays. Hold enough shares of a company for a week and you get its owner perk, like bigger ships or better prices. Ask the banker for "Your money" to see everything you own.</dd>
       <dt>Voyages</dt>
       <dd>The captain on the beach takes coins on trading voyages, with a new sea report every day. Buy a second ship to send two at once.</dd>
+      <dt>Academy</dt>
+      <dd>Plato teaches courses, one at a time, each taking days of study: Course 18 (Mathematics) first, then Earth and Planetary Sciences, Biology, and Management. Each unlocks something new for good: blackjack odds, a voyage to Syracuse, beehives, and short selling.</dd>
+      <dt>Crises</dt>
+      <dd>About once a week something goes wrong in Athens, the same for everyone: pirates on a route, a dock strike, pests on a crop, or a drought. A notice in the corner of the game says what it is and what it changes. Each one has a way to pay your way through it, and a way to profit. You can also insure any voyage with the captain.</dd>
+      <dt>The Persian invasion</dt>
+      <dd>Twice a month the Persians come, announced 3 days ahead in the corner of the game. Pay the war tax (15% of what you own, signed in): Athens's chance of holding is the share of that week's players who paid, up to 90%, and taxpayers get their tax back with 15% if it holds, or less 15% if it falls. Taxpayers can also pay one extra share, which counts as one more player paying but earns nothing. Buy protection for your belongings too. If Athens falls, players who played that week lose what they did not protect: ships, workshop benches, crops, and their way into the Gaming Hall. Your purse, bank, bonds, and shares are never touched.</dd>
       <dt>Library</dt>
       <dd>Four scholars, each for hire once a day: Theophrastus (crops grow twice as fast for 24 hours), Pasion (no Exchange fees for 24 hours), Pytheas (your next voyage is half as likely to sink), and Thales (a hint about the next company report).</dd>
       <dt>Try your luck</dt>
@@ -323,6 +354,38 @@
     <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
   </div>
   <div class="modal-body" id="ws-body"></div>
+</dialog>
+
+<dialog class="modal modal-wide" id="war" aria-labelledby="war-h">
+  <div class="modal-head">
+    <h2 id="war-h">The Persian invasion</h2>
+    <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="modal-body" id="war-body"></div>
+</dialog>
+
+<dialog class="modal modal-wide" id="academy" aria-labelledby="acad-h">
+  <div class="modal-head">
+    <h2 id="acad-h">Plato’s Academy</h2>
+    <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="modal-body" id="acad-body"></div>
+</dialog>
+
+<dialog class="modal modal-wide" id="farmhand" aria-labelledby="fh-h">
+  <div class="modal-head">
+    <h2 id="fh-h">Philon, farmhand</h2>
+    <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="modal-body" id="fh-body"></div>
+</dialog>
+
+<dialog class="modal modal-wide" id="orders" aria-labelledby="ord-h">
+  <div class="modal-head">
+    <h2 id="ord-h">Harbor order board</h2>
+    <button class="btn btn-ghost" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="modal-body" id="ord-body"></div>
 </dialog>
 
 <dialog class="modal modal-wide" id="shop" aria-labelledby="shop-h">
@@ -388,7 +451,7 @@
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="script.js?v=20261012k" defer></script>
-<script type="module" src="js/play.js?v=20261012k"></script>
+<script src="script.js?v=20261013b" defer></script>
+<script type="module" src="js/play.js?v=20261013b"></script>
 </body>
 </html>
