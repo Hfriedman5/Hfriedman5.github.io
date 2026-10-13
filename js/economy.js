@@ -276,6 +276,7 @@ export function cropPrice(crop, date = new Date()) {
 // Now and then something goes wrong in Athens, the same for everyone: pirates on one route, a strike at the docks, pests
 // on one crop, or a drought. At most one at a time, about once a week. Each comes from its
 // day's number from the server, so nobody knows before that day; a drought is announced the day before it starts.
+// Saturdays are always calm: nothing starts, is announced, or lasts on a Saturday (the Exchange rests then too).
 export const CRISES = {
   pirates: { name: 'Pirates', days: 2 },
   strike: { name: 'Dock strike', days: 1 },
@@ -295,12 +296,15 @@ export function crisisOn(day = marketToday()) {
   for (let d = new Date(FAIR_FROM); d <= day; d = addDays(d, 1)) {
     const tag = dayTag(d);
     if (!tag) break; // that day's number has not arrived: nothing new can start
-    if (d < busyUntil) continue;
+    if (d < busyUntil || d.getDay() === 6) continue;
     if (seeded(`${tag}:crisis`) >= CRISIS_ODDS) continue;
     const types = Object.keys(CRISES), type = types[Math.floor(seeded(`${tag}:crisis:type`) * types.length)], def = CRISES[type];
     const r = seeded(`${tag}:crisis:target`);
     const target = type === 'pirates' ? ROUTES[Math.floor(r * ROUTES.length)].id : type === 'pests' ? PEST_CROPS[Math.floor(r * PEST_CROPS.length)] : null;
-    const start = addDays(d, def.warn || 0), len = def.upTo ? def.days + Math.floor(seeded(`${tag}:crisis:len`) * (def.upTo - def.days + 1)) : def.days;
+    const start = addDays(d, def.warn || 0);
+    if (start.getDay() === 6) continue; // a drought announced on a Friday would start on a Saturday: no drought
+    let len = def.upTo ? def.days + Math.floor(seeded(`${tag}:crisis:len`) * (def.upTo - def.days + 1)) : def.days;
+    for (let i = 1; i < len; i++) if (addDays(start, i).getDay() === 6) { len = i; break; } // it ends on the Friday
     last = { id: dayKeyOf(d), type, target, announced: new Date(d), start, end: addDays(start, len) };
     last.from = nyStart(last.start); last.to = nyStart(last.end); // as moments, for growing crops
     all.push(last); busyUntil = last.end;

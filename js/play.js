@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261013b';
-import { createRace } from './race.js?v=20261013b';
-import { createWeather, currentWeather } from './weather.js?v=20261013b';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261013b';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261013b';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261013b';
-import { checkSeal, guardedSet } from './seal.js?v=20261013b';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261013d';
+import { createRace } from './race.js?v=20261013d';
+import { createWeather, currentWeather } from './weather.js?v=20261013d';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261013d';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261013d';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261013d';
+import { checkSeal, guardedSet } from './seal.js?v=20261013d';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261013b';
+import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261013d';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;

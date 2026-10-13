@@ -70,7 +70,6 @@ export const MAP_PLACES = [
   { id: 'farm', name: 'The farm', desc: 'Buy a plot, plant seeds, and sell what you grow.', at: [41.5, 1.4], go: [37, 13, 'up'] },
   { id: 'workshop', name: 'The workshop', desc: 'Turn crops into bread, wine, and olive oil.', at: [43, 14.6], go: [42, 19, 'up'] },
   { id: 'shore', name: 'The Aegean Sea', desc: 'Sand, sea, and a captain with ships for hire.', at: [18, 22.6], go: [18, 21, 'down'] },
-  { id: 'orders', name: 'Harbor order board', desc: 'Merchants pay 50% more than Demetrios for goods, if you bring the whole order.', at: [26.5, 22.6], go: [26, 20, 'down'] },
 ];
 export const STALL = { x: 22, y: 11, w: 3, h: 1 };
 // The farm, east of town: Demetrios' stall at the entrance, twelve plots for sale, and a well.
@@ -93,8 +92,7 @@ export const SIGNS = [
   { x: 12, y: 12, board: true, text: 'Town request board.' },
   { x: 39, y: 12, farm: true, text: 'The farm.\nWalk up to a plot to buy it. Demetrios sells seeds and buys whatever you grow.' },
   { x: 38, y: 15, text: 'The workshop.\nTurn your harvest into bread, wine, and olive oil, which sell for more than the crops do. The door faces the sea.' },
-  { x: 14, y: 21, text: 'The Aegean Sea.\nHomer called it wine-dark. It looks blue to you.' },
-  { x: 26, y: 21, orders: true, text: 'Harbor order board.' },
+  { x: 14, y: 21, orders: true, text: 'Harbor order board.' }, // on the sand by the dock
 ];
 
 export const NPCS = [
@@ -232,10 +230,35 @@ function paintSign(c, ox, oy, tx, ty, grid) {
     [5, 6].forEach((y) => px(c, ox + 4, oy + y, 2, 1, P.sign2)); px(c, ox + 9, oy + 4, 3, 1, P.sign2);
     return;
   }
+  const special = SIGNS.find((s) => s.x === tx && s.y === ty);
+  if (special?.orders) return paintOrderBoard(c, ox, oy);
+  if (special?.farm) return paintFarmBoard(c, ox, oy);
+  paintPost(c, ox, oy);
+}
+// A plain signpost: a cream board on a post.
+function paintPost(c, ox, oy) {
   px(c, ox + 4, oy + 2, 8, 13, P.sign2);
   px(c, ox + 5, oy + 3, 6, 11, P.sign);
   px(c, ox + 4, oy + 1, 8, 2, P.sign2);
   [5, 7, 9].forEach((y) => px(c, ox + 6, oy + y, 4, 1, P.sign2));
+}
+// The harbor order board on the dock: a notice board under a blue tiled roof, a red pennant on top, and order slips.
+// It stands taller than a signpost (its roof and pennant reach into the square above) so it reads as special.
+function paintOrderBoard(c, ox, oy) {
+  px(c, ox + 2, oy + 8, 2, 7, P.trunk); px(c, ox + 12, oy + 8, 2, 7, P.trunk);
+  px(c, ox + 1, oy - 1, 14, 11, P.door2); px(c, ox + 2, oy, 12, 9, '#c9a46a');
+  [[3, 1, 4, 4, '#3d6fa8'], [8, 1, 5, 3, P.flowerR], [5, 5, 5, 3, '#3f8f4a']].forEach(([x, y, w, h, top]) => { px(c, ox + x, oy + y, w, h, P.flowerW); px(c, ox + x, oy + y, w, 1, top); px(c, ox + x + 1, oy + y + 2, w - 2, 1, P.sign2); });
+  for (let i = 0; i < 5; i++) px(c, ox + 4 - i, oy - 6 + i, 8 + 2 * i, 1, i % 2 ? P.roofB2 : P.roofB);
+  px(c, ox + 7, oy - 11, 1, 5, P.trunk);
+  px(c, ox + 8, oy - 11, 4, 1, P.flowerR); px(c, ox + 8, oy - 10, 3, 1, P.flowerR); px(c, ox + 8, oy - 9, 1, 1, P.flowerR);
+}
+// The farm sign by Demetrios: a green chalkboard on an easel, with a gold wheat sheaf and chalk lines (it lists your farm).
+function paintFarmBoard(c, ox, oy) {
+  const chalk = '#e8efe6', gold = '#e3c25a';
+  px(c, ox + 3, oy + 11, 2, 4, P.trunk); px(c, ox + 11, oy + 11, 2, 4, P.trunk);
+  px(c, ox + 1, oy - 3, 14, 15, '#8a6a44'); px(c, ox + 2, oy - 2, 12, 13, '#2f4a3a');
+  px(c, ox + 4, oy - 1, 1, 6, gold); px(c, ox + 3, oy, 1, 2, gold); px(c, ox + 5, oy, 1, 2, gold); px(c, ox + 3, oy + 4, 3, 1, '#b8923a'); // the sheaf
+  px(c, ox + 7, oy, 5, 1, chalk); px(c, ox + 7, oy + 2, 4, 1, chalk); px(c, ox + 4, oy + 6, 8, 1, chalk); px(c, ox + 4, oy + 8, 6, 1, chalk);
 }
 
 /* ---------------- Buildings ---------------- */

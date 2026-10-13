@@ -2,8 +2,8 @@
 // Everything the site saves in the browser starts with "hf-", and that whole set is the save. The sign-in itself lives
 // under "sb-" keys, so backup files never include it and restoring a backup never signs anyone out.
 // The server keeps each player's save, and it decides what the leaderboard believes (see the part A SQL).
-import { SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261013b';
-import { checkSeal, sealTrusted } from './seal.js?v=20261013b';
+import { SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261013d';
+import { checkSeal, sealTrusted } from './seal.js?v=20261013d';
 
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } };
