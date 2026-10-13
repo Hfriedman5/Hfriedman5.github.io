@@ -532,7 +532,7 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .screen { position: relative; aspect-ratio: 3 / 2; width: min(100%, calc((100dvh - 250px) * 1.5)); margin-inline: auto; border-radius: var(--r-xl); overflow: hidden; background: #8aa850; box-shadow: var(--shadow-3); outline: none; }
 .screen:focus-visible { box-shadow: var(--shadow-3), 0 0 0 2px var(--accent); }
 .screen canvas { width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
-.dlg { position: absolute; left: 3%; right: 3%; bottom: 4%; background: #fbfaf5; color: #1f2433; border: 3px solid #2a2f3d; border-radius: 10px; box-shadow: inset 0 0 0 3px #e3dcc6, 0 6px 0 rgba(0,0,0,.18); padding: 16px 20px 18px; font-family: var(--font-pixel); font-size: clamp(15px, 2.1vw, 20px); line-height: 1.45; }
+.dlg { max-height: calc(100% - 130px); overflow-y: auto; position: absolute; left: 3%; right: 3%; bottom: 4%; background: #fbfaf5; color: #1f2433; border: 3px solid #2a2f3d; border-radius: 10px; box-shadow: inset 0 0 0 3px #e3dcc6, 0 6px 0 rgba(0,0,0,.18); padding: 16px 20px 18px; font-family: var(--font-pixel); font-size: clamp(15px, 2.1vw, 20px); line-height: 1.45; }
 .dlg-text { white-space: pre-line; min-height: 2.9em; }
 .dlg-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .dlg-choices:empty { display: none; }
@@ -581,7 +581,7 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 @media (pointer: coarse), (max-width: 600px) {
   .screen { aspect-ratio: auto; }
   .screen canvas { display: block; height: auto; aspect-ratio: 3 / 2; }
-  .dlg { position: relative; left: auto; right: auto; bottom: auto; border-width: 3px 0 0; border-radius: 0; box-shadow: inset 0 3px 0 #e3dcc6; padding: 14px 16px 16px; font-size: 15px; }
+  .dlg { position: relative; left: auto; right: auto; bottom: auto; max-height: none; overflow: visible; border-width: 3px 0 0; border-radius: 0; box-shadow: inset 0 3px 0 #e3dcc6; padding: 14px 16px 16px; font-size: 15px; } /* below the game here, so it never covers anything */
   .dlg-choices button { flex: 1 1 auto; }
 }
 
@@ -938,6 +938,18 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .chip[data-chip="1000"] { --c: #c99a2e; font-size: .74rem; letter-spacing: -.02em; }
 .ex-when { margin: 0 0 6px; font-size: .85rem; color: var(--ink-3); }
 .bj-odds { margin: 0 0 8px; padding: 6px 10px; border-radius: var(--r-md); background: var(--surface); font-size: .88rem; color: var(--ink-2); }
+.fb-notes { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 4px; font-size: .92rem; color: var(--ink-2); }
+.fb-field { list-style: none; margin: 0; padding: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; border-radius: var(--r-lg); background: #8a5a34; }
+.fb-plot { min-width: 0; display: grid; gap: 2px; align-content: start; padding: 8px 10px; border-radius: var(--r-md); background: var(--bg); border: 1px solid var(--hairline); font-size: .86rem; line-height: 1.35; color: var(--ink-2); }
+.fb-plot b { color: var(--ink); font-size: .92rem; }
+.fb-plot small { color: var(--ink-3); font-size: .78rem; }
+.fb-plot.fb-ready { background: var(--tint-sports, #e6f3e8); border-color: var(--tint-sports-ink, #2f7a45); }
+.fb-plot.fb-ready span { color: var(--tint-sports-ink, #2f7a45); font-weight: 600; }
+.fb-plot.fb-dry span:first-of-type { color: #a4581a; font-weight: 600; }
+.fb-plot.fb-wild, .fb-plot.fb-empty { opacity: .7; }
+.fb-h { font-size: 1rem; margin: 16px 0 6px; }
+.fb-works { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: .92rem; color: var(--ink-2); }
+@media (max-width: 480px) { .fb-field { gap: 6px; padding: 6px; } .fb-plot { padding: 6px 7px; font-size: .78rem; } .fb-plot b { font-size: .84rem; } }
 .fh-plan h3 { font-size: 1rem; margin: 14px 0 8px; }
 .fh-plots { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .fh-plot { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--hairline); border-radius: var(--r-md); font-size: .92rem; }

@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261013e';
-import { createRace } from './race.js?v=20261013e';
-import { createWeather, currentWeather } from './weather.js?v=20261013e';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261013e';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261013e';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261013e';
-import { checkSeal, guardedSet } from './seal.js?v=20261013e';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261013f';
+import { createRace } from './race.js?v=20261013f';
+import { createWeather, currentWeather } from './weather.js?v=20261013f';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261013f';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261013f';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261013f';
+import { checkSeal, guardedSet } from './seal.js?v=20261013f';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261013e';
+import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261013f';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1775,25 +1775,39 @@ function openFarmhand() { farmhandCatchUp(); renderFarmhand(); openModal('#farmh
 farmhandCatchUp();
 setInterval(() => { if (farmhandCatchUp() && $('#farmhand')?.open) renderFarmhand(); }, 30e3);
 
-// The farm sign doubles as a status board once you own a plot.
+// The farm sign doubles as a status board once you own a plot: a panel laid out like the field, one square per plot,
+// with the workshop, the hives, and your helpers underneath.
 function farmLedger(sign) {
   if (!farm.owned.length) return say(sign.text);
-  const now = Date.now();
-  const rows = farm.owned.filter((i) => farm.plots[i]).map((i) => {
-    const pl = farm.plots[i], c = cropById(pl.crop);
-    const left = msLeft(pl, now), kept = keepsGoing(pl, left) ? ` (${about(ifKeptWatered(pl))} if you keep watering)` : '';
-    return grownAt(pl, now) >= 1 ? `${c.name}: ready to harvest` : isWet(pl, now) ? `${c.name}: watered, ready in ${about(left)}${kept}` : `${c.name}: dry, ready in ${about(left)} (${about(ifWatered(pl))} if watered)`;
-  });
-  const empty = farm.owned.length - rows.length;
-  if (empty) rows.push(plural(empty, 'empty plot'));
+  renderFarmBoard(); openModal('#farmboard');
+}
+function renderFarmBoard() {
+  const now = Date.now(), news = crisisOn(), c = news.now || news.soon;
+  const plot = (i) => {
+    if (!farm.owned.includes(i)) return `<li class="fb-plot fb-wild"><b>Plot ${i + 1}</b><span>For sale</span></li>`;
+    const pl = farm.plots[i];
+    if (!pl) return `<li class="fb-plot fb-empty"><b>Plot ${i + 1}</b><span>Empty</span></li>`;
+    const crop = cropById(pl.crop), done = grownAt(pl, now);
+    if (done >= 1) return `<li class="fb-plot fb-ready"><b>${crop.name}</b><span>Ready to harvest</span></li>`;
+    const left = msLeft(pl, now), wet = isWet(pl, now);
+    const tip = wet ? (keepsGoing(pl, left) ? `${about(ifKeptWatered(pl))} if kept watered` : '') : `${about(ifWatered(pl))} if watered`;
+    return `<li class="fb-plot${wet ? '' : ' fb-dry'}"><b>${crop.name}</b><span>${wet ? 'Watered' : 'Dry'}, ${Math.floor(done * 100)}% grown</span><span>Ready in ${about(left)}</span>${tip ? `<small>${tip}</small>` : ''}</li>`;
+  };
+  const notes = [
+    ...(c && ['drought', 'pests'].includes(c.type) ? [crisisText(c).short + '.'] : []),
+    ...(helping('theophrastus', now) ? [`Theophrastus is helping for another ${about(scholars.theophrastus.until - now)}.`] : []),
+    ...(handOn(now) ? [`Philon is working for you for another ${about(farm.hand.until - now)}. Next visit in ${about(Math.max(0, farm.hand.next - now))}.`] : []),
+    ...(hives().length ? [(() => { const j = hives().reduce((t, h) => t + jarsIn(h, now), 0); return `${plural(hives().length, 'beehive')}: ${j ? `${cropCount(HONEY, j)} ready` : 'busy making honey'}.`; })()] : []),
+  ];
   const works = STATIONS.filter((s) => farm.works[s.id]).map((s) => {
     const w = farm.works[s.id], g = produceById(s.makes), st = stationState(s.id, now);
-    return st === 'idle' ? `${s.name}: empty` : st === 'done' ? `${s.name}: ${cropCount(g, w.n)} ready` : `${s.name}: ${cropCount(g, w.n)} ready in ${about(w.done - now)}`;
+    return `<li>${st === 'idle' ? `<b>${s.name}:</b> empty` : st === 'done' ? `<b>${s.name}:</b> ${cropCount(g, w.n)} ready` : `<b>${s.name}:</b> ${cropCount(g, w.n)} ready in ${about(w.done - now)}`}</li>`;
   });
-  if (helping('theophrastus', now)) rows.push(`Theophrastus is helping for another ${about(scholars.theophrastus.until - now)}.`);
-  if (hives().length) { const j = hives().reduce((t, h) => t + jarsIn(h, now), 0); rows.push(`${plural(hives().length, 'beehive')}: ${j ? `${cropCount(HONEY, j)} ready` : 'busy making honey'}`); }
-  if (handOn(now)) rows.push(`Philon is working for you for another ${about(farm.hand.until - now)}. Next visit in ${about(Math.max(0, farm.hand.next - now))}.`);
-  return say([`Your farm\n${rows.join('\n')}`, ...(works.length ? [`Your workshop\n${works.join('\n')}`] : []), basketLine()]);
+  $('#fb-body').innerHTML = `
+    <p class="ex-summary"><span>${basketLine()}</span></p>
+    ${notes.length ? `<ul class="fb-notes">${notes.map((n) => `<li>${n}</li>`).join('')}</ul>` : ''}
+    <ol class="fb-field" aria-label="Your plots, laid out like the field">${PLOTS.map((_, i) => plot(i)).join('')}</ol>
+    ${works.length ? `<h3 class="fb-h">Workshop</h3><ul class="fb-works">${works.join('')}</ul>` : ''}`;
 }
 // A short note when you walk onto the farm: what is ready, and what needs water.
 function farmNews(now = Date.now()) {
