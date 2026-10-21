@@ -456,6 +456,17 @@ export function hiveCanvas(full) {
   hiveCache.set(key, cv);
   return cv;
 }
+// An empty stand marks each spot where a student of Course 7 can set up a hive, with clover for the bees around its legs.
+export function hiveStandCanvas() {
+  if (hiveCache.has('stand')) return hiveCache.get('stand');
+  const cv = document.createElement('canvas'); cv.width = cv.height = 16;
+  const c = cv.getContext('2d');
+  px(c, 2, 9, 12, 1, K.woodHi); px(c, 2, 10, 12, 1, K.wood); // the top board
+  px(c, 3, 11, 1, 5, K.wood); px(c, 12, 11, 1, 5, K.wood); px(c, 4, 13, 8, 1, K.wood); // legs and a brace
+  for (const [x, y, f] of [[1, 14, '#c9a0dc'], [6, 15, '#f2f2f2'], [9, 14, '#c9a0dc'], [14, 15, '#f2f2f2']]) { px(c, x, y, 1, 1, f); px(c, x, y + 1, 1, 1, '#5f8a3e'); }
+  hiveCache.set('stand', cv);
+  return cv;
+}
 
 /* ---------------- Sprites (16x16 pixel strings) ---------------- */
 const BODY_LOWER = {

@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261013f';
-import { createRace } from './race.js?v=20261013f';
-import { createWeather, currentWeather } from './weather.js?v=20261013f';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261013f';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261013f';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261013f';
-import { checkSeal, guardedSet } from './seal.js?v=20261013f';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261021a';
+import { createRace } from './race.js?v=20261021a';
+import { createWeather, currentWeather } from './weather.js?v=20261021a';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261021a';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261021a';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261021a';
+import { checkSeal, guardedSet } from './seal.js?v=20261021a';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261013f';
+import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261021a';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1239,7 +1239,7 @@ function drawHarbor(camX, camY, now) {
 
 /* ---------------- Movement ---------------- */
 function occupied(x, y, self) {
-  if (isSolid(grid, x, y) || hiveOn(hiveAt(x, y))) return true;
+  if (isSolid(grid, x, y) || hiveAt(x, y) >= 0 && (hiveOn(hiveAt(x, y)) || courseDone('7'))) return true; // hives and their empty stands
   if (self !== player && player.tx === x && player.ty === y) return true;
   return npcs.some((n) => n !== self && n.tx === x && n.ty === y);
 }
@@ -1342,7 +1342,8 @@ function render(now) {
     const sx = p.x * TILE - camX, sy = p.y * TILE - camY;
     if (sx > -2 * TILE && sx < canvas.width && sy > -2 * TILE && sy < canvas.height) ctx.drawImage(plotCanvas(plotKey(i)), sx, sy);
   });
-  hives().forEach((h) => { const [x, y] = HIVE_SPOTS[h.spot]; ctx.drawImage(hiveCanvas(jarsIn(h) > 0), x * TILE - camX, y * TILE - camY); });
+  const bees = courseDone('7');
+  HIVE_SPOTS.forEach(([x, y], i) => { const h = hiveOn(i); if (h || bees) ctx.drawImage(h ? hiveCanvas(jarsIn(h) > 0) : hiveStandCanvas(), x * TILE - camX, y * TILE - camY); });
   const lost = lostItem(); if (lost) ctx.drawImage(spriteCanvas(lost.sprite), lost.x * TILE - camX, lost.y * TILE - camY);
   drawHarbor(camX, camY, now);
   sailTick(now);
@@ -1798,6 +1799,7 @@ function renderFarmBoard() {
     ...(helping('theophrastus', now) ? [`Theophrastus is helping for another ${about(scholars.theophrastus.until - now)}.`] : []),
     ...(handOn(now) ? [`Philon is working for you for another ${about(farm.hand.until - now)}. Next visit in ${about(Math.max(0, farm.hand.next - now))}.`] : []),
     ...(hives().length ? [(() => { const j = hives().reduce((t, h) => t + jarsIn(h, now), 0); return `${plural(hives().length, 'beehive')}: ${j ? `${cropCount(HONEY, j)} ready` : 'busy making honey'}.`; })()] : []),
+    ...(courseDone('7') && hives().length < HIVE_SPOTS.length ? [`${HIVE_SPOTS.length - hives().length === 1 ? 'One hive stand is' : `${HIVE_SPOTS.length - hives().length} hive stands are`} empty at the east edge of the farm. A beehive costs ${HIVE_PRICE.toLocaleString()} coins.`] : []),
   ];
   const works = STATIONS.filter((s) => farm.works[s.id]).map((s) => {
     const w = farm.works[s.id], g = produceById(s.makes), st = stationState(s.id, now);
@@ -2161,7 +2163,7 @@ INTERACT.workshop = openWorkshop;
 const COURSES = [
   { id: '18', name: 'Course 18: Mathematics', tuition: 1500, hours: 18, about: 'Probability, the way Plato likes it: proved, not guessed.', unlocks: 'At the blackjack table, see your chance of going bust before you hit.' },
   { id: '12', name: 'Course 12: Earth and Planetary Sciences', tuition: 4500, hours: 72, about: 'Winds, currents, and the stars sailors steer by.', unlocks: `A new voyage to Syracuse: ${SYRACUSE.hours} hours, +${SYRACUSE.gain * 100}% profit, a ${SYRACUSE.risk * 100}% chance of sinking.` },
-  { id: '7', name: 'Course 7: Biology', tuition: 4500, hours: 72, about: 'Plants, pollen, and the bees that carry it.', unlocks: 'Beehives down the east edge of the farm. Each makes a jar of honey every 12 hours, and Demetrios buys honey.' },
+  { id: '7', name: 'Course 7: Biology', tuition: 4500, hours: 72, about: 'Plants, pollen, and the bees that carry it.', unlocks: `Three hive stands down the east edge of the farm. Set up a beehive on each for ${HIVE_PRICE.toLocaleString()} coins. Each makes a jar of honey every 12 hours, and Demetrios buys honey.`, ready: 'Three empty hive stands are waiting at the east edge of the farm. Face one to set up a beehive.' },
   { id: '15', name: 'Course 15: Management', tuition: 7500, hours: 144, about: 'Markets, risk, and the other side of a trade.', unlocks: 'Short selling on the Exchange: profit when a company\u2019s price falls.' },
 ];
 const courseById = (id) => COURSES.find((c) => c.id === id);
@@ -2215,7 +2217,7 @@ function openAcademy() {
     const now = Date.now(), el = $('#acad-body .ws-progress');
     if (!el) return;
     const start = +el.dataset.start, done = +el.dataset.done;
-    if (now >= done) return renderAcademy(`You finished ${courseById(studies.current?.id)?.name || 'your course'}.`, 'ok');
+    if (now >= done) { const c = courseById(studies.current?.id); return renderAcademy(`You finished ${c?.name || 'your course'}.${c?.ready ? ` ${c.ready}` : ''}`, 'ok'); }
     const pct = Math.min(100, Math.round(((now - start) / (done - start)) * 100));
     el.querySelector('.ws-bar span').style.width = `${pct}%`; el.querySelector('.ws-left').textContent = about(done - now);
   }, 1000);
