@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261024a';
-import { createRace } from './race.js?v=20261024a';
-import { createWeather, currentWeather } from './weather.js?v=20261024a';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261024a';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261024a';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261024a';
-import { checkSeal, guardedSet } from './seal.js?v=20261024a';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261024c';
+import { createRace } from './race.js?v=20261024c';
+import { createWeather, currentWeather } from './weather.js?v=20261024c';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261024c';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261024c';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261024c';
+import { checkSeal, guardedSet } from './seal.js?v=20261024c';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261024a';
+import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261024c';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -372,7 +372,7 @@ function recordBest(key, entry) {
   return better;
 }
 // The Persian invasion's saved state (see the war section): taxes paid, protection bought, wars settled, what burned.
-const WAR_TAX = .15, HALL_FEE = 1000, PROTECT_PRICE = { walls: 500, guards: 500, harbor: 2000 };
+const HALL_FEE = 1000, PROTECT_PRICE = { walls: 500, guards: 500, harbor: 2000 };
 const warBook = Object.assign({ paid: {}, extra: {}, protect: {}, resolved: [], hallClosed: false, lostShips: 0, lostBenches: [] }, lsGet('hf-war', {}));
 const saveWar = () => lsSet('hf-war', warBook);
 const pendingTax = () => [warBook.paid, warBook.extra].reduce((sum, book) => sum + Object.entries(book).filter(([id]) => !warBook.resolved.includes(Number(id))).reduce((t, [, a]) => t + a, 0), 0);
@@ -1906,21 +1906,24 @@ $('#crisis-chip')?.addEventListener('click', () => {
   if ($('#crisis-chip').dataset.kind === 'war') openWar(); else if (c) say(crisisText(c).long);
 });
 
-/* ---------------- The Persian invasion (the server runs the war: part E of the cloud SQL) ---------------- */
-// Twice a month the Persians come, announced 3 days ahead. The war tax (15% of what you own; needs sign-in) is a bet on
-// Athens: back with 15% if it holds, less 15% if it falls. Athens's chance is the share of that week's players who paid,
-// at most 90%. Protection keeps your own things safe if Athens falls, and is spent either way. If it falls, players who
+/* ---------------- The Persian invasion (the server runs the war: parts E and H of the cloud SQL) ---------------- */
+// Twice a month the Persians come, announced 3 days ahead, with a small, medium, or large fleet. The war tax (10%, 15%, or
+// 20% of what you own, by fleet; needs sign-in) is a bet on Athens. Athens's chance is the share of that week's players who paid, up to the
+// fleet's cap: the bigger the fleet, the lower the cap and the bigger the reward if Athens holds anyway. If it falls,
+// taxpayers get 60% back. (Wars announced before part H have no fleet: 90% at most, +15% / -15%.) Protection keeps your own things safe if Athens falls, and is spent either way. If it falls, players who
 // played in the week before lose what they did not protect: ships, workshop benches, crops in the ground, and their way
 // into the Gaming Hall. Purse, bank, bonds, and shares are never touched.
+const FLEETS = { small: { name: 'small', tax: .1, cap: .8, win: .15, lose: .4 }, medium: { name: 'medium-sized', tax: .15, cap: .65, win: .3, lose: .4 }, large: { name: 'large', tax: .2, cap: .45, win: .6, lose: .4 } };
+const terms = (w) => FLEETS[w?.fleet] || { name: '', tax: .15, cap: .9, win: .15, lose: .15 }; // wars from before fleets: the old terms
 let war = (() => { try { return JSON.parse(localStorage.getItem('mk-war')) || { wars: [] }; } catch (e) { return { wars: [] }; } })();
 const upcomingWar = () => war.wars.find((w) => !w.decided) || null;
 const lastWar = () => war.wars.find((w) => w.decided) || null;
 const warDay = (w) => { const [y, m, d] = w.attack_on.split('-').map(Number); return new Date(y, m - 1, d); };
 const whenText = (day) => { const n = Math.round((day - marketToday()) / 864e5); return n <= 1 ? 'tomorrow' : `on ${DAY_NAMES[day.getDay()]}`; };
-const warOdds = (w) => (w.players ? Math.min(90, Math.round((100 * Math.min(w.players, w.payers + (w.extras || 0))) / w.players)) : 0); // extra shares count, never past the players there are
+const warOdds = (w) => (w.players ? Math.min(Math.round(terms(w).cap * 100), Math.round((100 * Math.min(w.players, w.payers + (w.extras || 0))) / w.players)) : 0); // extra shares count, never past the players there are, and never past the fleet's cap
 const aPct = (n) => `${/^(8|1[18](\D|$))/.test(String(n)) ? 'an' : 'a'} ${n}%`; // "an 8%", "an 80%", "an 11%", "a 70%"
 const oddsLine = (w) => `<b>${w.payers} of ${w.players}</b> ${w.players === 1 ? 'player' : 'players'} this week ${w.payers === 1 ? 'has' : 'have'} paid the war tax${w.extras ? `, and ${w.extras} paid an extra share` : ''}: ${aPct(warOdds(w)).replace(/(\d+%)/, '<b>$1</b>')} chance Athens holds.`;
-const warTax = () => Math.max(1, Math.round(WAR_TAX * netWorth()));
+const warTax = (w) => Math.max(1, Math.round(terms(w).tax * netWorth()));
 async function loadWar() {
   try {
     const res = signedIn() ? await rpc('war_status') : await (await fetch(`${SUPABASE_URL}/rest/v1/rpc/war_status`, { method: 'POST', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' }, body: '{}' })).json();
@@ -1949,16 +1952,16 @@ function renderWar(note = '', tone = '') {
     body.innerHTML = `<p class="ex-intro">No Persians in sight. They come twice a month, and word reaches Athens 3 days ahead.</p>${last ? `<p class="ex-when">Last time, on ${dateText(warDay(last))}, ${last.won ? 'Athens held' : 'Athens fell'}. ${last.payers} of ${last.players} players had paid the war tax${last.extras ? `, ${last.extras} with an extra share` : ''}, for ${aPct(Math.round(Number(last.chance) * 100))} chance.</p>` : ''}`;
     return;
   }
-  const day = warDay(w), mine = warBook.paid[w.id], tax = warTax(), prot = warBook.protect[w.id] || {};
+  const day = warDay(w), mine = warBook.paid[w.id], tax = warTax(w), prot = warBook.protect[w.id] || {}, t = terms(w), pct = (x) => Math.round(x * 100);
   body.innerHTML = `
-    <p class="ex-intro">The Persian fleet has been sighted off Euboea. It reaches Athens on <b>${DAY_NAMES[day.getDay()]}, ${dateText(day)}</b>, as that day begins in New York.</p>
+    <p class="ex-intro">${t.name ? `A <b>${t.name}</b> Persian fleet` : 'The Persian fleet'} has been sighted off Euboea. It reaches Athens on <b>${DAY_NAMES[day.getDay()]}, ${dateText(day)}</b>, as that day begins in New York.${t.name ? ` Against a ${t.name} fleet, Athens's chance can't go above <b>${pct(t.cap)}%</b>, even if everyone pays.` : ''}</p>
     <p class="war-odds">${oddsLine(w)}</p>
     ${note ? `<p class="ex-note ${tone}" role="status">${note}</p>` : ''}
     <div class="ex-list">
       <article class="ex-co${mine ? ' today' : ''}">
-        <div class="ex-top"><h3>The war tax</h3><span class="ex-day">15% of what you own</span></div>
-        <p class="ex-how">Pay it and you help Athens hold: the more players pay, the better the odds. If Athens holds, you get it back plus 15%. If it falls, you get back 85%. It counts toward what you own until then.</p>
-        <form class="ex-trade" data-war-tax>${mine ? `<span class="ex-own ex-up">You paid ${mine.toLocaleString()}. You get back ${Math.round(mine * 1.15).toLocaleString()} if Athens holds, or ${Math.round(mine * .85).toLocaleString()} if it falls.</span>${warBook.extra[w.id] ? `<span class="ex-own ex-up">You also paid an extra share of ${warBook.extra[w.id].toLocaleString()}: back in full if Athens holds, ${Math.round(warBook.extra[w.id] * .85).toLocaleString()} if it falls.</span>` : `<span class="ex-own">Want to do more? Pay one extra share of ${mine.toLocaleString()}. It counts as one more player paying, but earns nothing: you get it back in full if Athens holds, or 85% if it falls.</span><button type="button" class="btn btn-secondary btn-sm" data-war-extra>Pay an extra share</button>`}`
+        <div class="ex-top"><h3>The war tax</h3><span class="ex-day">${pct(t.tax)}% of what you own</span></div>
+        <p class="ex-how">Pay it and you help Athens hold: the more players pay, the better the odds. If Athens holds, you get it back plus ${pct(t.win)}%. If it falls, you lose ${pct(t.lose)}% of it. It counts toward what you own until then.</p>
+        <form class="ex-trade" data-war-tax>${mine ? `<span class="ex-own ex-up">You paid ${mine.toLocaleString()}. You get back ${Math.round(mine * (1 + t.win)).toLocaleString()} if Athens holds, or ${Math.round(mine * (1 - t.lose)).toLocaleString()} if it falls.</span>${warBook.extra[w.id] ? `<span class="ex-own ex-up">You also paid an extra share of ${warBook.extra[w.id].toLocaleString()}: back in full if Athens holds, ${Math.round(warBook.extra[w.id] * (1 - t.lose)).toLocaleString()} if it falls.</span>` : `<span class="ex-own">Want to do more? Pay one extra share of ${mine.toLocaleString()}. It counts as one more player paying, but earns nothing: you get it back in full if Athens holds, or lose ${pct(t.lose)}% of it if it falls.</span><button type="button" class="btn btn-secondary btn-sm" data-war-extra>Pay an extra share</button>`}`
           : !signedIn() ? '<span class="ex-own">The town counts every payment, so paying the war tax needs you to sign in with the Save button.</span>'
           : `<span class="ex-own">Your tax: <b>${tax.toLocaleString()}</b> coins.</span><button type="submit" class="btn btn-primary btn-sm">Pay ${tax.toLocaleString()}</button>`}</form>
       </article>
@@ -1974,7 +1977,7 @@ function renderWar(note = '', tone = '') {
   body.querySelectorAll('[data-protect]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); buyProtection(w, f.dataset.protect); }));
 }
 async function payWarTax(w) {
-  const tax = warTax();
+  const tax = warTax(w);
   if (warBook.paid[w.id]) return renderWar();
   if (wallet.coins < tax) return renderWar(`Your tax is ${tax.toLocaleString()} coins, and your purse has ${wallet.coins.toLocaleString()}. Take some out of the bank first.`);
   renderWar('Sending your tax to the treasury\u2026');
@@ -2033,7 +2036,8 @@ async function resolveWars() {
     for (const w of war.wars.filter((x) => x.decided && !warBook.resolved.includes(x.id))) {
       const attack = nyStart(warDay(w)), paid = warBook.paid[w.id], put = (paid || 0) + (warBook.extra[w.id] || 0), lines = [];
       const tally = `${w.payers} of ${w.players} players paid the war tax${w.extras ? `, ${w.extras} with an extra share` : ''}, for ${aPct(Math.round(Number(w.chance) * 100))} chance.`;
-      lines.push(w.won ? `Salamis! The Athenian fleet turned the Persians back in the straits, as it did in 480 BC. ${tally}` : `The Persians reached Athens and burned the Acropolis, as they did in 480 BC. Only ${tally}`);
+      const size = terms(w).name ? `${terms(w).name} ` : '';
+      lines.push(w.won ? `Salamis! The Athenian fleet turned the ${size}Persian fleet back in the straits, as it did in 480 BC. ${tally}` : `The ${size}Persian fleet reached Athens, and the Persians burned the Acropolis, as they did in 480 BC. ${tally}`);
       if (paid) {
         if (!signedIn()) break; // collect once signed in again
         const r = await rpc('claim_war', { p_war: w.id }).catch(() => null);
