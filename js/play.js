@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261021a';
-import { createRace } from './race.js?v=20261021a';
-import { createWeather, currentWeather } from './weather.js?v=20261021a';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261021a';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261021a';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261021a';
-import { checkSeal, guardedSet } from './seal.js?v=20261021a';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261024a';
+import { createRace } from './race.js?v=20261024a';
+import { createWeather, currentWeather } from './weather.js?v=20261024a';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261024a';
+import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261024a';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261024a';
+import { checkSeal, guardedSet } from './seal.js?v=20261024a';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261021a';
+import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261024a';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1849,14 +1849,23 @@ async function farmerTalk() {
   wallet.coins = wallet.coins - n * crop.cost; farm.seeds[crop.id] = (farm.seeds[crop.id] || 0) + n; saveFarm();
   return say(`Demetrios hands you ${n} ${n === 1 ? crop.seedName.toLowerCase().replace(/s$/, '') : crop.seedName.toLowerCase()}. ${farm.owned.length ? 'Walk up to one of your plots to plant.' : 'Now you need a plot: walk up to one of the overgrown ones to buy it.'}`);
 }
-// Sell one kind of thing, or everything, at today's prices. Nothing spoils, so waiting for a better day is fine.
+// Sell some or all of one kind of thing, or everything, at today's prices. Nothing spoils, so waiting for a better day is fine.
 async function sellTalk() {
   const items = basketItems().map((id) => { const c = produceById(id), n = farm.basket[id]; return { id, c, n, total: n * sellPrice(c) }; });
   const all = items.reduce((t, x) => t + x.total, 0);
-  const pick = await say('What will you sell? Nothing in your basket spoils, so you can also wait for a better price.', [...items.map((x) => ({ label: `${cropCount(x.c, x.n)} for ${x.total.toLocaleString()}`, value: x.id })), ...(items.length > 1 ? [{ label: `Everything for ${all.toLocaleString()}`, value: 'all' }] : []), { label: 'Never mind', value: null }]);
-  const sold = items.filter((x) => pick === 'all' || x.id === pick);
+  const pick = await say('What will you sell? Nothing in your basket spoils, so you can also wait for a better price.', [...items.map((x) => ({ label: `${x.c.name}: you have ${x.n.toLocaleString()}, ${sellPrice(x.c).toLocaleString()} each`, value: x.id })), ...(items.length > 1 ? [{ label: `Everything for ${all.toLocaleString()}`, value: 'all' }] : []), { label: 'Never mind', value: null }]);
+  let sold = items.filter((x) => pick === 'all' || x.id === pick);
   if (!sold.length) return;
-  sold.forEach((x) => delete farm.basket[x.id]); saveFarm();
+  if (pick !== 'all' && sold[0].n > 1) { // choose how many
+    const x = sold[0], each = sellPrice(x.c), half = Math.ceil(x.n / 2);
+    const k = await say(`How much ${lower(x.c)} will you sell? ${each.toLocaleString()} coins each, and you have ${x.n.toLocaleString()}.`, [
+      ...[x.n, half, 1].filter((k, i, a) => a.indexOf(k) === i).map((k) => ({ label: `${k === x.n ? 'All ' : ''}${cropCount(x.c, k)} for ${(k * each).toLocaleString()}`, value: k })),
+      { label: 'Other amount', amount: { min: 1, max: x.n } }, { label: 'Never mind', value: null }]);
+    if (!k) return;
+    if (!Number.isInteger(k) || k < 1 || k > (farm.basket[x.id] || 0)) return say('Demetrios counts twice and shakes his head. That amount does not work.');
+    sold = [{ ...x, n: k, total: k * each }];
+  }
+  sold.forEach((x) => { farm.basket[x.id] -= x.n; if (farm.basket[x.id] <= 0) delete farm.basket[x.id]; }); saveFarm();
   const n = earn(sold.reduce((t, x) => t + x.total, 0), '', Infinity);
   bumpRecord('farm', (t = 0) => t + n);
   return say(`You sell ${listOf(sold.map((x) => cropCount(x.c, x.n)))} for ${n.toLocaleString()} coins.`);
