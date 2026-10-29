@@ -803,6 +803,7 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .post .post-meta { color: var(--ink-3); margin-top: 12px; }
 .post .post-body { margin-top: 32px; display: grid; gap: 18px; font-size: 1.1rem; line-height: 1.75; }
 .post .post-body h2 { font-size: 1.6rem; margin-top: 18px; }
+.post .post-body math.post-math { font-size: 1.35em; margin: 2px 0; }
 .post .post-body blockquote { margin: 0; padding: 4px 0 4px 20px; border-left: 1px solid var(--hairline-strong); color: var(--ink-2); font-style: italic; }
 
 @media (max-width: 980px) {

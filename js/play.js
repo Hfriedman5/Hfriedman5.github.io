@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261029a';
-import { createRace } from './race.js?v=20261029a';
-import { createWeather, currentWeather } from './weather.js?v=20261029a';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261029a';
-import { leaderboardReady, player as lbPlayer, top as lbTop, trophyCase, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261029a';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261029a';
-import { checkSeal, guardedSet } from './seal.js?v=20261029a';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261029b';
+import { createRace } from './race.js?v=20261029b';
+import { createWeather, currentWeather } from './weather.js?v=20261029b';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261029b';
+import { leaderboardReady, player as lbPlayer, top as lbTop, trophyCase, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261029b';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261029b';
+import { checkSeal, guardedSet } from './seal.js?v=20261029b';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261029a';
+import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261029b';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -755,7 +755,7 @@ async function renderBoard(rows) {
       const [top, owners] = await Promise.all([lbTop(board, period, mine), trophyCase(mine).catch(() => null)]);
       const coinflex = itemById('coinflex');
       trophies = owners && `<div class="lb-trophies"><h3><svg class="icon" aria-hidden="true"><use href="#i-trophy"/></svg>Trophy case</h3>
-        <p>The coin flex award: ${coinflex.price.toLocaleString()} coins spent on a trophy at the Agora Market. It does nothing else.</p>
+        <p>The coin flex award: ${coinflex.price.toLocaleString()} coins spent on a trophy at the Agora Market.<br>It does nothing else.</p>
         ${owners.length ? `<p class="lb-owners">${owners.map((o) => `<span${o.me ? ' class="lb-me"' : ''} title="Earned ${new Date(o.earned).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}">${o.initials}${o.me ? ' (you)' : ''}</span>`).join('<span aria-hidden="true">·</span>')}</p><p class="lb-owners-note">In the order they earned it.</p>` : '<p class="lb-owners-note">Nobody on the board owns it yet.</p>'}
       </div>` || '';
       list = top.length ? `<ol class="lb-list">${top.map((r, i) => `<li class="${r.me ? 'lb-me' : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-name">${r.initials}${r.me ? ' (you)' : ''}</span><span class="lb-val">${shown(r.value)}</span></li>`).join('')}</ol>`

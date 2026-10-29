@@ -32,7 +32,7 @@
   const errandsSaved = store.get('hf-errands', {});
   if (errandsSaved?.diary) { // hf-errands is sealed (js/seal.js), so write it the way the game does, or it looks like an outside edit
     errandsSaved.stadion = errandsSaved.diary; delete errandsSaved.diary;
-    import('./js/seal.js?v=20261029a').then(({ guardedSet }) => guardedSet('hf-errands', JSON.stringify(errandsSaved))).catch(() => store.set('hf-errands', errandsSaved));
+    import('./js/seal.js?v=20261029b').then(({ guardedSet }) => guardedSet('hf-errands', JSON.stringify(errandsSaved))).catch(() => store.set('hf-errands', errandsSaved));
   }
   let found = new Set(store.get('hf-eggs', []).filter((id) => EGGS.some((e) => e.id === id)));
   // Phones have no backtick key, console, or arrow keys, so those eggs get touch versions and touch hints.
@@ -908,7 +908,7 @@
     new IntersectionObserver(([e], obs) => {
       if (!e.isIntersecting) return;
       obs.disconnect();
-      import('./js/world.js?v=20261029a').then((m) => m.drawPreview(preview)).catch(() => {});
+      import('./js/world.js?v=20261029b').then((m) => m.drawPreview(preview)).catch(() => {});
     }, { rootMargin: '300px' }).observe(preview);
   }
 
