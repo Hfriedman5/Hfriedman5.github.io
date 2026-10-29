@@ -57,6 +57,14 @@ export async function submit({ net, bjTotal }, force = false) {
   } catch (e) { return false; }
 }
 
+// The trophy case under the board: everyone on it who owns the Coin flex award, in the order they earned it (part I of
+// the cloud SQL). null if the server does not have it yet, so the case stays hidden.
+export async function trophyCase(mine = null) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/trophy_case`, { method: 'POST', headers: headers(), body: '{}' });
+  if (!r.ok) return null;
+  return (await r.json()).map((row) => ({ initials: row.initials, earned: row.earned_at, me: mine ? row.initials === mine : false }));
+}
+
 // The top ten for one board: 'net' (richest), 'bj' (blackjack profit), or the fastest 'ms' (Minesweeper) and 'lap' (stadion)
 // times, lowest first, for this month or all time. `mine` is the signed-in player's initials, so their row can be marked.
 export async function top(board, period, mine = null) {

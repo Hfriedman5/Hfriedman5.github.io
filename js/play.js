@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261024c';
-import { createRace } from './race.js?v=20261024c';
-import { createWeather, currentWeather } from './weather.js?v=20261024c';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261024c';
-import { leaderboardReady, player as lbPlayer, top as lbTop, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261024c';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261024c';
-import { checkSeal, guardedSet } from './seal.js?v=20261024c';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261029a';
+import { createRace } from './race.js?v=20261029a';
+import { createWeather, currentWeather } from './weather.js?v=20261029a';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261029a';
+import { leaderboardReady, player as lbPlayer, top as lbTop, trophyCase, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261029a';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261029a';
+import { checkSeal, guardedSet } from './seal.js?v=20261029a';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261024c';
+import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261029a';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -749,10 +749,15 @@ async function renderBoard(rows) {
   const tab = (key, label, group) => `<button type="button" role="tab" aria-selected="${boardView[group] === key}" data-${group}="${key}">${label}</button>`;
   const what = { net: 'Everything a player owns: purse, bank, bonds, shares, farm, and ships.', bj: 'Blackjack winnings minus losses.', ms: 'The fastest clear of the Minesweeper board in the Gaming Hall.', lap: 'The fastest winning lap of the stadion, racing the runner.' }[board];
   const shown = (v) => (board === 'bj' ? signed(v) : board === 'ms' || board === 'lap' ? `${Number(v).toFixed(2)} s` : v.toLocaleString());
-  let list = '<p class="lb-empty">Loading the board…</p>';
+  let list = '<p class="lb-empty">Loading the board…</p>', trophies = '';
   if (rows !== null) {
     try {
-      const top = await lbTop(board, period, mine);
+      const [top, owners] = await Promise.all([lbTop(board, period, mine), trophyCase(mine).catch(() => null)]);
+      const coinflex = itemById('coinflex');
+      trophies = owners && `<div class="lb-trophies"><h3><svg class="icon" aria-hidden="true"><use href="#i-trophy"/></svg>Trophy case</h3>
+        <p>The coin flex award: ${coinflex.price.toLocaleString()} coins spent on a trophy at the Agora Market. It does nothing else.</p>
+        ${owners.length ? `<p class="lb-owners">${owners.map((o) => `<span${o.me ? ' class="lb-me"' : ''} title="Earned ${new Date(o.earned).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}">${o.initials}${o.me ? ' (you)' : ''}</span>`).join('<span aria-hidden="true">·</span>')}</p><p class="lb-owners-note">In the order they earned it.</p>` : '<p class="lb-owners-note">Nobody on the board owns it yet.</p>'}
+      </div>` || '';
       list = top.length ? `<ol class="lb-list">${top.map((r, i) => `<li class="${r.me ? 'lb-me' : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-name">${r.initials}${r.me ? ' (you)' : ''}</span><span class="lb-val">${shown(r.value)}</span></li>`).join('')}</ol>`
         : `<p class="lb-empty">Nobody is on this board yet${period === 'month' ? ' this month' : ''}. It could be you.</p>`;
     } catch (e) { list = '<p class="lb-empty">The leaderboard could not be reached right now. Try again in a bit.</p>'; }
@@ -762,6 +767,7 @@ async function renderBoard(rows) {
     <div class="lb-period" role="tablist" aria-label="Time">${tab('month', 'This month', 'period')}${tab('all', 'All time', 'period')}</div>
     <p class="lb-what">${what}</p>
     ${list}
+    ${trophies}
     ${!signedIn() ? `<div class="lb-join"><h3>Put your initials on the board</h3>
       <p class="lb-privacy">${old?.initials ? `You joined as <b>${escHtml(old.initials)}</b> before sign-ins. Sign in to keep your spot and your scores.` : 'First, sign in with a code sent to your email. Signing in also saves your game to the cloud.'}</p>
       <button type="button" class="btn btn-primary btn-sm" data-lb="signin">Sign in</button></div>`
