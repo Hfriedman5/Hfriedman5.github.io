@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261102a';
-import { createRace } from './race.js?v=20261102a';
-import { createWeather, currentWeather } from './weather.js?v=20261102a';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261102a';
-import { leaderboardReady, player as lbPlayer, top as lbTop, trophyCase, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261102a';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261102a';
-import { checkSeal, guardedSet } from './seal.js?v=20261102a';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261102b';
+import { createRace } from './race.js?v=20261102b';
+import { createWeather, currentWeather } from './weather.js?v=20261102b';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261102b';
+import { leaderboardReady, player as lbPlayer, top as lbTop, trophyCase, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261102b';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261102b';
+import { checkSeal, guardedSet } from './seal.js?v=20261102b';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261102a';
+import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261102b';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -370,6 +370,18 @@ function recordBest(key, entry) {
     return { ...keep, [m]: better ? entry : old };
   });
   return better;
+}
+// The year's best time, for "Your best this year!": the saved months of this year, plus a note kept on this device only
+// (an mk- key, so it never syncs and the saved records keep the shape the server checks).
+function beatsYearBest(key, t) {
+  const y = String(marketToday().getFullYear());
+  let note = {};
+  try { note = JSON.parse(localStorage.getItem('mk-best-year')) || {}; } catch (e) { /* private mode */ }
+  const saved = Object.entries(lsGet('hf-records', {})[key] || {}).filter(([m]) => m.startsWith(y)).map(([, e]) => e.t);
+  const best = Math.min(note[key]?.year === y ? note[key].t : Infinity, ...saved);
+  if (t >= best) return false;
+  try { localStorage.setItem('mk-best-year', JSON.stringify({ ...note, [key]: { year: y, t } })); } catch (e) { /* private mode */ }
+  return true;
 }
 // The Persian invasion's saved state (see the war section): taxes paid, protection bought, wars settled, what burned.
 const HALL_FEE = 1000, PROTECT_PRICE = { walls: 500, guards: 500, harbor: 2000 };
@@ -1503,8 +1515,9 @@ function reveal(i) {
     let pay = '';
     if (ready('mines', COOLDOWN.mines)) { used('mines'); pay = ` You win ${earn(MINES_PAY)} coins.`; }
     else pay = ` The minefield pays out again in ${inTime(leftOf('mines'))}.`;
-    const t = Math.round((performance.now() - ms.start) / 10) / 100, best = recordBest('msTimes', { t, clicks: ms.clicks });
-    $('#ms-note').textContent = `Cleared in ${t.toFixed(2)} seconds. Not a single explosion.${best ? ' Your best this month!' : ''}${pay}`;
+    const t = Math.round((performance.now() - ms.start) / 10) / 100, best = beatsYearBest('msTimes', t);
+    recordBest('msTimes', { t, clicks: ms.clicks });
+    $('#ms-note').textContent = `Cleared in ${t.toFixed(2)} seconds. Not a single explosion.${best ? ' Your best this year!' : ''}${pay}`;
     HF().foundEgg('mines');
   }
 }
