@@ -66,11 +66,12 @@ export async function trophyCase(mine = null) {
 }
 
 // The top ten for one board: 'net' (richest), 'bj' (blackjack profit), or the fastest 'ms' (Minesweeper) and 'lap' (stadion)
-// times, lowest first, for this month or all time. `mine` is the signed-in player's initials, so their row can be marked.
+// times, lowest first, for this year (New York time; the server adds up the year's months, part J of the cloud SQL) or all
+// time. `mine` is the signed-in player's initials, so their row can be marked.
 export async function top(board, period, mine = null) {
   const col = { net: 'net_worth', bj: 'bj_profit', ms: 'ms_best', lap: 'lap_best' }[board], fastest = board === 'ms' || board === 'lap';
-  const month = period === 'all' ? 'all' : thisMonth();
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=player_id,initials,${col}&month=eq.${month}${fastest ? `&${col}=not.is.null&order=${col}.asc` : `&order=${col}.desc`}&limit=10`, { headers: headers() });
+  const which = period === 'all' ? 'leaderboard?month=eq.all' : `leaderboard_year?year=eq.${thisMonth().slice(0, 4)}`;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${which}&select=player_id,initials,${col}${fastest ? `&${col}=not.is.null&order=${col}.asc` : `&order=${col}.desc`}&limit=10`, { headers: headers() });
   if (!r.ok) throw new Error(`leaderboard ${r.status}`);
   return (await r.json()).map((row) => ({ me: mine ? row.initials === mine : row.player_id === player()?.id, initials: row.initials, value: row[col] }));
 }

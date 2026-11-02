@@ -1,13 +1,13 @@
 // Little Athens: a small top-down walkaround with the site's toys inside.
-import { FIGURES, paintSchool, hotspot } from './school.js?v=20261029b';
-import { createRace } from './race.js?v=20261029b';
-import { createWeather, currentWeather } from './weather.js?v=20261029b';
-import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261029b';
-import { leaderboardReady, player as lbPlayer, top as lbTop, trophyCase, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261029b';
-import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261029b';
-import { checkSeal, guardedSet } from './seal.js?v=20261029b';
+import { FIGURES, paintSchool, hotspot } from './school.js?v=20261102a';
+import { createRace } from './race.js?v=20261102a';
+import { createWeather, currentWeather } from './weather.js?v=20261102a';
+import { CROPS, GOODS, STATIONS, cropById, produceById, cropPrice, ROUTES, seaFor, market, COMPANIES, DAY_NAMES, coById, tradePrice, seasonLines, closedOn, reportDay, nextReport, nextOpen, dateText, dayKeyOf, marketToday, useSeeds, outlook, ordersAt, SYRACUSE, HONEY, crisisOn, nyStart, TICKS, TICK_NAMES } from './economy.js?v=20261102a';
+import { leaderboardReady, player as lbPlayer, top as lbTop, trophyCase, initialsProblem, emailProblem, SUPABASE_URL, SUPABASE_KEY } from './leaderboard.js?v=20261102a';
+import { cloud, onCloudChange, session, signedIn, sendCode, verifyCode, signOut, keepCloud, keepLocal, syncNow, beforeSave, rpc, refreshInitials } from './cloud.js?v=20261102a';
+import { checkSeal, guardedSet } from './seal.js?v=20261102a';
 checkSeal(); // notice any change to the saved money made outside the game since the last visit
-import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261029b';
+import { CREATURES, PLOTS, WELL, FARM_STALL, HIVE_SPOTS, hiveCanvas, hiveStandCanvas, plotAt, plotCanvas, TILE, W, H, BUILDINGS, NPCS, SIGNS, RINK, SANDAL_SPOTS, MAP_PLACES, ITEMS, itemById, avatarCanvas, boatCanvas, buildGrid, isSolid, isOlive, renderWorld, paintWater, spriteCanvas } from './world.js?v=20261102a';
 
 const HF = () => window.HF || { foundEgg() {}, toast() {}, store: { get: (k, d) => d, set() {} } };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -729,7 +729,7 @@ function netWorth() {
   const m = market();
   return wallet.coins + Math.floor(bank.bal) + bonds.reduce((t, b) => t + b.amt, 0) + COMPANIES.reduce((t, c) => t + sharesOf(c.id) * tradePrice(m.companies[c.id].at(-1).price), 0) + shortsValue(m) + farmValue() + shipsValue() + pendingTax();
 }
-const boardView = { board: 'net', period: 'month' };
+const boardView = { board: 'net', period: 'year' };
 // When the board shows less than your game (big jumps reach it over a few hours), say so, so it does not look stuck.
 function boardNote() {
   const b = cloud.board;
@@ -759,12 +759,12 @@ async function renderBoard(rows) {
         ${owners.length ? `<p class="lb-owners">${owners.map((o) => `<span${o.me ? ' class="lb-me"' : ''} title="Earned ${new Date(o.earned).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}">${o.initials}${o.me ? ' (you)' : ''}</span>`).join('<span aria-hidden="true">·</span>')}</p><p class="lb-owners-note">In the order they earned it.</p>` : '<p class="lb-owners-note">Nobody on the board owns it yet.</p>'}
       </div>` || '';
       list = top.length ? `<ol class="lb-list">${top.map((r, i) => `<li class="${r.me ? 'lb-me' : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-name">${r.initials}${r.me ? ' (you)' : ''}</span><span class="lb-val">${shown(r.value)}</span></li>`).join('')}</ol>`
-        : `<p class="lb-empty">Nobody is on this board yet${period === 'month' ? ' this month' : ''}. It could be you.</p>`;
+        : `<p class="lb-empty">Nobody is on this board yet${period === 'year' ? ' this year' : ''}. It could be you.</p>`;
     } catch (e) { list = '<p class="lb-empty">The leaderboard could not be reached right now. Try again in a bit.</p>'; }
   }
   body.innerHTML = `
     <div class="lb-tabs" role="tablist" aria-label="Board">${tab('net', 'Richest in Athens', 'board')}${tab('bj', 'Blackjack profits', 'board')}${tab('ms', 'Fastest Minesweeper', 'board')}${tab('lap', 'Fastest lap', 'board')}</div>
-    <div class="lb-period" role="tablist" aria-label="Time">${tab('month', 'This month', 'period')}${tab('all', 'All time', 'period')}</div>
+    <div class="lb-period" role="tablist" aria-label="Time">${tab('year', 'This year', 'period')}${tab('all', 'All time', 'period')}</div>
     <p class="lb-what">${what}</p>
     ${list}
     ${trophies}
