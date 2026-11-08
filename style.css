@@ -804,6 +804,10 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .post .post-body { margin-top: 32px; display: grid; gap: 18px; font-size: 1.1rem; line-height: 1.75; }
 .post .post-body h2 { font-size: 1.6rem; margin-top: 18px; }
 .post .post-body math.post-math { font-size: 1.35em; margin: 2px 0; }
+.post .post-body p math.post-math { font-size: 1.2em; margin: 14px 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+.post .post-refs { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: .95rem; line-height: 1.6; color: var(--ink-2); }
+.post .post-refs li { padding-left: 1.6em; text-indent: -1.6em; overflow-wrap: anywhere; }
+.post .post-refs a { color: inherit; }
 .post .post-body blockquote { margin: 0; padding: 4px 0 4px 20px; border-left: 1px solid var(--hairline-strong); color: var(--ink-2); font-style: italic; }
 
 @media (max-width: 980px) {
@@ -1042,6 +1046,7 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 /* Blog index: post card with thumbnail */
 .posts a.has-thumb { grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: auto auto 1fr; align-items: start; }
 .posts a.has-thumb .post-thumb { grid-row: 1 / 4; width: 100%; height: 100%; min-height: 130px; object-fit: cover; border-radius: var(--r-md); }
+.posts a.has-thumb .post-thumb-fit { object-fit: contain; background: #0f1e33; } /* a wide picture shown whole, on its own navy */
 .posts a.has-thumb time, .posts a.has-thumb h2, .posts a.has-thumb p { grid-column: 2; }
 @media (max-width: 600px) { .posts a.has-thumb { grid-template-columns: 1fr; } .posts a.has-thumb .post-thumb { grid-row: auto; height: auto; aspect-ratio: 16 / 9; } .posts a.has-thumb time, .posts a.has-thumb h2, .posts a.has-thumb p { grid-column: 1; } }
 
