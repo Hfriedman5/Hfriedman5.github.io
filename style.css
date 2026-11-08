@@ -786,9 +786,9 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .places button[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
 
 /* Blog */
-.blog-hero { padding-block: clamp(40px, 7vw, 88px) clamp(32px, 5vw, 56px); }
+.blog-hero { width: fit-content; max-width: 100%; padding-block: clamp(40px, 7vw, 88px) clamp(32px, 5vw, 56px); }
 .blog-hero h1 { font-size: clamp(2.6rem, 6vw, 4.25rem); }
-.blog-hero p { margin-top: 18px; max-width: 56ch; font-size: 1.15rem; color: var(--ink-2); }
+.blog-hero p { margin-top: 18px; width: 0; min-width: 100%; font-size: 1.15rem; color: var(--ink-2); } /* exactly as wide as the title above it */
 .posts { list-style: none; margin: 0; padding: 0 0 clamp(56px, 8vw, 96px); display: grid; gap: 12px; } /* room above the footer */
 .posts a { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 4px 24px; padding: 22px 24px; border-radius: var(--r-lg); background: var(--bg); text-decoration: none; box-shadow: var(--shadow-1); transition: box-shadow .2s, transform .2s var(--ease-out); }
 .posts a:hover { box-shadow: var(--shadow-2); transform: translateY(-1px); }
