@@ -808,6 +808,8 @@ dialog::backdrop { background: rgba(8, 15, 28, .45); backdrop-filter: blur(2px);
 .post .post-refs { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: .95rem; line-height: 1.6; color: var(--ink-2); }
 .post .post-refs li { padding-left: 1.6em; text-indent: -1.6em; overflow-wrap: anywhere; }
 .post .post-refs a { color: inherit; }
+.post .post-refs-h { margin-bottom: -8px; font-size: .78rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.post .post-story { display: grid; gap: 14px; padding-left: 20px; border-left: 2px solid var(--hairline-strong); color: var(--ink-2); }
 .post .post-body blockquote { margin: 0; padding: 4px 0 4px 20px; border-left: 1px solid var(--hairline-strong); color: var(--ink-2); font-style: italic; }
 
 @media (max-width: 980px) {
